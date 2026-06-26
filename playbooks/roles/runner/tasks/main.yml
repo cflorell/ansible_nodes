@@ -1,0 +1,136 @@
+---
+- name: runner | assert supported OS
+  ansible.builtin.assert:
+    that:
+      - ansible_facts['distribution'] in ['Debian', 'Ubuntu']
+    fail_msg: "The runner role currently supports Debian and Ubuntu hosts."
+
+- name: runner | add GitLab Runner apt repository
+  ansible.builtin.deb822_repository:
+    name: gitlab-runner
+    types: deb
+    uris: "https://packages.gitlab.com/runner/gitlab-runner/{{ ansible_facts['distribution'] | lower }}"
+    suites: "{{ ansible_facts['distribution_release'] | lower }}"
+    components: main
+    signed_by: "https://packages.gitlab.com/runner/gitlab-runner/gpgkey"
+    state: present
+    enabled: true
+
+- name: runner | add HashiCorp apt repository
+  ansible.builtin.deb822_repository:
+    name: hashicorp
+    types: deb
+    uris: "https://apt.releases.hashicorp.com"
+    suites: "{{ ansible_facts['distribution_release'] | lower }}"
+    components: main
+    signed_by: "https://apt.releases.hashicorp.com/gpg"
+    state: present
+    enabled: true
+
+- name: runner | install GitLab Runner
+  ansible.builtin.apt:
+    name: gitlab-runner
+    update_cache: true
+
+- name: runner | install Vagrant and libvirt packages
+  ansible.builtin.apt:
+    name: "{{ gitlab_runner_vagrant_packages }}"
+    update_cache: true
+
+- name: runner | add GitLab Runner user to Vagrant groups
+  ansible.builtin.user:
+    name: gitlab-runner
+    append: true
+    groups: "{{ gitlab_runner_groups }}"
+  notify: restart gitlab-runner
+
+- name: runner | enable libvirt daemon
+  ansible.builtin.systemd:
+    name: libvirtd
+    enabled: true
+    state: started
+
+- name: runner | enable GitLab Runner service
+  ansible.builtin.systemd:
+    name: gitlab-runner
+    enabled: true
+    state: started
+
+- name: runner | list registered GitLab runners
+  ansible.builtin.command:
+    argv:
+      - gitlab-runner
+      - list
+  register: gitlab_runner_registered_runners
+  changed_when: false
+  failed_when: false
+
+- name: runner | assert registration variables
+  ansible.builtin.assert:
+    that:
+      - gitlab_runner_url | length > 0
+      - gitlab_runner_token | length > 0
+      - gitlab_runner_token != "glrt-change-me"
+    fail_msg: "Set gitlab_runner_url and gitlab_runner_token in secrets.vault before registering the runner."
+  no_log: true
+  when: >
+    gitlab_runner_description not in
+    ((gitlab_runner_registered_runners.stdout | default('')) ~
+    (gitlab_runner_registered_runners.stderr | default('')))
+
+- name: runner | register shell runner
+  ansible.builtin.command:
+    argv:
+      - gitlab-runner
+      - register
+      - --non-interactive
+      - --url
+      - "{{ gitlab_runner_url }}"
+      - --token
+      - "{{ gitlab_runner_token }}"
+      - --executor
+      - shell
+      - --description
+      - "{{ gitlab_runner_description }}"
+  no_log: true
+  notify: restart gitlab-runner
+  when: >
+    gitlab_runner_description not in
+    ((gitlab_runner_registered_runners.stdout | default('')) ~
+    (gitlab_runner_registered_runners.stderr | default('')))
+
+- name: runner | list Vagrant plugins
+  become: true
+  become_user: gitlab-runner
+  ansible.builtin.command:
+    argv:
+      - vagrant
+      - plugin
+      - list
+  environment:
+    HOME: /home/gitlab-runner
+    USER: gitlab-runner
+    VAGRANT_DEFAULT_PROVIDER: libvirt
+  register: gitlab_runner_vagrant_plugin_list
+  changed_when: false
+  failed_when: false
+
+- name: runner | install Vagrant plugins
+  become: true
+  become_user: gitlab-runner
+  ansible.builtin.command:
+    argv:
+      - vagrant
+      - plugin
+      - install
+      - "{{ item }}"
+  environment:
+    HOME: /home/gitlab-runner
+    USER: gitlab-runner
+    VAGRANT_DEFAULT_PROVIDER: libvirt
+    VAGRANT_DISABLE_STRICT_DEPENDENCY_ENFORCEMENT: "1"
+  loop: "{{ gitlab_runner_vagrant_plugins }}"
+  when: >
+    item not in
+    ((gitlab_runner_vagrant_plugin_list.stdout | default('')) ~
+    (gitlab_runner_vagrant_plugin_list.stderr | default('')))

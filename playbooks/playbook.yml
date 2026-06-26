@@ -39,6 +39,13 @@
   roles:
     - workstation
 
+- name: Run runner tasks
+  hosts: runner
+  tags: runner
+  become: true
+  roles:
+    - runner
+
 - name: Run node exporter role
   hosts: server
   tags: node-exporter
