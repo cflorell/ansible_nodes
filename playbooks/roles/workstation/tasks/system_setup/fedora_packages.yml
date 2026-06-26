@@ -1,0 +1,16 @@
+---
+- name: system_setup | fedora | Install RPM Fusion repositories
+  become: true
+  ansible.builtin.get_url:
+    url: "https://mirrors.rpmfusion.org/free/fedora/rpmfusion-free-release-{{ ansible_facts['distribution_version'] }}.noarch.rpm"
+    dest: "/tmp/rpmfusion-free.rpm"
+    mode: '0644'
+  register: rpmfusion_free
+
+- name: system_setup | fedora | Install RPM Fusion Nonfree repository
+  become: true
+  ansible.builtin.get_url:
+    url: "https://mirrors.rpmfusion.org/nonfree/fedora/rpmfusion-nonfree-release-{{ ansible_facts['distribution_version'] }}.noarch.rpm"
+    dest: "/tmp/rpmfusion-nonfree.rpm"
+    mode: '0644'
+  register: rpmfusion_nonfree

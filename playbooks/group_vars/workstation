@@ -1,0 +1,15 @@
+---
+branch: master
+
+ssh_port: 22
+ssh_users: christoffer
+
+# platform-specific
+microcode_amd_install: false
+microcode_intel_install: true
+
+# application selection
+starship: true
+vscode: true
+
+samba: false

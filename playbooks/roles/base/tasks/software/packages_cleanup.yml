@@ -1,0 +1,6 @@
+---
+- name: system setup | repositories | remove crap
+  tags: cleanup,packages,system,settings
+  ansible.builtin.package:
+    state: absent
+    name: [cowsay, exim4, exim4-base, exim4-config, celluloid]

@@ -1,0 +1,47 @@
+---
+- name: server | node-docker | Create service directories
+  ansible.builtin.file:
+    path: "/{{ ansible_facts['user_id'] }}/{{ item }}"
+    state: directory
+    mode: "0755"
+  loop:
+    - heimdal
+    - speedtest
+    - uptime-kuma
+    - signal-cli
+    - alertmanager-signal
+    - nginx-proxy-manager
+    - promtail
+    - WatchYourLAN
+
+- name: server | node-docker | Move promtail-config.yml
+  ansible.builtin.template:
+    src: common/promtail-config.yml.j2
+    dest: "/{{ ansible_facts['user_id'] }}/promtail/promtail-config.yml"
+    owner: "{{ ansible_facts['user_id'] }}"
+    group: "{{ ansible_facts['user_id'] }}"
+    mode: "0600"
+
+- name: server | node-docker | move docker-compose.yml file to host
+  ansible.builtin.template:
+    src: "docker/docker-compose.yml.j2"
+    dest: "/{{ ansible_facts['user_id'] }}/docker-compose.yml"
+    owner: "{{ ansible_facts['user_id'] }}"
+    group: "{{ ansible_facts['user_id'] }}"
+    mode: "0600"
+
+- name: server | node-docker | Move alertmanager-signal/config.yaml
+  ansible.builtin.template:
+    src: "docker/alertmanager-signal/config.yaml.j2"
+    dest: "/{{ ansible_facts['user_id'] }}/alertmanager-signal/config.yaml"
+    owner: "{{ ansible_facts['user_id'] }}"
+    group: "{{ ansible_facts['user_id'] }}"
+    mode: "0600"
+
+- name: server | node-docker | deploy Docker Compose stack
+  community.docker.docker_compose_v2:
+    project_src: "/{{ ansible_facts['user_id'] }}/"
+    remove_orphans: true
+    files:
+      - docker-compose.yml
+    recreate: always

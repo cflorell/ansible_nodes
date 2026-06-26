@@ -1,0 +1,27 @@
+- name: Audit existing containers
+  hosts: nodes
+  gather_facts: true
+
+  tasks:
+    - name: Show key facts
+      ansible.builtin.debug:
+        msg:
+          - "Hostname: {{ ansible_hostname }}"
+          - "OS: {{ ansible_distribution }} {{ ansible_distribution_version }}"
+          - "IPs: {{ ansible_all_ipv4_addresses }}"
+          - "Memory: {{ ansible_memtotal_mb }} MB"
+          - "CPUs: {{ ansible_processor_vcpus }}"
+
+    - name: Ensure facts directory exists
+      ansible.builtin.file:
+        path: ./facts
+        state: directory
+        mode: "0600"
+      delegate_to: localhost
+
+    - name: Write facts to file
+      ansible.builtin.copy:
+        content: "{{ hostvars[inventory_hostname] | to_nice_json }}"
+        dest: "./facts/{{ inventory_hostname }}.json"
+        mode: "0600"
+      delegate_to: localhost

@@ -1,0 +1,143 @@
+---
+services:
+  jellyseerr:
+    image: ghcr.io/seerr-team/seerr:latest
+    container_name: jellyseerr
+    user: root
+    environment:
+      - LOG_LEVEL=debug
+      - TZ=Europe/Stockholm
+    ports:
+      - 5055:5055
+    volumes:
+      - ./jellyseerr:/app/config
+    restart: unless-stopped
+
+  promtail:
+    image: grafana/promtail:3.2.1
+    container_name: promtail
+    user: root
+    volumes:
+      - /var/log:/var/log
+      - ./promtail:/etc/promtail
+    restart: unless-stopped
+    command: -config.file=/etc/promtail/promtail-config.yml
+
+  tracearr:
+    image: ghcr.io/connorgallopo/tracearr:latest
+    container_name: tracearr
+    ports:
+      - "${PORT:-3000}:3000"
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - HOST=0.0.0.0
+      - TZ=${TZ:-UTC}
+      - DATABASE_URL=postgres://tracearr:{{ tracearr_postgres_password }}@timescale:5432/tracearr
+      - REDIS_URL=redis://redis:6379
+      - JWT_SECRET=${JWT_SECRET}
+      - COOKIE_SECRET=${COOKIE_SECRET}
+      - CORS_ORIGIN=${CORS_ORIGIN:-*}
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+    depends_on:
+      timescale:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - tracearr-network
+
+  timescale:
+    # Official TimescaleDB image with PostgreSQL 16
+    # Note: TimescaleDB Toolkit is not included in the official image
+    # For Toolkit support, use the supervised deployment instead
+    image: timescale/timescaledb:latest-pg16
+    container_name: tracearr-db
+    shm_size: 256mb  # Required for PostgreSQL shared memory
+    # Allow unlimited tuple decompression for migrations on compressed hypertables
+    command: postgres -c timescaledb.max_tuples_decompressed_per_dml_transaction=0
+    environment:
+      - POSTGRES_USER=tracearr
+      - POSTGRES_PASSWORD={{ tracearr_postgres_password }}
+      - POSTGRES_DB=tracearr
+    volumes:
+      - timescale_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U tracearr"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - tracearr-network
+
+  redis:
+    image: redis:8-alpine
+    container_name: tracearr-redis
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - tracearr-network
+
+  booklore:
+    image: booklore/booklore:latest
+    container_name: booklore
+    environment:
+      - USER_ID=${APP_USER_ID}
+      - GROUP_ID=${APP_GROUP_ID}
+      - TZ=${TZ}
+      - DATABASE_URL=${DATABASE_URL}
+      - DATABASE_USERNAME=${DB_USER}
+      - DATABASE_PASSWORD=${DB_PASSWORD}
+    depends_on:
+      mariadb:
+        condition: service_healthy
+    ports:
+      - "6060:6060"
+    volumes:
+      - ./booklore/data:/app/data
+      - /mnt/Storage3/samba/Ebooks:/books
+      - ./booklore/bookdrop:/bookdrop
+    healthcheck:
+      test: wget -q -O - http://localhost:6060/api/v1/healthcheck
+      interval: 60s
+      retries: 5
+      start_period: 60s
+      timeout: 10s
+    restart: unless-stopped
+
+  mariadb:
+    image: lscr.io/linuxserver/mariadb:11.4.5
+    container_name: mariadb
+    environment:
+      - PUID=${DB_USER_ID}
+      - PGID=${DB_GROUP_ID}
+      - TZ=${TZ}
+      - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}
+      - MYSQL_DATABASE=${MYSQL_DATABASE}
+      - MYSQL_USER=${DB_USER}
+      - MYSQL_PASSWORD=${DB_PASSWORD}
+    volumes:
+      - ./mariadb/config:/config
+    restart: unless-stopped
+    healthcheck:
+      test: [ "CMD", "mariadb-admin", "ping", "-h", "localhost" ]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+networks:
+  tracearr-network:
+    driver: bridge
+
+volumes:
+  timescale_data:
+  redis_data:

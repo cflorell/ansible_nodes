@@ -1,0 +1,20 @@
+*.retry
+*.log
+*.pyc
+.vagrant
+.ansible/
+inventory/facts
+
+# Local/private Ansible data
+secrets*.yml
+secrets*.vault
+*.vault
+*.env
+*.key
+*.pem
+*.crt
+*.ovpn
+.smbcredentials
+inventory/hosts
+inventory/proxmox.yml
+inventory/terraform_nodes.json

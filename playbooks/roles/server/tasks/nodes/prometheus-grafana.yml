@@ -1,0 +1,76 @@
+---
+- name: server | node-prometheus-grafana | Create service directories
+  ansible.builtin.file:
+    path: "/{{ ansible_facts['user_id'] }}/{{ item }}"
+    state: directory
+    mode: "0755"
+  loop:
+    - grafana
+    - config
+    - loki
+    - promtail
+
+- name: server | node-prometheus-grafana | move docker-compose.yml file to host
+  ansible.builtin.template:
+    src: "prometheus-grafana/docker-compose.yml.j2"
+    dest: "/{{ ansible_facts['user_id'] }}/docker-compose.yml"
+    owner: "{{ ansible_facts['user_id'] }}"
+    group: "{{ ansible_facts['user_id'] }}"
+    mode: "0600"
+
+- name: server | node-prometheus-grafana | Move prometheus.yml
+  ansible.builtin.template:
+    src: prometheus-grafana/prometheus.yml.j2
+    dest: "/{{ ansible_facts['user_id'] }}/config/prometheus.yml"
+    owner: "{{ ansible_facts['user_id'] }}"
+    group: "{{ ansible_facts['user_id'] }}"
+    mode: "0600"
+
+- name: server | node-prometheus-grafana | Move alertmanager.yml
+  ansible.builtin.template:
+    src: prometheus-grafana/alertmanager.yml.j2
+    dest: "/{{ ansible_facts['user_id'] }}/config/alertmanager.yml"
+    owner: "{{ ansible_facts['user_id'] }}"
+    group: "{{ ansible_facts['user_id'] }}"
+    mode: "0600"
+
+- name: server | node-prometheus-grafana | Move alert.rules.yml
+  ansible.builtin.copy:
+    src: files/{{ ansible_facts['hostname'] }}/alert.rules.yml
+    dest: "/{{ ansible_facts['user_id'] }}/config/"
+    owner: "{{ ansible_facts['user_id'] }}"
+    group: "{{ ansible_facts['user_id'] }}"
+    mode: "0600"
+
+- name: server | node-prometheus-grafana | Move /etc/docker/daemon.json
+  ansible.builtin.copy:
+    src: files/{{ ansible_facts['hostname'] }}/daemon.json
+    dest: "/etc/docker/"
+    owner: "{{ ansible_facts['user_id'] }}"
+    group: "{{ ansible_facts['user_id'] }}"
+    mode: "0644"
+  register: daemon_json
+
+- name: server | node-prometheus-grafana | Move promtail-config.yml
+  ansible.builtin.template:
+    src: prometheus-grafana/promtail-config.yml.j2
+    dest: "/{{ ansible_facts['user_id'] }}/promtail/promtail-config.yml"
+    owner: "{{ ansible_facts['user_id'] }}"
+    group: "{{ ansible_facts['user_id'] }}"
+    mode: "0600"
+
+- name: server | node-prometheus-grafana | Move loki-config.yml
+  ansible.builtin.copy:
+    src: files/{{ ansible_facts['hostname'] }}/loki-config.yml
+    dest: "/{{ ansible_facts['user_id'] }}/loki/"
+    owner: "{{ ansible_facts['user_id'] }}"
+    group: "{{ ansible_facts['user_id'] }}"
+    mode: "0600"
+
+- name: server | node-prometheus-grafana | Deploy Docker Compose stack
+  community.docker.docker_compose_v2:
+    project_src: "/{{ ansible_facts['user_id'] }}/"
+    remove_orphans: true
+    files:
+      - docker-compose.yml
+    recreate: always

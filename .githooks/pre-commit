@@ -1,0 +1,42 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+repo_root="$(git rev-parse --show-toplevel)"
+cd "$repo_root"
+
+exec 1>&2
+
+if git rev-parse --verify HEAD >/dev/null 2>&1; then
+  against=HEAD
+else
+  against=4b825dc642cb6eb9a060e54bf8d69288fbee4904
+fi
+
+exit_status=0
+
+is_private_path() {
+  local file="$1"
+
+  case "$file" in
+    *.example|*.example.*)
+      return 1
+      ;;
+    secrets*.yml|secrets*.vault|*.vault|*.env|*.key|*.pem|*.crt|*.ovpn|*.smbcredentials)
+      return 0
+      ;;
+    inventory/hosts|inventory/proxmox.yml|inventory/terraform_nodes.json|inventory/facts/*)
+      return 0
+      ;;
+  esac
+
+  return 1
+}
+
+while IFS= read -r -d $'\0' file; do
+  if is_private_path "$file"; then
+    echo "ERROR: private file should not be committed: $file"
+    exit_status=1
+  fi
+done < <(git diff --cached --name-only -z "$against")
+
+exit "$exit_status"

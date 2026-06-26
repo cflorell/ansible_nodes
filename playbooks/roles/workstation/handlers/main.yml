@@ -1,0 +1,40 @@
+---
+- name: restart_earlyoom
+  tags: earlyoom,system,system setup,tweaks
+  ansible.builtin.service:
+    name: earlyoom
+    state: restarted
+
+- name: update_tmux_plugin_perms
+  ansible.builtin.file:
+    path: /home/"{{ ansible_facts['user_id'] }}"/.tmux/plugins
+    owner: "{{ ansible_facts['user_id'] }}"
+    group: "{{ ansible_facts['user_id'] }}"
+    recurse: true
+
+- name: update_vim_bundle_perms
+  ansible.builtin.file:
+    path: /home/"{{ ansible_facts['user_id'] }}"/.vim/bundle
+    owner: "{{ ansible_facts['user_id'] }}"
+    group: "{{ ansible_facts['user_id'] }}"
+    recurse: true
+
+- name: Bash | Remove oh-my-bash Install Script
+  ansible.builtin.file:
+    path: /tmp/oh-my-bash.install.sh
+    state: absent
+
+- name: Bash | Cleanup oh-my-bash install script
+  ansible.builtin.file:
+    path: /{{ ansible_facts['user_dir'] }}/oh-my-bash.install.sh
+    state: absent
+
+- name: ZSH | Remove oh-my-bash Install Script
+  ansible.builtin.file:
+    path: /tmp/oh-my-bash.install.sh
+    state: absent
+
+- name: ZSH | Cleanup oh-my-zsh install script
+  ansible.builtin.file:
+    path: /{{ ansible_facts['user_dir'] }}/oh-my-zsh.install.sh
+    state: absent

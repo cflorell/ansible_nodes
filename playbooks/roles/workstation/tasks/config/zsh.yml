@@ -1,0 +1,61 @@
+---
+- name: "config | ZSH | Detect oh-my-zsh"
+  ansible.builtin.stat:
+    path: "{{ ansible_facts['user_dir'] }}/.oh-my-zsh"
+  register: ohmyzsh
+
+- name: "config | ZSH | Register oh-my-zsh state"
+  ansible.builtin.set_fact:
+    ohmyzsh_is_installed: "{{ ohmyzsh.stat.exists }}"
+
+- name: "config | ZSH | Debug ohmyzsh_is_installed"
+  ansible.builtin.debug:
+    var: ohmyzsh_is_installed
+
+- name: software | utilities | install zsh
+  ansible.builtin.package:
+    name: zsh
+
+- name: "config | ZSH | Install oh-my-zsh"
+  when: not ohmyzsh_is_installed
+  block:
+    - name: "config | ZSH | Download oh-my-zsh Install Script"
+      ansible.builtin.get_url:
+        url: https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh
+        dest: /tmp/oh-my-zsh_install.sh
+        force: true
+        mode: "0755"
+      notify:
+        - "ZSH | Cleanup oh-my-zsh install script"
+
+    - name: "config | ZSH | Run the install script"
+      become: true
+      become_user: "{{ ansible_facts['user_id'] }}"
+      ansible.builtin.script:
+        cmd: /tmp/oh-my-zsh_install.sh --unattended
+
+- name: "config | ZSH | Install Custom Plugins"
+  ansible.builtin.git:
+    repo: "{{ item.repo }}"
+    dest: "{{ ansible_facts['user_dir'] }}/.oh-my-zsh/custom/plugins/{{ item.name }}"
+    update: true
+    depth: 1
+  loop:
+    - repo: https://github.com/zsh-users/zsh-autosuggestions
+      name: zsh-autosuggestions
+    - repo: https://github.com/joshskidmore/zsh-fzf-history-search
+      name: zsh-fzf-history-search
+
+- name: "config | ZSH | Copy .zshrc"
+  ansible.builtin.copy:
+    src: "files/users/christoffer/zsh/.zshrc"
+    dest: "{{ ansible_facts['user_dir'] }}/.zshrc"
+    mode: "0644"
+
+- name: "config | ZSH | Copy custom zsh config"
+  ansible.builtin.copy:
+    src: "files/users/christoffer/zsh/config/"
+    dest: "{{ ansible_facts['user_dir'] }}/.config/zsh/"
+    mode: "0644"
+    directory_mode: "0755"
+    force: true

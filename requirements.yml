@@ -1,0 +1,6 @@
+---
+collections:
+  - name: kewlfft.aur
+  - name: prometheus.prometheus
+  - name: community.docker
+  - name: community.proxmox

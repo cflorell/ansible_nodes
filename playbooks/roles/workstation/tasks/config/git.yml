@@ -1,0 +1,65 @@
+---
+- name: config | git | install packages
+  ansible.builtin.package:
+    name:
+      - git
+
+- name: "config | Git | Set diff.colorMoved"
+  community.general.git_config:
+    name: diff.colorMoved
+    scope: global
+    value: zebra
+
+- name: "config | git | Set fetch.prune"
+  community.general.git_config:
+    name: fetch.prune
+    scope: global
+    value: true
+
+- name: "config | git | Set init.defaultBranch"
+  community.general.git_config:
+    name: init.defaultBranch
+    scope: global
+    value: main
+
+- name: "config | git | Set pull.rebase"
+  community.general.git_config:
+    name: pull.rebase
+    scope: global
+    value: true
+
+- name: "config | git | Set rebase.autoStash"
+  community.general.git_config:
+    name: rebase.autoStash
+    scope: global
+    value: true
+
+- name: "config | git | Set gpg.format"
+  community.general.git_config:
+    name: gpg.format
+    scope: global
+    value: ssh
+
+- name: "config | git | Set commit.gpgsign"
+  community.general.git_config:
+    name: commit.gpgsign
+    scope: global
+    value: true
+
+- name: "config | git | Set tag.gpgsign"
+  community.general.git_config:
+    name: tag.gpgsign
+    scope: global
+    value: true
+
+- name: "config | git | Copy global.commit.template"
+  ansible.builtin.copy:
+    src: christoffer/global.commit.template
+    dest: "{{ ansible_facts['user_dir'] }}/.config/git/commit_template"
+    mode: "0644"
+
+- name: "config | git | Set commit.template"
+  community.general.git_config:
+    name: commit.template
+    scope: global
+    value: "{{ ansible_facts['user_dir'] }}/.config/git/commit_template"

@@ -1,0 +1,190 @@
+---
+- name: users | christoffer | create group
+  ansible.builtin.group:
+    name: christoffer
+    state: present
+
+- name: users | christoffer | create user Debian/Ubuntu
+  ansible.builtin.user:
+    name: christoffer
+    group: christoffer
+    groups: adm,sudo
+    state: present
+    comment: christoffer
+    password: '{{ christoffer_password }}'
+    shell: /bin/bash
+  when: ansible_facts['distribution'] in ['Ubuntu', 'Debian', 'LMDE', 'ArchLinux']
+
+- name: users | christoffer | create user Fedora
+  ansible.builtin.user:
+    name: christoffer
+    group: christoffer
+    groups: adm,wheel
+    state: present
+    comment: christoffer
+    password: '{{ christoffer_password }}'
+    shell: /bin/bash
+  when: ansible_facts['distribution'] == "Fedora"
+
+- name: users | christoffer | add sudoers file
+  ansible.builtin.copy:
+    src: files/users/sudoers_christoffer
+    dest: /etc/sudoers.d/christoffer
+    owner: root
+    group: root
+    mode: "0440"
+
+- name: users | christoffer | create .ssh directory
+  ansible.builtin.file:
+    path: /home/christoffer/.ssh
+    state: directory
+    owner: christoffer
+    group: christoffer
+    mode: "0700"
+
+- name: users | christoffer | create ssh keypair
+  community.crypto.openssh_keypair:
+    path: /home/christoffer/.ssh/id_ed25519
+    type: ed25519
+    owner: christoffer
+    group: christoffer
+
+
+- name: users | christoffer | create config directories
+  ansible.builtin.file:
+    path: /home/christoffer/{{ item.dir }}
+    state: directory
+    owner: christoffer
+    group: christoffer
+    mode: "0700"
+  with_items:
+    - {dir: .config}
+    - {dir: .config/htop}
+    - {dir: .tmux}
+    - {dir: .tmux/config}
+    - {dir: .tmux/plugins}
+
+- name: users | christoffer | copy tmux config
+  ansible.builtin.copy:
+    src: files/users/christoffer/tmux/tmux.conf
+    dest: /home/christoffer/.tmux.conf
+    owner: christoffer
+    group: christoffer
+    mode: "0600"
+
+- name: users | christoffer | copy dotfiles
+  ansible.builtin.copy:
+    src: files/users/christoffer/{{ item.src }}
+    dest: /home/christoffer/{{ item.dest }}
+    owner: christoffer
+    group: christoffer
+    mode: "0600"
+  with_items:
+    - {src: htop/htoprc, dest: .config/htop/htoprc}
+
+- name: Prevent git error on runner
+  community.general.git_config:
+    name: safe.directory
+    scope: global
+    value: "*"
+
+- name: users | christoffer | clone tmux-completion plugin repository
+  ansible.builtin.git:
+    repo: https://github.com/srsudar/tmux-completion.git
+    dest: /home/christoffer/.tmux/plugins/completion
+    force: true
+  notify: update_tmux_plugin_perms
+  retries: 3
+  delay: 3
+  register: result
+  until: result is succeeded
+
+- name: users | christoffer | clone tmux-continuum plugin repository
+  ansible.builtin.git:
+    repo: https://github.com/tmux-plugins/tmux-continuum.git
+    dest: /home/christoffer/.tmux/plugins/continuum
+    force: true
+  notify: update_tmux_plugin_perms
+  retries: 3
+  delay: 3
+  register: result
+  until: result is succeeded
+
+- name: users | christoffer | clone tmux-resurrect plugin repository
+  ansible.builtin.git:
+    repo: https://github.com/tmux-plugins/tmux-resurrect.git
+    dest: /home/christoffer/.tmux/plugins/resurrect
+    force: true
+  notify: update_tmux_plugin_perms
+  retries: 3
+  delay: 3
+  register: result
+  until: result is succeeded
+
+- name: users | christoffer | remove preinstalled clutter from home directory
+  ansible.builtin.file:
+    path: /home/christoffer/{{ item }}
+    state: absent
+  with_items: [examples.desktop, Music, Public, Templates, Videos]
+
+- name: users | christoffer | create personal config directories
+  ansible.builtin.file:
+    path: /home/christoffer/{{ item.dir }}
+    state: directory
+    owner: christoffer
+    group: christoffer
+    mode: "0700"
+  with_items:
+    - {dir: .config}
+    - {dir: .config/autostart}
+    - {dir: .config/bpytop}
+    - {dir: .config/gtk-3.0}
+    - {dir: .config/terminator}
+    - {dir: .local}
+    - {dir: .local/share}
+    - {dir: .local/share/applications}
+    - {dir: bin}
+
+- name: users | christoffer | copy personal config files
+  ansible.builtin.copy:
+    src: files/users/christoffer/{{ item.src }}
+    dest: /home/christoffer/{{ item.dest }}
+    owner: christoffer
+    group: christoffer
+    mode: "0600"
+  with_items:
+    - {src: terminator_config, dest: .config/terminator/config}
+
+- name: users | christoffer | template ssh client config
+  ansible.builtin.template:
+    src: christoffer/ssh_config.j2
+    dest: /home/christoffer/.ssh/config
+    owner: christoffer
+    group: christoffer
+    mode: "0600"
+
+- name: users | christoffer | create samba directory
+  ansible.builtin.file:
+    path: "/home/christoffer/Documents/samba"
+    state: directory
+    owner: christoffer
+    group: christoffer
+    mode: "0700"
+  when: samba is defined and samba
+
+- name: users | christoffer | Add .smbcredentials
+  ansible.builtin.template:
+    src: "christoffer/smbcredentials.j2"
+    dest: "/home/christoffer/.smbcredentials"
+    owner: christoffer
+    group: christoffer
+    mode: "0600"
+  when: samba is defined and samba
+
+
+- name: users | christoffer | Add samba share
+  ansible.builtin.blockinfile:
+    path: /etc/fstab
+    block: |
+      {{ samba_share_source }} /home/christoffer/Documents/samba cifs credentials=/home/christoffer/.smbcredentials,uid=1000,gid=1000 0 0
+  when: samba is defined and samba

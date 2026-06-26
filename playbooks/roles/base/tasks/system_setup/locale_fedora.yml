@@ -1,0 +1,30 @@
+---
+- name: system setup | fedora locale | install locale dependencies
+  ansible.builtin.package:
+    name:
+      - glibc-locale-source
+      - glibc-langpack-en
+
+- name: system setup | fedora locale |  Download and install custom locale
+  ansible.builtin.get_url:
+    url: https://gist.githubusercontent.com/el-pato/49b094855a04aafbca3ebb875475cdf9/raw/3a58c03c50b02097285ac6f367547848436594f7/en_SE
+    dest: /usr/share/i18n/locales/en_SE
+    mode: '0644'
+
+- name: system setup | fedora locale | Check if locale exists
+  ansible.builtin.command: locale -a | grep -q "^{{ config_system_locale }}$"
+  register: locale_exists
+  changed_when: false
+  failed_when: false
+
+- name: system setup | fedora locale | Generate locale
+  ansible.builtin.command: localedef -c -i {{ config_system_locale.split('.')[0] }} -f {{ config_system_locale.split('.')[-1] }} {{ config_system_locale }}
+  register: output
+  changed_when: output.rc != 0
+  when: not locale_exists.rc == 0
+
+- name: system setup | fedora locale | Set locale
+  ansible.builtin.command: localectl set-locale LANG={{ config_system_locale }}
+  register: output
+  changed_when: output.rc != 0
+  when: not locale_exists.rc == 0

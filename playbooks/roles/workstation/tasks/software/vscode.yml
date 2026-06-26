@@ -1,0 +1,54 @@
+---
+- name: workstation | vscode | Add apt
+  ansible.builtin.deb822_repository:
+    name: vscode
+    types: deb
+    uris: "https://packages.microsoft.com/repos/code"
+    signed_by: "https://packages.microsoft.com/keys/microsoft.asc"
+    suites: stable
+    components: main
+    state: present
+    enabled: true
+  when: ansible_facts['distribution'] in ['Ubuntu', 'Debian', 'LMDE']
+
+- name: workstation | vscode | Import Microsoft GPG key
+  ansible.builtin.get_url:
+    url: https://packages.microsoft.com/keys/microsoft.asc
+    dest: /etc/pki/rpm-gpg/GPG-PUB-KEY-MICROSOFT
+    mode: '0644'
+  when: ansible_facts['distribution'] == "Fedora"
+
+- name: workstation | vscode | Create Visual Studio Code repository file
+  ansible.builtin.copy:
+    content: |
+      [code]
+      name=Visual Studio Code
+      baseurl=https://packages.microsoft.com/yumrepos/vscode
+      enabled=1
+      gpgcheck=1
+      gpgkey=https://packages.microsoft.com/keys/microsoft.asc
+    dest: /etc/yum.repos.d/vscode.repo
+    owner: root
+    group: root
+    mode: '0644'
+  when: ansible_facts['distribution'] == "Fedora"
+
+- name: workstation | vscode | Install VS Code
+  become: true
+  ansible.builtin.package:
+    name: code
+    state: present
+    update_cache: true
+  when: ansible_facts['distribution'] != 'Archlinux'
+
+- name: workstation | vscode | Install extensions
+  tags: skip-ci
+  become: true
+  become_user: "{{ ansible_facts['user_id'] }}"
+  ansible.builtin.command: code --install-extension {{ item }}
+  loop: "{{ visual_studio_code_extensions }}"
+  retries: 3
+  delay: 3
+  register: result
+  until: result is succeeded
+  changed_when: result.rc != 0

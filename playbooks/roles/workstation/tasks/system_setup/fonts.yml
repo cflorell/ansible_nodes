@@ -1,0 +1,28 @@
+---
+- name: system_setup | fonts | Ensure .fonts exist
+  ansible.builtin.file:
+    path: "/home/{{ ansible_facts['user_id'] }}/.fonts"
+    state: directory
+    owner: "{{ ansible_facts['user_id'] }}"
+    group: "{{ ansible_facts['user_id'] }}"
+    mode: '0755'
+
+- name: system_setup | fonts | Download and unarchive nerdfonts
+  ansible.builtin.unarchive:
+    src: https://github.com/ryanoasis/nerd-fonts/releases/download/v3.0.1/3270.zip
+    dest: "/home/{{ ansible_facts['user_id'] }}/.fonts"
+    remote_src: true
+  retries: 3
+  delay: 3
+  register: result
+  until: result is succeeded
+
+- name: system_setup | fonts | Install fontconfig
+  ansible.builtin.package:
+    name: fontconfig
+
+- name: system_setup | fonts | Update font cache
+  ansible.builtin.command:
+    cmd: fc-cache -fv
+  register: output
+  changed_when: output.rc != 0

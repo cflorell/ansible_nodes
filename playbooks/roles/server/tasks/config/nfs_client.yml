@@ -1,0 +1,126 @@
+---
+# Ansible version of script in server/files/nfs/server_node_setup.sh
+- name: server | nfs-client | Setup nfs mount on server node
+  block:
+    - name: server | nfs-client | Install necessary packages
+      ansible.builtin.apt:
+        name:
+          - libfuse-dev
+          - autoconf
+          - make
+          - g++
+          - nfs-common
+          - fuse
+        state: present
+        update_cache: true
+
+    - name: server | nfs-client | Download and extract unrarsrc
+      ansible.builtin.unarchive:
+        src: ftp://ftp.rarlab.com/rar/unrarsrc-6.2.6.tar.gz
+        dest: /usr/local/bin
+        remote_src: true
+      retries: 3
+      delay: 3
+      register: result
+      until: result is succeeded
+
+    - name: server | nfs-client | Compile unrar
+      ansible.builtin.command: make lib -f makefile
+      args:
+        chdir: /usr/local/bin/unrar/
+      register: output
+      changed_when: output.rc != 0
+
+    - name: server | nfs-client | Download and extract rar2fs
+      ansible.builtin.unarchive:
+        src: https://github.com/hasse69/rar2fs/releases/download/v1.29.6/rar2fs-1.29.6.tar.gz
+        dest: /usr/local/bin
+        remote_src: true
+      retries: 3
+      delay: 3
+      register: result
+      until: result is succeeded
+
+    - name: server | nfs-client | Configure and compile rar2fs
+      block:
+        - name: server | nfs-client | Run autoreconf
+          ansible.builtin.command: autoreconf -f -i
+          args:
+            chdir: /usr/local/bin/rar2fs-1.29.6/
+          register: output
+          changed_when: output.rc != 0
+
+        - name: server | nfs-client | Configure rar2fs
+          ansible.builtin.command: ./configure --with-unrar=../unrar
+          args:
+            chdir: /usr/local/bin/rar2fs-1.29.6/
+          register: output
+          changed_when: output.rc != 0
+
+        - name: server | nfs-client | Compile rar2fs
+          become: true
+          ansible.builtin.command: make
+          args:
+            chdir: /usr/local/bin/rar2fs-1.29.6/
+          register: output
+          changed_when: output.rc != 0
+
+        - name: server | nfs-client | Install rar2fs
+          become: true
+          ansible.builtin.command: make install
+          args:
+            chdir: /usr/local/bin/rar2fs-1.29.6/
+          register: output
+          changed_when: output.rc != 0
+
+
+    - name: server | nfs-client | Create directories for regular NFS mounts
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: directory
+        owner: root
+        group: root
+        mode: '0755'
+      loop:
+        - /mnt/Storage1
+        - /mnt/Storage2
+        - /mnt/Storage3
+        - /mnt/Storage4
+
+    - name: server | nfs-client | Create directories for rar NFS mounts
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: directory
+        owner: root
+        group: root
+        mode: '0555'
+      loop:
+        - /mnt/Storage4Rar
+        - /mnt/Storage3Rar
+        - /mnt/Storage2Rar
+        - /mnt/Storage1Rar
+
+    - name: server | nfs-client | Add NFS mounts to /etc/fstab
+      ansible.builtin.blockinfile:
+        path: /etc/fstab
+        block: |
+          {% for mount in nfs_client_mounts %}
+          {{ mount.source }} {{ mount.path }} {{ mount.fstype }} {{ mount.options }} 0 0
+          {% endfor %}
+
+          {% for mount in nfs_client_fuse_mounts %}
+          {{ mount.source }} {{ mount.path }} {{ mount.fstype }} {{ mount.options }} 0 0
+          {% endfor %}
+      register: fstab_updated
+
+    - name: server | nfs-client | Reload systemd daemon
+      ansible.builtin.systemd:
+        daemon_reload: true
+      when: fstab_updated.changed
+
+    - name: server | nfs-client | Mount all filesystems
+      ansible.builtin.command:
+        cmd: mount -a
+      when: fstab_updated.changed
+      register: output
+      changed_when: output.rc != 0

@@ -1,0 +1,33 @@
+services:
+  jellyfin:
+    image: jellyfin/jellyfin
+    container_name: jellyfin
+    user: root
+    ports:
+      - 8096:8096/tcp
+      - 7359:7359/udp
+    group_add:
+      - "104"
+    network_mode: 'host'
+    volumes:
+      - ./jellyfin/config:/config
+      - ./jellyfin/cache:/cache
+      - /mnt/Storage1Rar/:/mnt/Storage1Rar
+      - /mnt/Storage2Rar/:/mnt/Storage2Rar
+      - /mnt/Storage3Rar/:/mnt/Storage3Rar
+      - /mnt/Storage4Rar/:/mnt/Storage4Rar
+    restart: 'unless-stopped'
+    extra_hosts:
+      - 'host.docker.internal:host-gateway'
+    devices:
+      - /dev/dri/renderD128:/dev/dri/renderD128
+
+  promtail:
+    image: grafana/promtail:3.2.1
+    container_name: promtail
+    user: root
+    volumes:
+      - /var/log:/var/log
+      - ./promtail:/etc/promtail
+    restart: unless-stopped
+    command: -config.file=/etc/promtail/promtail-config.yml

@@ -1,0 +1,53 @@
+---
+- name: Include distribution vars
+  ansible.builtin.include_vars: "{{ ansible_facts['distribution'] }}.yml"
+  tags: always
+
+
+- name: Run base tasks
+  block:
+    - name: Root config
+      tags: root_config
+      ansible.builtin.import_tasks: users/root.yml
+
+    - name: Setup repositories
+      tags: repositories
+      ansible.builtin.import_tasks: software/repositories.yml
+
+    - name: Package cleanup
+      tags: cleanup
+      ansible.builtin.import_tasks: software/packages_cleanup.yml
+
+    - name: Utility packages
+      tags: utility
+      ansible.builtin.import_tasks: software/packages_utilities.yml
+
+    - name: Clock
+      tags: clock
+      ansible.builtin.import_tasks: system_setup/clock.yml
+
+    - name: Cron
+      tags: cron
+      ansible.builtin.import_tasks: system_setup/cron.yml
+
+    - name: Locale debian
+      tags: locale
+      ansible.builtin.import_tasks: system_setup/locale_debian.yml
+      when: ansible_facts['distribution'] in ['Ubuntu', 'Debian', 'LMDE', 'Archlinux']
+
+    - name: Locale fedora
+      tags: locale
+      ansible.builtin.import_tasks: system_setup/locale_fedora.yml
+      when: ansible_facts['distribution'] == "Fedora"
+
+    - name: Logging
+      tags: logging
+      ansible.builtin.import_tasks: system_setup/logging.yml
+
+    - name: Memory
+      tags: memory
+      ansible.builtin.import_tasks: system_setup/memory.yml
+
+    - name: Microcode
+      tags: microcode
+      ansible.builtin.import_tasks: system_setup/microcode.yml

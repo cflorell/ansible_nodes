@@ -1,0 +1,32 @@
+---
+- name: unattended upgrades | install unattended-upgrades for debian-based hosts
+  ansible.builtin.package:
+    name: [unattended-upgrades]
+  when: ansible_facts['distribution'] in ['Debian', 'Ubuntu', 'LMDE']
+
+- name: unattended upgrades | copy 20auto-upgrades file for debian-based hosts
+  ansible.builtin.copy:
+    src: unattended-upgrades/20auto-upgrades
+    dest: /etc/apt/apt.conf.d/20auto-upgrades
+    owner: root
+    group: root
+    mode: "0644"
+  when: ansible_facts['distribution'] in ['Debian', 'Ubuntu', 'LMDE']
+
+- name: unattended upgrades | copy 50unattended-upgrades file (debian)
+  ansible.builtin.copy:
+    src: unattended-upgrades/50unattended-upgrades_debian
+    dest: /etc/apt/apt.conf.d/50unattended-upgrades
+    owner: root
+    group: root
+    mode: "0644"
+  when: ansible_facts['distribution'] == "Debian"
+
+- name: unattended upgrades | copy 50unattended-upgrades file (ubuntu)
+  ansible.builtin.copy:
+    src: unattended-upgrades/50unattended-upgrades_ubuntu
+    dest: /etc/apt/apt.conf.d/50unattended-upgrades
+    owner: root
+    group: root
+    mode: "0644"
+  when: ansible_facts['distribution'] == "Ubuntu"

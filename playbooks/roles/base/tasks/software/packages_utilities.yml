@@ -1,0 +1,22 @@
+---
+- name: system setup | utilities | install utility packages
+  tags: packages,system,settings
+  ansible.builtin.package:
+    name:
+      - ca-certificates
+      - colordiff
+      - curl
+      - dnsutils
+      - git
+      - htop
+      - iotop
+      - nano
+      - ncdu
+      - net-tools
+      - "{{ nfs_package }}"
+      - rsync
+      - tmux
+      - traceroute
+      - wget
+      - whois
+    update_cache: true

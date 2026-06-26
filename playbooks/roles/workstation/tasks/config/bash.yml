@@ -1,0 +1,14 @@
+---
+- name: "Bash | Copy .bashrc"
+  ansible.builtin.copy:
+    src: "files/users/christoffer/bash/.bashrc"
+    dest: "{{ ansible_facts['user_dir'] }}/.bashrc"
+    mode: "0644"
+
+- name: "Bash | Copy custom bash config"
+  ansible.builtin.copy:
+    src: "files/users/christoffer/bash/config/"
+    dest: "{{ ansible_facts['user_dir'] }}/.config/bash/"
+    mode: "0644"
+    directory_mode: "0755"
+    force: true

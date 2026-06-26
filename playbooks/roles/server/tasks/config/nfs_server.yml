@@ -1,0 +1,63 @@
+---
+- name: server | nfs-server | Create directories for disk mounts
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+  loop:
+    - /mnt/Storage1
+    - /mnt/Storage2
+    - /mnt/Storage3
+    - /mnt/Storage4
+
+- name: server | nfs-server | Update fstab with disks
+  ansible.builtin.blockinfile:
+    path: /etc/fstab
+    block: |
+      # DISK SECTION
+      #LABEL="16TBWD"
+      UUID="39923594-9fd4-410d-980e-8622b34ca9ed" /mnt/Storage1 ext4 errors=remount-ro 0 1
+      #LABEL="20TBToshiba"
+      UUID="822b8214-2b43-4965-a2f3-b682ac6b8011" /mnt/Storage2 ext4 errors=remount-ro 0 1
+      #LABEL="20TBToshiba"
+      UUID="fbcba08d-6ec3-4643-82af-dfa3908b90ec" /mnt/Storage3 ext4 errors=remount-ro 0 1
+      #LABEL="18TBToshiba"
+      UUID="54db6770-5058-4382-83d9-b8fd73f2e238" /mnt/Storage4 ext4 errors=remount-ro 0 1
+  register: fstab_updated
+
+- name: server | nfs-server | Reload systemd daemon
+  ansible.builtin.systemd:
+    daemon_reload: true
+  when: fstab_updated.changed
+
+- name: server | nfs-server | Mount all filesystems
+  ansible.builtin.command:
+    cmd: mount -a
+  when: fstab_updated.changed
+  register: output
+  changed_when: output.rc != 0
+
+- name: server | nfs-server | install nfs
+  ansible.builtin.apt:
+    name: nfs-kernel-server
+
+- name: server | nfs-server | Add NFS exports
+  ansible.builtin.blockinfile:
+    path: /etc/exports
+    block: |
+      {% for client in nfs_server_export_clients %}
+      {% for path in nfs_server_export_paths %}
+      {{ path }} {{ client }}({{ nfs_server_export_options }})
+      {% endfor %}
+
+      {% endfor %}
+  register: exports_updated
+
+- name: server | nfs-server | Re-export all NFS shares
+  ansible.builtin.command:
+    cmd: exportfs -ra
+  when: exports_updated.changed
+  register: output
+  changed_when: output.rc != 0

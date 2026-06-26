@@ -1,0 +1,11 @@
+Host *
+    ServerAliveInterval 15
+    ServerAliveCountMax 5
+
+{% for host in ssh_client_hosts | default([]) %}
+Host {{ host.alias }}
+   Hostname {{ host.hostname }}
+   User {{ host.user }}
+   Port {{ host.port | default(22) }}
+
+{% endfor %}

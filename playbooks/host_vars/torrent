@@ -1,0 +1,7 @@
+---
+nfs_client: false
+nfs_server: false
+
+docker: true
+
+proxmox: false

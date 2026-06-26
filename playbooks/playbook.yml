@@ -1,0 +1,65 @@
+---
+- name: Pre tasks
+  hosts: all
+  tags: always
+  pre_tasks:
+    - name: Runtime check
+      ansible.builtin.import_tasks: pre_tasks/runtime_check.yml
+      tags:
+        - always
+
+    - name: Import secrets
+      ansible.builtin.include_vars: ../secrets.vault
+
+    - name: Update package cache
+      become: true
+      ansible.builtin.apt:
+        update_cache: true
+
+# Must patch proxmox instance before running base tasks on them.
+# Otherwise it will fail dues to missing enterprise repo.
+- name: Run server tasks
+  hosts: server, nodes
+  tags: server, nodes
+  become: true
+  roles:
+    - server
+
+- name: Run base tasks
+  hosts: all
+  tags: base
+  become: true
+  roles:
+    - base
+
+- name: Run workstation tasks
+  hosts: workstation
+  tags: workstation
+  become: true
+  roles:
+    - workstation
+
+- name: Run node exporter role
+  hosts: server
+  tags: node-exporter
+  become: true
+  roles:
+    - role: prometheus.prometheus.node_exporter
+      when: node_exporter is defined and node_exporter
+
+- name: end of run cleanup
+  hosts: all
+  become: true
+  tasks:
+    - name: cleanup package cache (debian and ubuntu)
+      tags: always
+      ansible.builtin.apt:
+        autoclean: true
+      when: ansible_facts['distribution'] in ['Ubuntu', 'Debian', 'LMDE']
+
+    - name: autoremove orphan packages (debian and ubuntu)
+      tags: always
+      ansible.builtin.apt:
+        autoremove: true
+        purge: true
+      when: ansible_facts['distribution'] in ['Ubuntu', 'Debian', 'LMDE']

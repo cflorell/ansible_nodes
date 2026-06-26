@@ -1,0 +1,93 @@
+---
+- name: software | utilities | install utility packages
+  ansible.builtin.package:
+    name:
+      - "{{ ag_package }}"
+      - arandr
+      - bat
+      - btop
+      - ca-certificates
+      - "{{ chromium_package }}"
+      - cifs-utils
+      - "{{ cups_package }}"
+      - curl
+      - dconf-editor
+      - direnv
+      - gnupg
+      - dnsutils
+      - filezilla
+      - "{{ fira_code_fonts_package }}"
+      - firefox
+      - "{{ fonts_inconsolata_package }}"
+      - fzf
+      - gparted
+      - htop
+      - "{{ hunspell_en_us_package }}"
+      - "{{ hunspell_sv_package }}"
+      - "{{ hyphen_en_package }}"
+      - hyphen-sv
+      - iotop
+      - jq
+      - "{{ libnotify_package }}"
+      - libreoffice
+      - lsb-release
+      - lsof
+      - mc
+      - nano
+      - neovim
+      - ncdu
+      - net-tools
+      - nmap
+      - "{{ p7zip_package }}"
+      - pavucontrol
+      - ripgrep
+      - rsync
+      - "{{ samba_client_package }}"
+      - screen
+      - shutter
+      - sshpass
+      - terminator
+      - tldr
+      - tmux
+      - traceroute
+      - transmission-gtk
+      - unrar
+      - vifm
+      - "{{ vim_package }}"
+      - vlc
+      - wget
+      - whois
+      - "{{ wpasupplicant_package }}"
+      - "{{ xfonts_terminus_package }}"
+    update_cache: true
+
+- name: software | utilities | install parcelite
+  ansible.builtin.package:
+    name: parcellite
+  when: ansible_facts['distribution'] in ['Ubuntu', 'Debian', 'LMDE']
+
+- name: software | utilities | Download and install broot
+  ansible.builtin.get_url:
+    url: https://dystroy.org/broot/download/x86_64-linux/broot
+    dest: /usr/local/bin/broot
+    mode: '777'
+  retries: 3
+  delay: 3
+  register: result
+  until: result is succeeded
+  when: ansible_facts['distribution'] != 'Archlinux'
+
+- name: software | utilities | Install broot
+  kewlfft.aur.aur:
+    use: yay
+    name:
+      - broot
+  become: true
+  become_user: aur_builder
+  when: ansible_facts['distribution'] == 'Archlinux'
+
+- name: software | misc |  remove crap workstation packages on debian and ubuntu hosts
+  ansible.builtin.package:
+    state: absent
+    name: [thunderbird*, rhythmbox*, celluoid, hypnotix, hexchat, brltty]
+  when: ansible_facts['distribution'] in ["Debian", "Ubuntu", "LMDE"]

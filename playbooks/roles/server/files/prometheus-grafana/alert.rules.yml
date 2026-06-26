@@ -1,0 +1,154 @@
+groups:
+  - name: CPUAlerts
+    rules:
+      # - alert: TestAlert
+      #   expr: 100 * (1 - avg by(instance) (rate(node_cpu_seconds_total{mode="idle"}[5m]))) < 90
+      #   for: 5s
+      #   labels:
+      #     severity: critical
+      #   annotations:
+      #     summary: "TEST ALERT"
+      #     description: "TEST ALERT"
+
+      - alert: CPU Usage long term
+        expr: 100 * (1 - avg by(instance) (rate(node_cpu_seconds_total{mode="idle"}[5m]))) > 15
+        for: 1h
+        labels:
+          severity: critical
+        annotations:
+          summary: "High CPU usage detected on {{ $labels.instance }}"
+          description: "CPU usage on instance {{ $labels.instance }} has been above 15% for the last 1 h."
+
+      - alert: CriticalCpuUsage
+        expr: avg(rate(node_cpu_seconds_total{mode="idle"}[5m])) * 100 < 10
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Critical CPU usage"
+          description: "CPU usage on {{ $labels.instance }} is above 90% for more than 5 minutes."
+
+      - alert: CpuThrottling
+        expr: (rate(container_cpu_cfs_throttled_seconds_total[5m]) / rate(container_cpu_cfs_periods_total[5m])) * 100 > 25
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "CPU throttling detected"
+          description: "CPU throttling on {{ $labels.instance }} is over 25% in the last 5 minutes."
+
+      - alert: LowIdleCpuTime
+        expr: avg(rate(node_cpu_seconds_total{mode="idle"}[5m])) * 100 < 15
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Low idle CPU time"
+          description: "Idle CPU time on {{ $labels.instance }} is below 15% for more than 5 minutes."
+
+  - name: DiskAlerts
+    rules:
+      - alert: DiskHealthCritical
+        expr: smart_disk_health{status="failed"} == 1
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Disk health is critical"
+          description: "Disk {{ $labels.instance }} has failed its SMART health check."
+
+      - alert: HighReallocatedSectors
+        expr: smart_disk_reallocated_sectors > 100
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High reallocated sectors on disk"
+          description: "Disk {{ $labels.instance }} has reallocated sectors exceeding threshold."
+
+      - alert: LowDiskSpace
+        expr: node_filesystem_free_bytes{mountpoint="/"} < (node_filesystem_size_bytes{mountpoint="/"} * 0.1)
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Low disk space on filesystem"
+          description: "Filesystem {{ $labels.instance }} has less than 10% free space."
+
+      - alert: HighDiskIOWait
+        expr: avg(rate(node_disk_io_time_seconds_total[5m])) * 100 > 20
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High disk I/O wait time"
+          description: "Disk I/O wait time on {{ $labels.instance }} is above 20% for more than 5 minutes."
+
+  - name: MemoryAlerts
+    rules:
+      - alert: HighMemoryUsage
+        expr: (node_memory_MemTotal_bytes - node_memory_MemAvailable_bytes) / node_memory_MemTotal_bytes * 100 > 80
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High memory usage detected"
+          description: "Memory usage on {{ $labels.instance }} is above 80% for more than 5 minutes."
+
+      - alert: CriticalMemoryUsage
+        expr: (node_memory_MemTotal_bytes - node_memory_MemAvailable_bytes) / node_memory_MemTotal_bytes * 100 > 90
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Critical memory usage"
+          description: "Memory usage on {{ $labels.instance }} is above 90% for more than 5 minutes."
+
+      - alert: HighSwapUsage
+        expr: (node_memory_SwapTotal_bytes - node_memory_SwapFree_bytes) / node_memory_SwapTotal_bytes * 100 > 50
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High swap memory usage"
+          description: "Swap memory usage on {{ $labels.instance }} is above 50% for more than 5 minutes."
+
+  - name: NetworkAlerts
+    rules:
+      - alert: HighNetworkDownloadSpeed
+        expr: avg(rate(node_network_receive_bytes_total[1m])) * 8 > 1000000
+        for: 1h
+        labels:
+          severity: warning
+        annotations:
+          summary: "High Network Download Speed Detected"
+          description: "The network download speed has been above 1 Mb/s for more than 1 hour."
+
+  - name: MiscAlerts
+    rules:
+      - alert: NodeUnreachable
+        expr: up{job="node"} == 0
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Node is unreachable"
+          description: "Node {{ $labels.instance }} has been unreachable for more than 5 minutes."
+
+      - alert: HighRequestLatency
+        expr: histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket[5m])) by (le)) > 0.5
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High request latency detected"
+          description: "95th percentile request latency on {{ $labels.instance }} exceeds 500ms."
+
+      - alert: HighHTTPErrorRate
+        expr: rate(http_requests_total{status=~"5.."}[5m]) / rate(http_requests_total[5m]) > 0.05
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "High HTTP error rate"
+          description: "More than 5% of requests on {{ $labels.instance }} are returning server errors."

@@ -1,0 +1,17 @@
+---
+- name: Get starship install script
+  ansible.builtin.get_url:
+    url: https://starship.rs/install.sh
+    dest: /tmp/starship_install.sh
+    mode: '0755'
+  retries: 3
+  delay: 3
+  register: result
+  until: result is succeeded
+
+- name: Install starship
+  ansible.builtin.command:
+    cmd: /tmp/starship_install.sh --yes
+  become: true
+  register: output
+  changed_when: output.rc != 0

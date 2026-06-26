@@ -1,0 +1,26 @@
+---
+- name: Set runtime user
+  tags: always
+  ansible.builtin.set_fact:
+    ansible_facts['user_id']: "{{ lookup('env', 'USER') }}"
+  when: ansible_facts['user_id'] is undefined
+
+- name: Pre check OS start
+  ansible.builtin.debug:
+    msg:
+      - "You are the user {{ ansible_facts['user_id'] }}"
+      - "ansible_facts['hostname']:{{ ansible_facts['hostname'] }}"
+      - "ansible_facts['distribution']:{{ ansible_facts['distribution'] }}"
+      - "ansible_facts['distribution']_release:{{ ansible_facts['distribution_release'] }}"
+
+- name: Override OS if Linux Mint
+  ansible.builtin.set_fact:
+    ansible_facts['distribution']: Ubuntu
+    ansible_facts['distribution']_release: jammy
+  when: ansible_facts['distribution'] == "Linux Mint"
+
+- name: Pre check OS end
+  ansible.builtin.debug:
+    msg:
+      - "ansible_facts['distribution']:{{ ansible_facts['distribution'] }}"
+      - "ansible_facts['distribution']_release:{{ ansible_facts['distribution_release'] }}"

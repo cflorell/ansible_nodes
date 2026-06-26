@@ -1,0 +1,82 @@
+services:
+  # Paperless
+  broker:
+    image: docker.io/library/redis:8
+    container_name: paperless-broker
+    restart: unless-stopped
+    volumes:
+      - ./paperless/redisdata:/data
+  db:
+    image: docker.io/library/postgres:18
+    container_name: paperless-db
+    restart: unless-stopped
+    volumes:
+      - ./paperless/pgdata:/var/lib/postgresql
+    environment:
+      POSTGRES_DB: paperless
+      POSTGRES_USER: paperless
+      POSTGRES_PASSWORD: "{{ paperless_db_password }}"
+
+  webserver:
+    image: ghcr.io/paperless-ngx/paperless-ngx:latest
+    container_name: paperless-ngx
+    restart: unless-stopped
+    depends_on:
+      - db
+      - broker
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./paperless/data:/usr/src/paperless/data
+      - ./paperless/media:/usr/src/paperless/media
+      - ./paperless/db/export:/usr/src/paperless/export
+      - ./paperless/db/consume:/usr/src/paperless/consume
+    environment:
+      PAPERLESS_REDIS: redis://broker:6379
+      PAPERLESS_DBHOST: db
+
+  # RomM
+  romm:
+    image: rommapp/romm:latest
+    container_name: romm
+    restart: unless-stopped
+    environment:
+      - DB_HOST=romm-db
+      - DB_NAME=romm
+      - DB_USER=romm-user
+      - DB_PASSWD={{ romm_db_password }}
+      - ROMM_AUTH_SECRET_KEY={{ romm_auth_secret_key }}
+      - SCREENSCRAPER_USER="{{ screenscaper_user }}"
+      - SCREENSCRAPER_PASSWORD="{{ screenscaper_password }}"
+      - RETROACHIEVEMENTS_API_KEY="{{ RETROACHIEVEMENTS_API_KEY }}"
+    volumes:
+      - ./romm/romm_resources:/romm/resources # Resources fetched from IGDB (covers, screenshots, etc.)
+      - ./romm/romm_redis_data:/redis-data # Cached data for background tasks
+      - /mnt/Storage3/RomM/:/romm/library # Your game library. Check https://docs.romm.app/latest/Getting-Started/Folder-Structure/ for more details.
+      - ./romm/assets:/romm/assets # Uploaded saves, states, etc.
+      - ./romm/config:/romm/config # (Optional) Path where config.yml is stored
+    ports:
+      - 80:8080
+    depends_on:
+      romm-db:
+        condition: service_healthy
+        restart: true
+
+  romm-db:
+    image: mariadb:latest
+    container_name: romm-db
+    restart: unless-stopped
+    environment:
+      - MARIADB_ROOT_PASSWORD={{ romm_mariadb_root_password }}
+      - MARIADB_DATABASE=romm
+      - MARIADB_USER=romm-user
+      - MARIADB_PASSWORD={{ romm_db_password }}
+    volumes:
+      - ./romm/mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      start_period: 30s
+      start_interval: 10s
+      interval: 10s
+      timeout: 5s
+      retries: 5

@@ -1,0 +1,3 @@
+clock_package: chrony
+cron_package: cronie
+nfs_package: nfs-utils

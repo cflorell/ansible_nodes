@@ -1,0 +1,12 @@
+plugin: community.proxmox.proxmox
+url: https://proxmox.example.com:8006
+user: root@pam
+token_id: "{{ lookup('env', 'PROXMOX_ANSIBLE_TOKEN_ID') }}"
+token_secret: "{{ lookup('env', 'PROXMOX_ANSIBLE_TOKEN_SECRET') }}"
+validate_certs: true
+
+group_prefix: proxmox_
+facts_prefix: proxmox_
+
+want_facts: true
+want_proxmox_nodes_ansible_host: true

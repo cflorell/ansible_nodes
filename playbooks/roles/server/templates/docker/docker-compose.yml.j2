@@ -1,0 +1,126 @@
+services:
+  heimdall:
+      image: lscr.io/linuxserver/heimdall:latest
+      container_name: heimdall
+      user: root
+      environment:
+          - PUID=1000
+          - PGID=1000
+          - TZ=Europe/Stockholm
+      volumes:
+          - ./heimdal:/config
+      ports:
+          - 8500:80
+          - 6443:443
+      restart: unless-stopped
+
+  speedtest:
+      container_name: speedtest
+      image: lscr.io/linuxserver/speedtest-tracker
+      user: root
+      ports:
+          - 8765:80
+      volumes:
+          - ./speedtest:/config
+      environment:
+          - TZ=Europe/Stockholm
+          - PGID=1000
+          - PUID=1000
+          - OOKLA_EULA_GDPR=true
+          - DB_CONNECTION=sqlite
+          - APP_KEY={{ speedtest_app_key }}
+          - SPEEDTEST_SCHEDULE="15 */1 * * *"
+          - SPEEDTEST_SERVERS=32926
+      logging:
+          driver: "json-file"
+          options:
+              max-file: "10"
+              max-size: "200k"
+      restart: unless-stopped
+
+  uptime-kuma:
+      image: louislam/uptime-kuma:1
+      container_name: uptime-kuma
+      user: root
+      volumes:
+          - ./uptime-kuma:/app/data
+          - /var/run/docker.sock:/var/run/docker.sock
+      ports:
+          - 3001:3001  # <Host Port>:<Container Port>
+      restart: unless-stopped
+
+  signal-cli-rest-api:
+      image: bbernhard/signal-cli-rest-api:latest
+      container_name: signal-cli-rest-api
+      user: root
+      environment:
+          - MODE=normal # supported modes: json-rpc, native, normal
+      ports:
+          - "8080:8080"
+      volumes:
+          - "./signal-cli:/home/.local/share/signal-cli"
+      restart: unless-stopped
+
+  alertmanager-signal:
+      image: docker.io/schlauerlauer/alertmanager-webhook-signal:latest
+      container_name: alertmanager-signal
+      user: root
+      ports:
+          - "10000:10000"
+      volumes:
+          - ./alertmanager-signal/config.yaml:/config.yaml
+      restart: unless-stopped
+
+  nginx-proxy-manager:
+      image: jc21/nginx-proxy-manager:latest
+      restart: unless-stopped
+      container_name: nginx-proxy-manager
+      user: root
+      ports:
+          - '80:80'
+          - '81:81'
+          - '443:443'
+      volumes:
+          - ./nginx-proxy-manager/data:/data
+          - ./nginx-proxy-manager/letsencrypt:/etc/letsencrypt
+          - ./nginx-proxy-manager/log:/tmp/letsencrypt-log
+
+  porkbun-ddns:
+      image: "mietzen/porkbun-ddns:latest"
+      container_name: porkbun-ddns
+      user: root
+      environment:
+          DOMAIN: "{{ porkbun_domain }}"
+          SUBDOMAINS: "{{ porkbun_subdomains }}"
+          SECRETAPIKEY: "{{ porkbun_secret_api_key }}"
+          APIKEY: "{{ porkbun_api_key }}"
+          IPV4_ONLY: "TRUE"
+          IPV6_ONLY: "FALSE"
+          PYTHONUNBUFFERED: 1
+      restart: unless-stopped
+
+  promtail:
+    image: grafana/promtail:3.2.1
+    container_name: promtail
+    user: root
+    volumes:
+      - /var/log:/var/log
+      - ./promtail:/etc/promtail
+    restart: unless-stopped
+    command: -config.file=/etc/promtail/promtail-config.yml
+
+  wyl:
+    image: aceberg/watchyourlan
+    network_mode: "host"      
+    restart: unless-stopped
+    volumes:
+    - ./WatchYourLAN/:/data/WatchYourLAN
+    environment:
+      TZ: Europe/Stockholm 
+      IFACES: "eth0@if7"
+      # HOST: "0.0.0.0"                   # optional, default: 0.0.0.0
+      # PORT: "8840"                      # optional, default: 8840
+      # TIMEOUT: "120"                    # optional, time in seconds, default: 120
+      # SHOUTRRR_URL: ""                  # optional, set url to notify
+      # THEME: "sand"                     # optional
+      # COLOR: "dark"                     # optional

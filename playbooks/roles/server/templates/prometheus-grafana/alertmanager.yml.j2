@@ -1,0 +1,26 @@
+global:
+  resolve_timeout: 5m
+
+route:
+  group_by: ['alertname']
+  group_wait: 10s
+  group_interval: 10s
+  repeat_interval: 1h
+  receiver: 'signal'
+  routes:
+  - receiver: 'signal'
+    continue: true
+  - receiver: 'telegram'
+
+receivers:
+- name: 'telegram'
+  telegram_configs:
+  - api_url: 'https://api.telegram.org'
+    bot_token: {{ telegram_api_token }}
+    chat_id: {{ telegram_chat_id }}
+    send_resolved: true
+
+- name: 'signal'
+  webhook_configs:
+    - url: "{{ alertmanager_signal_webhook_url }}"
+      send_resolved: true

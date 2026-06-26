@@ -1,0 +1,24 @@
+---
+- name: system setup | memory | adjust current swappiness
+  tags: swappiness,sysctl,system,setup
+  ansible.builtin.lineinfile:
+    dest: /etc/sysctl.conf
+    create: true
+    regexp: swappiness =
+    line: vm.swappiness = 5
+    owner: root
+    group: root
+    mode: '0644'
+  register: swappiness
+
+- name: system setup | memory | install earlyoom package
+  tags: earlyoom,packages,system,setup
+  ansible.builtin.package:
+    name: earlyoom
+
+- name: system setup | memory | enable and start earlyoom
+  tags: earlyoom,packages,system,setup
+  ansible.builtin.service:
+    name: earlyoom
+    enabled: true
+    state: started

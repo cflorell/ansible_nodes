@@ -1,0 +1,54 @@
+---
+- name: Include distribution vars
+  ansible.builtin.include_vars: "{{ ansible_facts['distribution'] }}.yml"
+  tags: always
+
+- name: Run workstation tasks
+  block:
+    - name: User configs
+      tags: user
+      ansible.builtin.import_tasks: users/christoffer.yml
+
+    - name: Bash
+      tags: bash
+      ansible.builtin.import_tasks: config/bash.yml
+
+    - name: Zsh
+      tags: zsh
+      ansible.builtin.import_tasks: config/zsh.yml
+
+    - name: System fonts
+      tags: fonts
+      ansible.builtin.import_tasks: system_setup/fonts.yml
+
+    - name: Flatpak support
+      tags: flatpak
+      ansible.builtin.import_tasks: system_setup/flatpak.yml
+
+    - name: Fedora non-free
+      tags: fedora-non-free
+      ansible.builtin.import_tasks: system_setup/fedora_packages.yml
+      when: ansible_facts['distribution'] == "Fedora"
+
+    - name: Arch AUR
+      tags: fedora-non-free
+      ansible.builtin.import_tasks: system_setup/arch_aur.yml
+      when: ansible_facts['distribution'] == "Archlinux"
+
+    - name: Python
+      tags: python
+      ansible.builtin.import_tasks: software/python.yml
+
+    - name: Software utilities
+      tags: utilities
+      ansible.builtin.import_tasks: software/packages.yml
+
+    - name: Starship
+      tags: starship
+      ansible.builtin.import_tasks: software/starship.yml
+      when: starship is defined and starship
+
+    - name: Visual Studio Code
+      tags: vscode
+      ansible.builtin.import_tasks: software/vscode.yml
+      when: vscode is defined and vscode

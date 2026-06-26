@@ -1,0 +1,72 @@
+services:
+  qbittorrentvpn:
+    image: binhex/arch-qbittorrentvpn
+    container_name: torrent
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import urllib.request, ssl; urllib.request.urlopen('http://127.0.0.1:8080').read()"]
+      interval: 100s
+      timeout: 10s
+      retries: 5
+      start_period: 20s
+    cap_add:
+      - NET_ADMIN
+    ports:
+      - 8080:8080
+      - 8118:8118
+      - 9118:9118
+      - 58946:58946
+      - 58946:58946/udp
+    volumes:
+      - /root/qbittorrent-data:/data
+      - /mnt/Storage1/:/mnt/Storage1
+      - /mnt/Storage2/:/mnt/Storage2
+      - /mnt/Storage3/:/mnt/Storage3
+      - /mnt/Storage4/:/mnt/Storage4
+      - /root/qbittorrent-config:/config
+      - /etc/localtime:/etc/localtime:ro
+    devices:
+      - /dev/net/tun:/dev/net/tun
+    environment:
+      - VPN_ENABLED=yes
+      - VPN_USER={{ protonvpn_user }}
+      - VPN_PASS={{ protonvpn_password }}
+      - VPN_PROV=protonvpn
+      - VPN_CLIENT=openvpn
+      - ENABLE_STARTUP_SCRIPTS=no
+      - ENABLE_PRIVOXY=yes
+      - STRICT_PORT_FORWARD=yes
+      - USERSPACE_WIREGUARD=no
+      - ENABLE_SOCKS=yes
+      - SOCKS_USER={{ qbittorrent_socks_user }}
+      - SOCKS_PASS={{ qbittorrent_socks_password }}
+      - LAN_NETWORK={{ torrent_lan_network }}
+      - NAME_SERVERS=1.1.1.1
+      - VPN_INPUT_PORTS=1234
+      - VPN_OUTPUT_PORTS=5678
+      - DEBUG=false
+      - WEBUI_PORT=8080
+      - UMASK=755
+      - PUID=0
+      - PGID=0
+
+  torrent-natpmp-keeper:
+    container_name: torrent-natpmp-keeper
+    build: ./torrent-natpmp-keeper
+    network_mode: "container:torrent"
+    env_file:
+      - torrent-natpmp-keeper.env
+    depends_on:
+      qbittorrentvpn:
+        condition: service_healthy
+    restart: unless-stopped
+
+  promtail:
+    image: grafana/promtail:3.2.1
+    container_name: promtail
+    user: root
+    volumes:
+      - /var/log:/var/log
+      - ./promtail:/etc/promtail
+    restart: unless-stopped
+    command: -config.file=/etc/promtail/promtail-config.yml

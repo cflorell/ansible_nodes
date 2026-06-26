@@ -1,0 +1,21 @@
+[workstation]
+workstation-test ansible_connection=local ansible_user=runner
+
+[server]
+proxmox1 ansible_host=192.0.2.10 ansible_user=root ansible_port=22
+proxmox2 ansible_host=192.0.2.11 ansible_user=root ansible_port=22
+
+[nodes]
+docker ansible_host=192.0.2.20 ansible_user=root ansible_port=22
+authentik ansible_host=192.0.2.21 ansible_user=root ansible_port=22
+immich ansible_host=192.0.2.22 ansible_user=root ansible_port=22
+prometheus-grafana ansible_host=192.0.2.23 ansible_user=root ansible_port=22
+media ansible_host=192.0.2.24 ansible_user=root ansible_port=22
+torrent ansible_host=192.0.2.26 ansible_user=root ansible_port=22
+media2 ansible_host=192.0.2.27 ansible_user=root ansible_port=22
+
+[server:vars]
+ansible_ssh_private_key_file=~/.ssh/id_ed25519
+
+[nodes:vars]
+ansible_ssh_private_key_file=~/.ssh/id_ed25519

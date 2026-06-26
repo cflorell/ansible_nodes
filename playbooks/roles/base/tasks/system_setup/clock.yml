@@ -1,0 +1,31 @@
+---
+- name: system setup | clock | install timesync package
+  tags: ntp,system setup
+  ansible.builtin.package:
+    name: "{{ clock_package }}"
+  retries: 3
+  delay: 3
+  register: result
+  until: result is succeeded
+  when: ansible_facts['distribution'] not in ['Archlinux']  # Already has it installed
+
+- name: system setup | clock | start and enable systemd-timesyncd
+  tags: ntp,system settings
+  ansible.builtin.service:
+    name: systemd-timesyncd
+    state: started
+    enabled: true
+  when: ansible_facts['distribution'] in ['Ubuntu', 'Debian', 'LMDE', 'Archlinux']
+
+- name: system setup | clock | start and enable chrony
+  tags: ntp,system settings
+  ansible.builtin.service:
+    name: chronyd
+    state: started
+    enabled: true
+  when: ansible_facts['distribution'] in ["Fedora"]
+
+- name: system setup | clock | set time zone
+  tags: ntp,timezone,system setup
+  community.general.timezone:
+    name: Europe/Stockholm

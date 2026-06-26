@@ -1,0 +1,71 @@
+---
+- name: Run server tasks
+  block:
+    - name: Setup proxmox
+      tags: proxmox
+      ansible.builtin.import_tasks: config/proxmox.yml
+      when: proxmox is defined and proxmox
+
+    - name: Unattended upgrades
+      tags: unattended_upgrades
+      ansible.builtin.import_tasks: config/unattended_upgrades.yml
+
+    - name: Setup NFS server
+      tags: nfs-server
+      ansible.builtin.import_tasks: config/nfs_server.yml
+      when: nfs_server is defined and nfs_server
+
+    - name: Setup NFS client
+      tags: nfs-client
+      ansible.builtin.import_tasks: config/nfs_client.yml
+      when: nfs_client is defined and nfs_client
+
+    - name: Docker
+      tags: docker
+      ansible.builtin.import_tasks: software/docker.yml
+      when: docker is defined and docker
+
+    - name: Node Docker
+      tags: node-docker
+      ansible.builtin.import_tasks: nodes/docker.yml
+      when: ansible_facts['hostname'] == "docker"
+
+    - name: Node Authentik
+      tags: node-authentik
+      ansible.builtin.import_tasks: nodes/authentik.yml
+      when: ansible_facts['hostname'] == "authentik"
+
+    - name: Node prometheus-grafana
+      tags: node-prometheus-grafana
+      ansible.builtin.import_tasks: nodes/prometheus-grafana.yml
+      when: ansible_facts['hostname']== "prometheus-grafana"
+
+    - name: Node media
+      tags: node-media
+      ansible.builtin.import_tasks: nodes/media.yml
+      when: ansible_facts['hostname'] == "media"
+
+    - name: Node media2
+      tags: node-media2
+      ansible.builtin.import_tasks: nodes/media2.yml
+      when: ansible_facts['hostname'] == "media2"
+
+    - name: Node torrent
+      tags: node-torrent
+      ansible.builtin.import_tasks: nodes/torrent.yml
+      when: ansible_facts['hostname'] == "torrent"
+
+    - name: Node proxmox1
+      tags: node-proxmox1
+      ansible.builtin.import_tasks: nodes/proxmox1.yml
+      when: ansible_facts['hostname'] == "proxmox1"
+
+    - name: Node proxmox2
+      tags: node-proxmox2
+      ansible.builtin.import_tasks: nodes/proxmox2.yml
+      when: ansible_facts['hostname'] == "proxmox2"
+
+    - name: Node immich
+      tags: node-immich
+      ansible.builtin.import_tasks: nodes/immich.yml
+      when: ansible_facts['hostname'] == "immich"

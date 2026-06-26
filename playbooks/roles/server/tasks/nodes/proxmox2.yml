@@ -1,0 +1,34 @@
+---
+- name: server | node-proxmox2 | Create service directories
+  ansible.builtin.file:
+    path: "/{{ ansible_facts['user_id'] }}/{{ item }}"
+    state: directory
+    mode: "0755"
+  loop:
+    - jellyfin
+    - jellyfin/config
+    - jellyfin/cache
+    - promtail
+
+- name: server | node-proxmox2 | Move promtail-config.yml
+  ansible.builtin.template:
+    src: common/promtail-config.yml.j2
+    dest: "/{{ ansible_facts['user_id'] }}/promtail/promtail-config.yml"
+    owner: "{{ ansible_facts['user_id'] }}"
+    group: "{{ ansible_facts['user_id'] }}"
+    mode: "0600"
+
+- name: server | node-proxmox2 | move docker-compose.yml file to host
+  ansible.builtin.template:
+    src: "proxmox2/docker-compose.yml.j2"
+    dest: "/{{ ansible_facts['user_id'] }}/docker-compose.yml"
+    owner: "{{ ansible_facts['user_id'] }}"
+    group: "{{ ansible_facts['user_id'] }}"
+    mode: "0600"
+
+- name: server | node-proxmox2 | deploy Docker Compose stack
+  community.docker.docker_compose_v2:
+    project_src: "/{{ ansible_facts['user_id'] }}/"
+    remove_orphans: true
+    files:
+      - docker-compose.yml

@@ -1,0 +1,20 @@
+---
+- name: system setup | logging | Ensure journald.conf exists
+  ansible.builtin.file:
+    path: /etc/systemd/journald.conf
+    state: touch
+    mode: '0644'
+
+- name: system setup | logging | adjust retention period
+  tags: systemd,journal,journald,sysctl,system setup
+  ansible.builtin.lineinfile:
+    dest: /etc/systemd/journald.conf
+    regexp: ^#MaxFileSec=
+    line: MaxFileSec=5day
+  register: journald_config
+
+- name: system setup | logging | restart journald (config changed)
+  ansible.builtin.service:
+    name: systemd-journald
+    state: restarted
+  when: journald_config.changed

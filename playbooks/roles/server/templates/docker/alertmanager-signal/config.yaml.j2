@@ -1,0 +1,45 @@
+server:
+  port: 10000
+  debug: false
+signal:
+  number: "{{ signal_alertmanager_number }}"
+  recipients:
+{% for recipient in signal_alertmanager_recipients %}
+    - "{{ recipient }}"
+{% endfor %}
+  send: http://signal-cli-rest-api:8080/v2/send
+alertmanager:
+  generatorURL: true
+  matchLabel: "recipients"
+templates:
+  grafana: |-
+{% raw %}
+    {{ if eq .State "alerting" }}❗{{ else }}✅{{ end }} {{ .Title}}
+    {{ .RuleName }}
+    {{ .Message }}
+    {{ .RuleUrl }}
+{% endraw %}
+  alertmanager: |-
+{% raw %}
+    {{ if eq .Alert.Status "firing" }}❗{{ else }}✅{{ end }} Alert {{ .Alertname }} is {{ .Alert.Status }}
+
+    {{- if gt (len (.Alert.Labels)) 0 }}
+
+    Labels:
+    {{- range $key, $value := .Alert.Labels }}
+      - {{ $key }}: {{ $value }}
+    {{- end }}
+    {{- end }}
+
+    {{- if gt (len (.Alert.Annotations)) 0 }}
+
+    Annotations:
+    {{- range $key, $value := .Alert.Annotations }}
+      - {{ $key }}: {{ $value }}
+    {{- end }}
+    {{- end }}
+
+    {{ if .Config.GeneratorURL -}}
+    {{ .Alert.GeneratorURL}}
+    {{ end -}}
+{% endraw %}

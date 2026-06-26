@@ -1,0 +1,18 @@
+---
+- name: system setup | repositories | add sources.list for debian hosts
+  tags: non-free,repositories
+  ansible.builtin.copy:
+    src: distribution_packages/debian_sources.list
+    dest: /etc/apt/sources.list
+    backup: true
+    owner: root
+    group: root
+    mode: '0644'
+  notify: apt_update
+  when: ansible_facts['distribution'] == ['Debian', 'LMDE']
+
+- name: system setup | repositories | install package management tools
+  tags: packages,system,settings
+  ansible.builtin.package:
+    name: software-properties-common
+  when: ansible_facts['distribution'] in ["Ubuntu"]

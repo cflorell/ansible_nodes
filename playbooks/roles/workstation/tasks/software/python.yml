@@ -1,0 +1,13 @@
+---
+- name: software | development packages | install packages
+  ansible.builtin.package:
+    name:
+      - python3
+      - "{{ python_pip_pacakge }}"
+      - "{{ python_setup_tools }}"
+      - "{{ python_virtualenv_package }}"
+
+- name: software | development packages | install python-dev
+  ansible.builtin.package:
+    name: "{{ python_dev_package }}"
+  when: ansible_facts['distribution'] != "Archlinux"

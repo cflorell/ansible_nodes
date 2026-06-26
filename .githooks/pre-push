@@ -1,0 +1,42 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+repo_root="$(git rev-parse --show-toplevel)"
+cd "$repo_root"
+
+exec 1>&2
+
+exit_status=0
+
+echo "== git status --short --ignored =="
+git status --short --ignored
+echo
+
+resolve_secrets_dir() {
+  if [[ -n "${HOMELAB_SECRETS_DIR:-}" ]]; then
+    printf '%s\n' "$HOMELAB_SECRETS_DIR"
+    return 0
+  fi
+
+  if [[ -d "../private/secrets" ]]; then
+    printf '%s\n' "../private/secrets"
+    return 0
+  fi
+
+  printf '%s\n' ""
+}
+
+if [[ "${SKIP_PRIVATE_LINK_CHECK:-0}" == "1" ]]; then
+  echo "Skipping private file link check because SKIP_PRIVATE_LINK_CHECK=1"
+else
+  echo "== private file link check =="
+  secrets_dir="$(resolve_secrets_dir)"
+  if [[ -n "$secrets_dir" ]]; then
+    scripts/link-private-files.sh --secrets-dir "$secrets_dir" --check || exit_status=1
+  else
+    scripts/link-private-files.sh --check || exit_status=1
+  fi
+  echo
+fi
+
+exit "$exit_status"

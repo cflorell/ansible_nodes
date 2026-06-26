@@ -1,0 +1,33 @@
+server:
+  http_listen_port: 9080
+  grpc_listen_port: 0
+
+positions:
+  filename: /tmp/positions.yaml
+
+clients:
+  - url: {{ loki_push_url }}
+
+scrape_configs:
+
+# local machine logs
+
+- job_name: local
+  static_configs:
+  - targets:
+      - localhost
+    labels:
+      job: varlogs
+      host: {{ ansible_facts['hostname'] }}
+      __path__: /var/log/*log
+  
+## docker logs
+
+- job_name: docker 
+  pipeline_stages:
+    - docker: {}
+  static_configs:
+    - labels:
+        job: docker
+        host: {{ ansible_facts['hostname'] }}
+        __path__: /var/lib/docker/containers/*/*-json.log

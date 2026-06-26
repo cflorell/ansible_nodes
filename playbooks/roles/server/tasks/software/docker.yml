@@ -1,0 +1,56 @@
+---
+- name: software | docker | add apt repository
+  ansible.builtin.deb822_repository:
+    name: docker
+    types: deb
+    uris: "https://download.docker.com/linux/{{ ansible_facts['distribution'] | lower }}"
+    suites: "{{ ansible_facts['distribution_release'] | lower }}"
+    components: stable
+    signed_by: "https://download.docker.com/linux/{{ ansible_facts['distribution'] | lower }}/gpg"
+    state: present
+    enabled: true
+
+- name: software | docker | install docker
+  ansible.builtin.apt:
+    name: '{{ item }}'
+    update_cache: true
+  loop: [docker-ce, docker-ce-cli, containerd.io, docker-compose-plugin]
+
+- name: software | docker | create group
+  ansible.builtin.group:
+    name: docker
+    state: present
+
+- name: software | docker | add user to group
+  ansible.builtin.user:
+    name: "{{ ansible_facts['user_id'] }}"
+    append: true
+    groups: docker
+    state: present
+
+- name: server | docker | Move /etc/docker/daemon.json
+  ansible.builtin.template:
+    src: common/daemon.json.j2
+    dest: "/etc/docker/daemon.json"
+    owner: "{{ ansible_facts['user_id'] }}"
+    group: "{{ ansible_facts['user_id'] }}"
+    mode: "0644"
+  register: daemon_json
+
+- name: server | docker | Install Loki Docker Driver plugin
+  community.docker.docker_plugin:
+    plugin_name: grafana/loki-docker-driver:latest
+    alias: loki
+    state: present
+
+- name: server | docker | Enable Loki Docker Driver plugin
+  community.docker.docker_plugin:
+    plugin_name: grafana/loki-docker-driver:latest
+    alias: loki
+    state: enable
+
+- name: server | docker | Restart Docker service
+  ansible.builtin.systemd:
+    name: docker
+    state: restarted
+  when: daemon_json.changed

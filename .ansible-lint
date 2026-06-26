@@ -1,0 +1,11 @@
+---
+skip_list:
+  - name[casing]
+  - name[template]
+  - latest[git]
+  - var-naming[no-role-prefix]
+  - no-handler
+  - command-instead-of-module
+
+exclude_paths:
+  - .github/*
