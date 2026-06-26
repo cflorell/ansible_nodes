@@ -13,6 +13,7 @@
     comment: christoffer
     password: '{{ christoffer_password }}'
     shell: /bin/bash
+  no_log: true
   when: ansible_facts['distribution'] in ['Ubuntu', 'Debian', 'LMDE', 'ArchLinux']
 
 - name: users | christoffer | create user Fedora
@@ -24,6 +25,7 @@
     comment: christoffer
     password: '{{ christoffer_password }}'
     shell: /bin/bash
+  no_log: true
   when: ansible_facts['distribution'] == "Fedora"
 
 - name: users | christoffer | add sudoers file
