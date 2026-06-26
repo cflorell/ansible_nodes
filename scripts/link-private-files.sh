@@ -81,7 +81,7 @@ done
 choose_default_secrets_dir() {
   local candidate
   for candidate in \
-    "$HOME/private/secrets" \
+    "$HOME/git/private/secrets" \
     "$repo_root/../private/secrets"; do
     if [[ -d "$candidate" ]]; then
       printf '%s\n' "$candidate"
@@ -89,7 +89,7 @@ choose_default_secrets_dir() {
     fi
   done
 
-  printf '%s\n' "$HOME//homelab-secrets"
+  printf '%s\n' "$HOME/git/private/secrets"
 }
 
 if [[ -z "$secrets_dir" ]]; then
