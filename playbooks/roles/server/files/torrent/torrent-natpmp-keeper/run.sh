@@ -31,6 +31,7 @@ set_listen_port() {
 }
 
 while :; do
+  date +%s > /tmp/natpmp-keeper.heartbeat
   echo "[natpmp] Renewing NAT-PMP mappings (lifetime=${LIFETIME}s) via gateway ${GATEWAY}"
 
   # Renew UDP mapping
