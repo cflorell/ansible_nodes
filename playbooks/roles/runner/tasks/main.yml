@@ -72,11 +72,6 @@
       - gitlab_runner_token | length > 0
       - gitlab_runner_token != "glrt-change-me"
     fail_msg: "Set gitlab_runner_url and gitlab_runner_token in secrets.vault before registering the runner."
-  no_log: true
-  when: >
-    gitlab_runner_description not in
-    ((gitlab_runner_registered_runners.stdout | default('')) ~
-    (gitlab_runner_registered_runners.stderr | default('')))
 
 - name: runner | register shell runner
   ansible.builtin.command:
@@ -92,28 +87,9 @@
       - shell
       - --description
       - "{{ gitlab_runner_description }}"
-  no_log: true
   notify: restart gitlab-runner
-  when: >
-    gitlab_runner_description not in
-    ((gitlab_runner_registered_runners.stdout | default('')) ~
-    (gitlab_runner_registered_runners.stderr | default('')))
-
-- name: runner | list Vagrant plugins
-  become: true
-  become_user: gitlab-runner
-  ansible.builtin.command:
-    argv:
-      - vagrant
-      - plugin
-      - list
-  environment:
-    HOME: /home/gitlab-runner
-    USER: gitlab-runner
-    VAGRANT_DEFAULT_PROVIDER: libvirt
-  register: gitlab_runner_vagrant_plugin_list
-  changed_when: false
-  failed_when: false
+  register: output
+  changed_when: output.rc != 0
 
 - name: runner | install Vagrant plugins
   become: true
@@ -126,11 +102,9 @@
       - "{{ item }}"
   environment:
     HOME: /home/gitlab-runner
-    USER: gitlab-runner
+    USER: root
     VAGRANT_DEFAULT_PROVIDER: libvirt
     VAGRANT_DISABLE_STRICT_DEPENDENCY_ENFORCEMENT: "1"
   loop: "{{ gitlab_runner_vagrant_plugins }}"
-  when: >
-    item not in
-    ((gitlab_runner_vagrant_plugin_list.stdout | default('')) ~
-    (gitlab_runner_vagrant_plugin_list.stderr | default('')))
+  register: output
+  changed_when: output.rc != 0

@@ -4,6 +4,8 @@ gitlab_runner_token: ""
 gitlab_runner_description: "{{ inventory_hostname }}"
 
 gitlab_runner_vagrant_packages:
+  - ansible
+  - ansible-lint
   - build-essential
   - dnsmasq-base
   - ebtables
