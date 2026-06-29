@@ -1,0 +1,30 @@
+---
+gitlab_runner_url: "https://gitlab.com"
+gitlab_runner_token: ""
+gitlab_runner_description: "{{ inventory_hostname }}"
+
+gitlab_runner_vagrant_packages:
+  - ansible
+  - ansible-lint
+  - build-essential
+  - dnsmasq-base
+  - ebtables
+  - libguestfs-tools
+  - libvirt-clients
+  - libvirt-daemon-system
+  - libvirt-dev
+  - libxml2-dev
+  - libxslt-dev
+  - qemu-guest-agent
+  - qemu-system
+  - ruby-dev
+  - ruby-libvirt
+  - vagrant
+  - zlib1g-dev
+
+gitlab_runner_vagrant_plugins:
+  - vagrant-libvirt
+
+gitlab_runner_groups:
+  - kvm
+  - libvirt

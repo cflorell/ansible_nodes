@@ -1,13 +1,43 @@
+---
+
 stages:
-- test
-- secret-detection
+  - secret-detection
+  - test
 sast:
   stage: test
 include:
-- template: Security/SAST.gitlab-ci.yml
-- template: Security/SAST-IaC.gitlab-ci.yml
-- template: Security/Secret-Detection.gitlab-ci.yml
+  - template: Security/SAST.gitlab-ci.yml
+  - template: Security/SAST-IaC.gitlab-ci.yml
+  - template: Security/Secret-Detection.gitlab-ci.yml
 variables:
   SECRET_DETECTION_ENABLED: 'true'
 secret_detection:
   stage: secret-detection
+
+run_vagrant:
+  stage: test
+  variables:
+    VAGRANT_DEFAULT_PROVIDER: libvirt
+    ANSIBLE_VAULT_PASSWORD_FILE: .vault_pass
+  tags:
+    - ansible # Ensures this runs on a runner tagged/configured with Vagrant installed
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH == "main"
+  before_script:
+    - echo "$ANSIBLE_VAULT_PASSWORD" > .vault_pass
+    - git clone https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.com/cf_homelab/secrets.git
+    - ./scripts/link-private-files.sh --secrets-dir secrets
+  script:
+    - ansible-lint
+    - virsh destroy ansible_nodes_ubuntu-test || true
+    - virsh undefine ansible_nodes_ubuntu-test --remove-all-storage || true
+    - |
+      for pool in $(virsh pool-list --all --name | grep ansible_nodes); do
+        virsh pool-destroy "$pool" || true
+        virsh pool-undefine "$pool" || true
+      done
+    - vagrant up
+  after_script:
+    - rm -f .vault_pass
+    - vagrant destroy -f
