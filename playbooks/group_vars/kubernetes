@@ -1,0 +1,7 @@
+---
+kubernetes_version: "v1.36"
+kubernetes_pod_network_cidr: "10.244.0.0/16"
+kubernetes_cni_manifest_url: "https://github.com/flannel-io/flannel/releases/latest/download/kube-flannel.yml"
+kubernetes_cri_socket: "unix:///run/containerd/containerd.sock"
+kubernetes_join_token_ttl: "2h"
+kubernetes_control_group: "kubernetes_control"

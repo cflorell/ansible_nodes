@@ -1,13 +1,97 @@
 stages:
-- test
-- secret-detection
-sast:
-  stage: test
+  - secret-detection
+  - lint
+  - test
+  - post-test
+
 include:
-- template: Security/SAST.gitlab-ci.yml
-- template: Security/SAST-IaC.gitlab-ci.yml
-- template: Security/Secret-Detection.gitlab-ci.yml
+  - template: Security/SAST.gitlab-ci.yml
+  - template: Security/SAST-IaC.gitlab-ci.yml
+  - template: Security/Secret-Detection.gitlab-ci.yml
+
 variables:
   SECRET_DETECTION_ENABLED: 'true'
+
+sast:
+  stage: test
+
 secret_detection:
   stage: secret-detection
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH == "main"
+
+.sast-analyzer:
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH == "main"
+
+ansible_lint:
+  stage: lint
+  tags:
+    - ansible
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH == "main"
+  script:
+    - ansible-lint
+
+run_vagrant:
+  stage: test
+  variables:
+    VAGRANT_DEFAULT_PROVIDER: libvirt
+    ANSIBLE_VAULT_PASSWORD_FILE: .vault_pass
+  tags:
+    - ansible
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH == "main"
+  before_script:
+    - echo "$ANSIBLE_VAULT_PASSWORD" > .vault_pass
+    - git clone https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.com/cf_homelab/secrets.git
+    - ./scripts/link-private-files.sh --secrets-dir secrets
+  script:
+    - ansible-lint
+    - virsh destroy ansible_nodes_ubuntu-test || true
+    - virsh undefine ansible_nodes_ubuntu-test --remove-all-storage || true
+    - |
+      for pool in $(virsh pool-list --all --name | grep ansible_nodes); do
+        virsh pool-destroy "$pool" || true
+        virsh pool-undefine "$pool" || true
+      done
+    - vagrant up
+  after_script:
+    - rm -f .vault_pass
+    - vagrant destroy -f
+
+parse-sast-results:
+  stage: post-test
+  image: alpine:latest
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH == "main"
+  before_script:
+    - apk add --no-cache jq
+  script:
+    - echo "=== SECRET DETECTION RESULTS ==="
+    - |
+      if [ -f "gl-secret-detection-report.json" ]; then
+        jq -r '.vulnerabilities[] |
+          "Severity: [\(.severity)] | Category: \(.category) \n" +
+          "Description: \(.message) \n" +
+          "Location: \(.location.file):\(.location.start_line)\n" +
+          "-----------------------------------"' gl-secret-detection-report.json
+      else
+        echo "gl-secret-detection-report.json not found."
+      fi
+    - echo "=== SAST RESULTS ==="
+    - |
+      if [ -f "gl-sast-report.json" ]; then
+        jq -r '.vulnerabilities[] |
+          "Severity: [\(.severity)] | Category: \(.category) \n" +
+          "Description: \(.message) \n" +
+          "Location: \(.location.file):\(.location.start_line)\n" +
+          "-----------------------------------"' gl-sast-report.json
+      else
+        echo "gl-sast-report.json not found."
+      fi

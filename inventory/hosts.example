@@ -13,6 +13,19 @@ prometheus-grafana ansible_host=192.0.2.23 ansible_user=root ansible_port=22
 media ansible_host=192.0.2.24 ansible_user=root ansible_port=22
 torrent ansible_host=192.0.2.26 ansible_user=root ansible_port=22
 media2 ansible_host=192.0.2.27 ansible_user=root ansible_port=22
+runner ansible_host=192.0.2.28 ansible_user=root ansible_port=22
+
+[kubernetes:children]
+kubernetes_control
+kubernetes_workers
+
+[kubernetes_control]
+kubernetes-control ansible_host=192.0.2.30 ansible_user=root ansible_port=22
+
+[kubernetes_workers]
+kubernetes-node1 ansible_host=192.0.2.31 ansible_user=root ansible_port=22
+kubernetes-node2 ansible_host=192.0.2.32 ansible_user=root ansible_port=22
+kubernetes-node3 ansible_host=192.0.2.33 ansible_user=root ansible_port=22
 
 [server:vars]
 ansible_ssh_private_key_file=~/.ssh/id_ed25519

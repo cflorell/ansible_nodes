@@ -17,6 +17,7 @@ public with sensitive information and secrets stored in a private repository.
 The main playbook configures three broad host types:
 
 - `server` and `nodes`: Proxmox hosts and server VMs/LXCs.
+- `kubernetes`: kubeadm-managed control plane and worker VMs.
 - `workstation`: desktop or laptop machines.
 - `all`: common base system configuration shared across hosts.
 
@@ -103,8 +104,15 @@ Run only one tagged area:
 ```bash
 ansible-playbook playbooks/playbook.yml --ask-vault-pass --limit torrent --tags node-torrent
 ansible-playbook playbooks/playbook.yml --ask-vault-pass --limit docker --tags docker,node-docker
+ansible-playbook playbooks/playbook.yml --ask-vault-pass --limit runner --tags runner
+ansible-playbook playbooks/playbook.yml --ask-vault-pass --limit kubernetes --tags kubernetes
 ansible-playbook playbooks/playbook.yml --ask-vault-pass --limit workstation-test --tags workstation
 ```
+
+The `runner` role registers a GitLab shell runner. Set `gitlab_runner_url` and
+`gitlab_runner_token` in `secrets.vault` before the first runner provision.
+The Proxmox host also needs nested virtualization enabled; Terraform configures
+the runner VM with host CPU passthrough.
 
 Update Debian and Ubuntu server packages:
 

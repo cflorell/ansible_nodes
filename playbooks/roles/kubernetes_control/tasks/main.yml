@@ -1,0 +1,66 @@
+---
+- name: kubernetes control | check cluster init state
+  ansible.builtin.stat:
+    path: /etc/kubernetes/admin.conf
+  register: kubernetes_admin_conf
+
+- name: kubernetes control | initialize control plane
+  ansible.builtin.command:
+    argv:
+      - kubeadm
+      - init
+      - --pod-network-cidr
+      - "{{ kubernetes_pod_network_cidr }}"
+      - --node-name
+      - "{{ inventory_hostname }}"
+      - --cri-socket
+      - "{{ kubernetes_cri_socket }}"
+      - "{{ kubernetes_kubeadm_init_extra_args | default(omit) }}"
+  when: not kubernetes_admin_conf.stat.exists
+  register: output
+  changed_when: output.rc != 0
+
+- name: kubernetes control | create kubeconfig directory
+  ansible.builtin.file:
+    path: /root/.kube
+    state: directory
+    owner: root
+    group: root
+    mode: "0700"
+
+- name: kubernetes control | copy kubeconfig
+  ansible.builtin.copy:
+    src: /etc/kubernetes/admin.conf
+    dest: /root/.kube/config
+    remote_src: true
+    owner: root
+    group: root
+    mode: "0600"
+
+- name: kubernetes control | wait for API server
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - get
+      - nodes
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+  register: kubernetes_control_nodes
+  changed_when: false
+  retries: 20
+  delay: 6
+  until: kubernetes_control_nodes.rc == 0
+
+- name: kubernetes control | install pod network
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - apply
+      - -f
+      - "{{ kubernetes_cni_manifest_url }}"
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+  register: kubernetes_cni_apply
+  changed_when: >
+    'created' in kubernetes_cni_apply.stdout or
+    'configured' in kubernetes_cni_apply.stdout
