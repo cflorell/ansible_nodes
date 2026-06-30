@@ -1,0 +1,5 @@
+---
+kubernetes_control_group: "kubernetes_control"
+kubernetes_cri_socket: "unix:///run/containerd/containerd.sock"
+kubernetes_join_token_ttl: "2h"
+kubernetes_kubeadm_join_extra_args: []

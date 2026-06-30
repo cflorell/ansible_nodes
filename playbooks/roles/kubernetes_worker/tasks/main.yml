@@ -1,0 +1,45 @@
+---
+- name: kubernetes worker | check join state
+  ansible.builtin.stat:
+    path: /etc/kubernetes/kubelet.conf
+  register: kubernetes_kubelet_conf
+
+- name: kubernetes worker | assert control group exists
+  ansible.builtin.assert:
+    that:
+      - kubernetes_control_group in groups
+      - groups[kubernetes_control_group] | length > 0
+    fail_msg: "Define a Kubernetes control host in the kubernetes_control inventory group."
+
+- name: kubernetes worker | create join command
+  ansible.builtin.command:
+    argv:
+      - kubeadm
+      - token
+      - create
+      - --print-join-command
+      - --ttl
+      - "{{ kubernetes_join_token_ttl }}"
+  delegate_to: "{{ groups[kubernetes_control_group][0] }}"
+  run_once: true
+  register: kubernetes_worker_join_command
+  changed_when: false
+  when: >
+    ansible_play_hosts
+    | map('extract', hostvars, 'kubernetes_kubelet_conf')
+    | selectattr('stat.exists', 'equalto', false)
+    | list
+    | length > 0
+
+- name: kubernetes worker | join cluster
+  ansible.builtin.command:
+    argv:
+      - "{{ kubernetes_worker_join_command.stdout.split() }}"
+      - "--node-name"
+      - "{{ inventory_hostname }}"
+      - "--cri-socket"
+      - "{{ kubernetes_cri_socket }}"
+      - "{{ kubernetes_kubeadm_join_extra_args }}"
+  when: not kubernetes_kubelet_conf.stat.exists
+  register: output
+  changed_when: output.rc != 0

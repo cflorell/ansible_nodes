@@ -46,6 +46,27 @@
   roles:
     - runner
 
+- name: Run Kubernetes common tasks
+  hosts: kubernetes_control, kubernetes_workers
+  tags: kubernetes, kubernetes-common
+  become: true
+  roles:
+    - kubernetes_common
+
+- name: Run Kubernetes control plane tasks
+  hosts: kubernetes_control
+  tags: kubernetes, kubernetes-control
+  become: true
+  roles:
+    - kubernetes_control
+
+- name: Run Kubernetes worker tasks
+  hosts: kubernetes_workers
+  tags: kubernetes, kubernetes-worker
+  become: true
+  roles:
+    - kubernetes_worker
+
 - name: Run node exporter role
   hosts: server
   tags: node-exporter

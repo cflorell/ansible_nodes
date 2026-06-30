@@ -1,0 +1,158 @@
+---
+- name: kubernetes common | assert supported OS
+  ansible.builtin.assert:
+    that:
+      - ansible_facts['distribution'] in ['Debian', 'Ubuntu']
+    fail_msg: "The kubernetes_common role currently supports Debian and Ubuntu hosts."
+
+- name: kubernetes common | install container runtime dependencies
+  ansible.builtin.apt:
+    name: "{{ kubernetes_common_packages }}"
+    update_cache: true
+
+- name: kubernetes common | disable active swap
+  ansible.builtin.command:
+    argv:
+      - swapoff
+      - -a
+  changed_when: false
+  when: ansible_swaptotal_mb | int > 0
+
+- name: kubernetes common | check fstab
+  ansible.builtin.stat:
+    path: /etc/fstab
+  register: kubernetes_fstab
+
+- name: kubernetes common | disable swap in fstab
+  ansible.builtin.replace:
+    path: /etc/fstab
+    regexp: '^([^#]\S+\s+\S+\s+swap\s+.*)$'
+    replace: '# \1'
+  when: kubernetes_fstab.stat.exists
+
+- name: kubernetes common | configure kernel modules
+  ansible.builtin.copy:
+    dest: /etc/modules-load.d/kubernetes.conf
+    owner: root
+    group: root
+    mode: "0644"
+    content: |
+      overlay
+      br_netfilter
+
+- name: kubernetes common | try to load kernel modules
+  ansible.builtin.command:
+    argv:
+      - modprobe
+      - "{{ item }}"
+  loop:
+    - overlay
+    - br_netfilter
+  changed_when: false
+  failed_when: false
+
+- name: kubernetes common | check bridge netfilter sysctl
+  ansible.builtin.stat:
+    path: /proc/sys/net/bridge/bridge-nf-call-iptables
+  register: kubernetes_bridge_netfilter
+
+- name: kubernetes common | assert bridge netfilter is available
+  ansible.builtin.assert:
+    that:
+      - kubernetes_bridge_netfilter.stat.exists
+    fail_msg: "Load br_netfilter before provisioning Kubernetes VMs."
+
+- name: kubernetes common | configure sysctl
+  ansible.builtin.copy:
+    dest: /etc/sysctl.d/99-kubernetes.conf
+    owner: root
+    group: root
+    mode: "0644"
+    content: |
+      net.bridge.bridge-nf-call-iptables = 1
+      net.bridge.bridge-nf-call-ip6tables = 1
+      net.ipv4.ip_forward = 1
+
+- name: kubernetes common | apply sysctl
+  ansible.builtin.command:
+    argv:
+      - sysctl
+      - --system
+  changed_when: false
+
+- name: kubernetes common | add Kubernetes apt repository
+  ansible.builtin.deb822_repository:
+    name: kubernetes
+    types: deb
+    uris: "https://pkgs.k8s.io/core:/stable:/{{ kubernetes_version }}/deb/"
+    suites: /
+    signed_by: "https://pkgs.k8s.io/core:/stable:/{{ kubernetes_version }}/deb/Release.key"
+    state: present
+    enabled: true
+
+- name: kubernetes common | install Kubernetes packages
+  ansible.builtin.apt:
+    name: "{{ kubernetes_packages }}"
+    update_cache: true
+
+- name: kubernetes common | hold Kubernetes packages
+  ansible.builtin.dpkg_selections:
+    name: "{{ item }}"
+    selection: hold
+  loop: "{{ kubernetes_packages }}"
+
+- name: kubernetes common | ensure containerd config directory exists
+  ansible.builtin.file:
+    path: /etc/containerd
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: kubernetes common | read default containerd config
+  ansible.builtin.command:
+    argv:
+      - containerd
+      - config
+      - default
+  register: kubernetes_containerd_default_config
+  changed_when: false
+
+- name: kubernetes common | write containerd config
+  ansible.builtin.copy:
+    dest: /etc/containerd/config.toml
+    owner: root
+    group: root
+    mode: "0644"
+    content: |
+      {{ kubernetes_containerd_default_config.stdout
+         | regex_replace('SystemdCgroup = false', 'SystemdCgroup = true')
+         | regex_replace('disabled_plugins = \["cri"\]', 'disabled_plugins = []') }}
+  notify: restart containerd
+
+- name: kubernetes common | configure crictl
+  ansible.builtin.copy:
+    dest: /etc/crictl.yaml
+    owner: root
+    group: root
+    mode: "0644"
+    content: |
+      runtime-endpoint: unix:///run/containerd/containerd.sock
+      image-endpoint: unix:///run/containerd/containerd.sock
+      timeout: 10
+      debug: false
+
+- name: kubernetes common | enable containerd
+  ansible.builtin.systemd:
+    name: containerd
+    enabled: true
+    state: started
+
+- name: kubernetes common | enable kubelet
+  ansible.builtin.systemd:
+    name: kubelet
+    enabled: true
+    daemon_reload: true
+
+- name: kubernetes common | flush handlers
+  ansible.builtin.meta: flush_handlers
