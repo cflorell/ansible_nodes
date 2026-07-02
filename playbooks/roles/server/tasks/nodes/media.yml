@@ -7,7 +7,7 @@
   loop:
     - jellyseerr
     - promtail
-    - booklore
+    - grimmory
 
 - name: server | node-media | Move promtail-config.yml
   ansible.builtin.template:
