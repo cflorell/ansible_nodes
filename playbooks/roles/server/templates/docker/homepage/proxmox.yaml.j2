@@ -1,0 +1,18 @@
+---
+{% set proxmox1_host = hostvars['proxmox1'].ansible_host if 'proxmox1' in hostvars else 'proxmox1' %}
+{% set proxmox2_host = hostvars['proxmox2'].ansible_host if 'proxmox2' in hostvars else 'proxmox2' %}
+{% set proxmox3_host = hostvars['proxmox3'].ansible_host if 'proxmox3' in hostvars else 'proxmox3' %}
+proxmox:
+  url: "{{ proxmox1_url | default('https://' ~ proxmox1_host ~ ':8006', true) }}"
+  token: "root@pam!{{ proxmox_ansible_api_token_id | default(lookup('env', 'proxmox_ansible_api_token_id'), true) }}"
+  secret: "{{ proxmox_ansible_api_token_secret | default(lookup('env', 'proxmox_ansible_api_token_secret'), true) }}"
+
+proxmox2:
+  url: "{{ proxmox2_url | default('https://' ~ proxmox2_host ~ ':8006', true) }}"
+  token: "root@pam!{{ proxmox_ansible_api_token_id | default(lookup('env', 'proxmox_ansible_api_token_id'), true) }}"
+  secret: "{{ proxmox_ansible_api_token_secret | default(lookup('env', 'proxmox_ansible_api_token_secret'), true) }}"
+
+proxmox3:
+  url: "{{ proxmox3_url | default('https://' ~ proxmox3_host ~ ':8006', true) }}"
+  token: "root@pam!{{ proxmox_ansible_api_token_id | default(lookup('env', 'proxmox_ansible_api_token_id'), true) }}"
+  secret: "{{ proxmox_ansible_api_token_secret | default(lookup('env', 'proxmox_ansible_api_token_secret'), true) }}"

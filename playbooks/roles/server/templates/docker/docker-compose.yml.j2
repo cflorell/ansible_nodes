@@ -1,18 +1,16 @@
 services:
-  heimdall:
-      image: lscr.io/linuxserver/heimdall:latest
-      container_name: heimdall
-      user: root
-      environment:
-          - PUID=1000
-          - PGID=1000
-          - TZ=Europe/Stockholm
-      volumes:
-          - ./heimdal:/config
-      ports:
-          - 8500:80
-          - 6443:443
-      restart: unless-stopped
+  homepage:
+    image: ghcr.io/gethomepage/homepage:latest
+    container_name: homepage
+    ports:
+      - 3000:3000
+    volumes:
+      - ./homepage:/app/config
+      # Allows Homepage to read local Docker stats if you want container metrics
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    environment:
+      - HOMEPAGE_ALLOWED_HOSTS=192.168.2.70:3000
+    restart: unless-stopped
 
   speedtest:
       container_name: speedtest
@@ -94,8 +92,6 @@ services:
           SUBDOMAINS: "{{ porkbun_subdomains }}"
           SECRETAPIKEY: "{{ porkbun_secret_api_key }}"
           APIKEY: "{{ porkbun_api_key }}"
-          IPV4_ONLY: "TRUE"
-          IPV6_ONLY: "FALSE"
           PYTHONUNBUFFERED: 1
       restart: unless-stopped
 

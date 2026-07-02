@@ -5,7 +5,7 @@
     state: directory
     mode: "0755"
   loop:
-    - heimdal
+    - homepage
     - speedtest
     - uptime-kuma
     - signal-cli
@@ -37,6 +37,15 @@
     owner: "{{ ansible_facts['user_id'] }}"
     group: "{{ ansible_facts['user_id'] }}"
     mode: "0600"
+
+- name: server | node-docker | Move homepage config files
+  ansible.builtin.template:
+    src: "{{ item }}"
+    dest: "/{{ ansible_facts['user_id'] }}/homepage/{{ item | basename | regex_replace('\\.j2$', '') }}"
+    owner: "{{ ansible_facts['user_id'] }}"
+    group: "{{ ansible_facts['user_id'] }}"
+    mode: "0600"
+  loop: "{{ lookup('ansible.builtin.fileglob', role_path ~ '/templates/docker/homepage/*.j2', wantlist=True) }}"
 
 - name: server | node-docker | deploy Docker Compose stack
   community.docker.docker_compose_v2:

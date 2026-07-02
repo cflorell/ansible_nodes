@@ -1,0 +1,37 @@
+---
+# For configuration options and examples, please see:
+# https://gethomepage.dev/configs/info-widgets/
+
+- greeting:
+    text_size: 4xl
+    text: "{{ ansible_facts['hostname'] | default(inventory_hostname) }}"
+
+- resources:
+    expanded: false
+    cpu: true 
+    cputemp: true
+    memory: true  
+    refresh: 1000
+
+- kubernetes:
+    cluster:
+      show: true
+      cpu: true
+      memory: true
+      showLabel: true
+      label: kubernetes
+    nodes:
+      show: true
+      cpu: true
+      memory: true
+      showLabel: true
+
+- datetime:
+    text_size: 4xl
+    format:
+        timeStyle: short
+        hour12: false
+
+- search:
+    provider: duckduckgo
+    target: _blank
