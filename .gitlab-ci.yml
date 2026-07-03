@@ -21,6 +21,22 @@ secret_detection:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
     - if: $CI_COMMIT_BRANCH == "main"
 
+trufflehog:
+  stage: secret-detection
+  image:
+    name: trufflesecurity/trufflehog:latest
+    entrypoint: [""]
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH == "main"
+  script:
+    - trufflehog git file://. --fail --json > trufflehog-report.json
+  artifacts:
+    when: always
+    paths:
+      - trufflehog-report.json
+    expire_in: 1 week
+
 .sast-analyzer:
   rules:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
