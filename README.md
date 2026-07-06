@@ -105,12 +105,13 @@ Run only one tagged area:
 ansible-playbook playbooks/playbook.yml --ask-vault-pass --limit torrent --tags node-torrent
 ansible-playbook playbooks/playbook.yml --ask-vault-pass --limit docker --tags docker,node-docker
 ansible-playbook playbooks/playbook.yml --ask-vault-pass --limit runner --tags runner
+ansible-playbook playbooks/playbook.yml --ask-vault-pass --limit proxmox3 --tags runner
 ansible-playbook playbooks/playbook.yml --ask-vault-pass --limit kubernetes --tags kubernetes
 ansible-playbook playbooks/playbook.yml --ask-vault-pass --limit workstation-test --tags workstation
 ```
 
 The `runner` role registers a GitLab shell runner. Set `gitlab_runner_url` and
-`gitlab_runner_token` in `secrets.vault` before the first runner provision.
+`gitlab_runner_tokens` in `secrets.vault` before the first runner provision.
 The Proxmox host also needs nested virtualization enabled; Terraform configures
 the runner VM with host CPU passthrough.
 

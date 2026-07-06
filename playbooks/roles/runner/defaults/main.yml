@@ -1,6 +1,6 @@
 ---
 gitlab_runner_url: "https://gitlab.com"
-gitlab_runner_token: ""
+gitlab_runner_tokens: {}
 gitlab_runner_description: "{{ inventory_hostname }}"
 
 gitlab_runner_vagrant_packages:
@@ -15,8 +15,10 @@ gitlab_runner_vagrant_packages:
   - libvirt-dev
   - libxml2-dev
   - libxslt-dev
+  - packer
   - qemu-guest-agent
   - qemu-system
+  - qemu-utils
   - ruby-dev
   - ruby-libvirt
   - vagrant

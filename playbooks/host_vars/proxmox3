@@ -1,0 +1,9 @@
+---
+nfs_client: true
+nfs_server: false
+
+docker: true
+
+proxmox: true
+
+node_exporter: true

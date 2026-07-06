@@ -32,7 +32,7 @@
     name: gitlab-runner
     update_cache: true
 
-- name: runner | install Vagrant and libvirt packages
+- name: runner | install Packer, Vagrant and libvirt packages
   ansible.builtin.apt:
     name: "{{ gitlab_runner_vagrant_packages }}"
     update_cache: true
@@ -65,13 +65,21 @@
   changed_when: false
   failed_when: false
 
+- name: runner | resolve registration token
+  ansible.builtin.set_fact:
+    gitlab_runner_effective_token: >-
+      {{
+        gitlab_runner_host_token |
+        default(gitlab_runner_tokens[inventory_hostname] | default(''), true)
+      }}
+
 - name: runner | assert registration variables
   ansible.builtin.assert:
     that:
       - gitlab_runner_url | length > 0
-      - gitlab_runner_token | length > 0
-      - gitlab_runner_token != "glrt-change-me"
-    fail_msg: "Set gitlab_runner_url and gitlab_runner_token in secrets.vault before registering the runner."
+      - gitlab_runner_effective_token | length > 0
+      - gitlab_runner_effective_token != "glrt-change-me"
+    fail_msg: "Set gitlab_runner_tokens[inventory_hostname] in secrets.vault before registering the runner."
 
 - name: runner | register shell runner
   ansible.builtin.command:
@@ -82,7 +90,7 @@
       - --url
       - "{{ gitlab_runner_url }}"
       - --token
-      - "{{ gitlab_runner_token }}"
+      - "{{ gitlab_runner_effective_token }}"
       - --executor
       - shell
       - --description

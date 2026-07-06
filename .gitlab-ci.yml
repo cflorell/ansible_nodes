@@ -1,6 +1,7 @@
 stages:
   - secret-detection
   - lint
+  - prepare
   - test
   - post-test
 
@@ -14,10 +15,17 @@ variables:
 
 sast:
   stage: test
+  rules:
+    - if: $FETCH_VAGRANT_BOXES == "true"
+      when: never
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH == "main"
 
 secret_detection:
   stage: secret-detection
   rules:
+    - if: $FETCH_VAGRANT_BOXES == "true"
+      when: never
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
     - if: $CI_COMMIT_BRANCH == "main"
 
@@ -27,6 +35,8 @@ trufflehog:
     name: trufflesecurity/trufflehog:latest
     entrypoint: [""]
   rules:
+    - if: $FETCH_VAGRANT_BOXES == "true"
+      when: never
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
     - if: $CI_COMMIT_BRANCH == "main"
   script:
@@ -39,6 +49,8 @@ trufflehog:
 
 .sast-analyzer:
   rules:
+    - if: $FETCH_VAGRANT_BOXES == "true"
+      when: never
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
     - if: $CI_COMMIT_BRANCH == "main"
 
@@ -47,10 +59,25 @@ ansible_lint:
   tags:
     - ansible
   rules:
+    - if: $FETCH_VAGRANT_BOXES == "true"
+      when: never
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
     - if: $CI_COMMIT_BRANCH == "main"
   script:
     - ansible-lint
+
+fetch_vagrant_boxes:
+  stage: prepare
+  tags:
+    - ansible
+  rules:
+    - if: $FETCH_VAGRANT_BOXES == "true" && $CI_PIPELINE_SOURCE == "web"
+  variables:
+    VAGRANT_BOXES_DIR: "/mnt/Storage3/boxes"
+  script:
+    - vagrant box add --name archlinux "${VAGRANT_BOXES_DIR}/archlinux.vagrant.box" --force
+    - vagrant box add --name fedora "${VAGRANT_BOXES_DIR}/fedora44.vagrant.box" --force
+    - vagrant box add --name ubuntu "${VAGRANT_BOXES_DIR}/ubuntu26.04.vagrant.box" --force
 
 run_vagrant:
   stage: test
@@ -60,6 +87,8 @@ run_vagrant:
   tags:
     - ansible
   rules:
+    - if: $FETCH_VAGRANT_BOXES == "true"
+      when: never
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
     - if: $CI_COMMIT_BRANCH == "main"
   before_script:
@@ -84,6 +113,8 @@ parse-sast-results:
   stage: post-test
   image: alpine:latest
   rules:
+    - if: $FETCH_VAGRANT_BOXES == "true"
+      when: never
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
     - if: $CI_COMMIT_BRANCH == "main"
   before_script:
