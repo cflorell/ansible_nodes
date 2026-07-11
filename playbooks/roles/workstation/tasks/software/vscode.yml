@@ -40,15 +40,3 @@
     state: present
     update_cache: true
   when: ansible_facts['distribution'] != 'Archlinux'
-
-- name: workstation | vscode | Install extensions
-  tags: skip-ci
-  become: true
-  become_user: "{{ ansible_facts['user_id'] }}"
-  ansible.builtin.command: code --install-extension {{ item }}
-  loop: "{{ visual_studio_code_extensions }}"
-  retries: 3
-  delay: 3
-  register: result
-  until: result is succeeded
-  changed_when: result.rc != 0
