@@ -14,7 +14,7 @@
     password: '{{ christoffer_password }}'
     shell: /bin/bash
   no_log: true
-  when: ansible_facts['distribution'] in ['Ubuntu', 'Debian', 'LMDE', 'ArchLinux']
+  when: ansible_facts['distribution'] in ['Ubuntu', 'Debian', 'LMDE']
 
 - name: users | christoffer | create user Fedora
   ansible.builtin.user:
@@ -27,6 +27,18 @@
     shell: /bin/bash
   no_log: true
   when: ansible_facts['distribution'] == "Fedora"
+
+- name: users | christoffer | create user ArchLinux
+  ansible.builtin.user:
+    name: christoffer
+    group: christoffer
+    groups: wheel
+    state: present
+    comment: christoffer
+    password: '{{ christoffer_password }}'
+    shell: /bin/bash
+  no_log: true
+  when: ansible_facts['distribution'] == "Archlinux"
 
 - name: users | christoffer | add sudoers file
   ansible.builtin.copy:

@@ -7,6 +7,7 @@ xfonts_terminus_package: terminus-fonts
 hunspell_en_us_package: hunspell-en-US
 hunspell_sv_package: hunspell-sv
 hyphen_en_package: hyphen-en
+hyphen_sv_package: hyphen-sv
 libnotify_package: libnotify
 p7zip_package: p7zip
 python_dev_package: python3-devel
