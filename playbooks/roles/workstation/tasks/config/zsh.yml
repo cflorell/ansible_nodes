@@ -31,7 +31,7 @@
     - name: "config | ZSH | Run the install script"
       become: true
       become_user: "{{ ansible_facts['user_id'] }}"
-      ansible.builtin.script:
+      ansible.builtin.command:
         cmd: /tmp/oh-my-zsh_install.sh --unattended
 
 - name: "config | ZSH | Install Custom Plugins"
