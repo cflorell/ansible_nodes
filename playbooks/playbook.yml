@@ -13,12 +13,12 @@
 
     - name: Update apt cache explicitly (for Debian/Ubuntu)
       ansible.builtin.apt:
-        update_cache: yes
+        update_cache: true
       when: ansible_os_family == "Debian"
 
     - name: Update dnf cache explicitly (for RHEL/CentOS/Fedora)
       ansible.builtin.dnf:
-        update_cache: yes
+        update_cache: true
       when: ansible_os_family == "RedHat"
 
     - name: Update pacman cache explicitly (Arch Linux)
