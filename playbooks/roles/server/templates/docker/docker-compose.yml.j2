@@ -114,9 +114,12 @@ services:
     environment:
       TZ: Europe/Stockholm 
       IFACES: "eth0@if7"
-      # HOST: "0.0.0.0"                   # optional, default: 0.0.0.0
-      # PORT: "8840"                      # optional, default: 8840
-      # TIMEOUT: "120"                    # optional, time in seconds, default: 120
-      # SHOUTRRR_URL: ""                  # optional, set url to notify
-      # THEME: "sand"                     # optional
-      # COLOR: "dark"                     # optional
+
+  whats-up-docker:
+    image: getwud/wud:latest
+    container_name: whats-up-docker
+    ports:
+      - 3002:3000
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    restart: unless-stopped
