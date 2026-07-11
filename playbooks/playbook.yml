@@ -10,21 +10,25 @@
 
     - name: Import secrets
       ansible.builtin.include_vars: ../secrets.vault
+      no_log: true
 
     - name: Update apt cache explicitly (for Debian/Ubuntu)
       ansible.builtin.apt:
         update_cache: true
-      when: ansible_os_family == "Debian"
+      become: true
+      when: ansible_facts["os_family"] == "Debian"
 
     - name: Update dnf cache explicitly (for RHEL/CentOS/Fedora)
       ansible.builtin.dnf:
         update_cache: true
-      when: ansible_os_family == "RedHat"
+      become: true
+      when: ansible_facts["os_family"] == "RedHat"
 
     - name: Update pacman cache explicitly (Arch Linux)
       community.general.pacman:
         update_cache: true
-      when: ansible_os_family == "Archlinux"
+      become: true
+      when: ansible_facts["os_family"] == "Archlinux"
 
 # Must patch proxmox instance before running base tasks on them.
 # Otherwise it will fail dues to missing enterprise repo.
