@@ -1,5 +1,5 @@
 ag_package: silversearcher-ag
-chromium_package: chromium
+chromium_package: chromium-browser
 cups_package: cups-daemon
 fira_code_fonts_package: fonts-firacode
 fonts_inconsolata_package: fonts-inconsolata
