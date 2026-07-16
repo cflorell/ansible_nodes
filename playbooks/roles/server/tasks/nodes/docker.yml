@@ -13,6 +13,7 @@
     - nginx-proxy-manager
     - promtail
     - WatchYourLAN
+    - homelable
 
 - name: server | node-docker | Move promtail-config.yml
   ansible.builtin.template:
@@ -46,6 +47,14 @@
     group: "{{ ansible_facts['user_id'] }}"
     mode: "0600"
   loop: "{{ lookup('ansible.builtin.fileglob', role_path ~ '/templates/docker/homepage/*.j2', wantlist=True) }}"
+
+- name: server | node-docker | Move homelable .env file
+  ansible.builtin.template:
+    src: "docker/homelable/.env.j2"
+    dest: "/{{ ansible_facts['user_id'] }}/homelable/.env"
+    owner: "{{ ansible_facts['user_id'] }}"
+    group: "{{ ansible_facts['user_id'] }}"
+    mode: "0600"
 
 - name: server | node-docker | deploy Docker Compose stack
   community.docker.docker_compose_v2:

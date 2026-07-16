@@ -16,7 +16,7 @@
 {% set kube_node1_host = hostvars['kube-node1'].ansible_host if 'kube-node1' in hostvars else hostvars['kubernetes-node1'].ansible_host if 'kubernetes-node1' in hostvars else 'kube-node1' %}
 {% set kube_node2_host = hostvars['kube-node2'].ansible_host if 'kube-node2' in hostvars else hostvars['kubernetes-node2'].ansible_host if 'kubernetes-node2' in hostvars else 'kube-node2' %}
 {% set kube_node3_host = hostvars['kube-node3'].ansible_host if 'kube-node3' in hostvars else hostvars['kubernetes-node3'].ansible_host if 'kubernetes-node3' in hostvars else 'kube-node3' %}
-{% set homeassistant_host = hostvars['homeassistant'].ansible_host if 'homeassistant' in hostvars else '192.168.2.75' %}
+{% set homeassistant_host = hostvars['homeassistant'].ansible_host if 'homeassistant' in hostvars else 'homeassistant' %}
 
 - Home:
     - Homepage:

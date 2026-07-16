@@ -9,7 +9,7 @@ services:
       # Allows Homepage to read local Docker stats if you want container metrics
       - /var/run/docker.sock:/var/run/docker.sock:ro
     environment:
-      - HOMEPAGE_ALLOWED_HOSTS=192.168.2.70:3000
+      - HOMEPAGE_ALLOWED_HOSTS={{ docker_server_ip }}:3000
     restart: unless-stopped
 
   speedtest:
@@ -123,3 +123,36 @@ services:
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
     restart: unless-stopped
+
+  homelable-backend:
+    image: ghcr.io/pouzor/homelable-backend:latest
+    container_name: homelable-backend
+    env_file:
+      - ./homelable/.env
+    environment:
+      SQLITE_PATH: /app/data/homelab.db
+      CORS_ORIGINS: '["http://{{ docker_server_ip }}:3003"]'
+    volumes:
+      - ./homelable:/app/data
+    networks:
+      homelable:
+        aliases:
+          - backend
+    cap_add:
+      - NET_RAW
+    restart: unless-stopped
+
+  homelable-frontend:
+    image: ghcr.io/pouzor/homelable-frontend:latest
+    container_name: homelable-frontend
+    ports:
+      - 3003:80
+    depends_on:
+      - homelable-backend
+    networks:
+      - homelable
+    restart: unless-stopped
+
+networks:
+  homelable:
+    driver: bridge
