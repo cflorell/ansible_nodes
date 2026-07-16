@@ -5,9 +5,9 @@
   gather_facts: false
   pre_tasks:
     - name: Check if host is Arch Linux
-      ansible.builtin.raw: test -f /etc/arch-release || grep -qi '^ID=arch' /etc/os-release 2>/dev/null || echo "not arch"
+      ansible.builtin.raw: test -f /etc/arch-release || grep -qi '^ID=arch' /etc/os-release 2>/dev/null
       register: is_arch
-      ignore_errors: true
+      failed_when: false
       changed_when: false
 
     - name: Install Python on Arch Linux (bootstrap)
@@ -15,7 +15,6 @@
       when: is_arch.rc == 0
       become: true
       register: python_install
-      ignore_errors: true
       changed_when: false
 
     - name: Gather facts
