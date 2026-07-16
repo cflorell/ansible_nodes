@@ -87,9 +87,9 @@ services:
     networks:
       - tracearr-network
 
-  grimmory::
-    image: grimmory:/grimmory::latest
-    container_name: grimmory:
+  grimmory:
+    image: grimmory/grimmory:latest
+    container_name: grimmory
     environment:
       - USER_ID=${APP_USER_ID}
       - GROUP_ID=${APP_GROUP_ID}
@@ -103,9 +103,9 @@ services:
     ports:
       - "6060:6060"
     volumes:
-      - ./grimmory:/data:/app/data
+      - ./grimmory/data:/app/data
       - /mnt/Storage3/samba/Ebooks:/books
-      - ./grimmory:/bookdrop:/bookdrop
+      - ./grimmory/bookdrop:/bookdrop
     healthcheck:
       test: wget -q -O - http://localhost:6060/api/v1/healthcheck
       interval: 60s
