@@ -88,8 +88,11 @@ parse-sast-results:
 .vagrant_rules:
   rules:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+      changes:
+        - playbooks/roles/workstation/**
+        - playbooks/roles/base/**
     - if: $CI_COMMIT_BRANCH == "main"
-    - changes:
+      changes:
         - playbooks/roles/workstation/**
         - playbooks/roles/base/**
 
