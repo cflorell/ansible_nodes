@@ -1,0 +1,344 @@
+---
+# Homelable canvas — the desired state of the network map.
+#
+# This is the source of truth. Ansible renders it, converts it to a
+# CanvasSaveRequest and pushes it to the Homelable API (see
+# tasks/nodes/homelable_canvas.yml). Nothing here is uploaded by hand.
+#
+# Addresses are rendered from the Ansible inventory (hostvars) so no real IP is
+# committed to this public repository — same pattern as homepage/services.yaml.j2.
+#
+# Node ids are derived from `label` (uuid5), so labels are the stable identity:
+# renaming a label replaces the node and drops any manual edits made to it.
+#
+# `x`/`y` are canvas coordinates in pixels. The API stores absolute positions and
+# has no auto-layout, so the layout lives here: nodes are ranked top-to-bottom
+# (internet 0 / gateway 140 / hypervisor 300 / guest 520) and each guest group is
+# centred under its host. They are ignored by the app's own YAML import, which
+# runs dagre instead, so this file stays importable from the UI as a fallback.
+#
+# Schema: https://github.com/Pouzor/homelable -> frontend/src/types/yaml.ts
+{% set docker_host = hostvars.get('docker', {}).get('ansible_host', 'docker') %}
+{% set authentik_host = hostvars.get('authentik', {}).get('ansible_host', 'authentik') %}
+{% set immich_host = hostvars.get('immich', {}).get('ansible_host', 'immich') %}
+{% set media_host = hostvars.get('media', {}).get('ansible_host', 'media') %}
+{% set media2_host = hostvars.get('media2', {}).get('ansible_host', 'media2') %}
+{% set prometheus_grafana_host = hostvars.get('prometheus-grafana', {}).get('ansible_host', 'prometheus-grafana') %}
+{% set proxmox1_host = hostvars.get('proxmox1', {}).get('ansible_host', 'proxmox1') %}
+{% set proxmox2_host = hostvars.get('proxmox2', {}).get('ansible_host', 'proxmox2') %}
+{% set proxmox3_host = hostvars['proxmox3'].ansible_host if 'proxmox3' in hostvars else 'proxmox3' %}
+{% set torrent_host = hostvars.get('torrent', {}).get('ansible_host', 'torrent') %}
+{% set runner_host = hostvars.get('runner', {}).get('ansible_host', 'runner') %}
+{% set kube_control_host = hostvars['kube-control'].ansible_host if 'kube-control' in hostvars else hostvars['kubernetes-control'].ansible_host if 'kubernetes-control' in hostvars else 'kube-control' %}
+{% set kube_node1_host = hostvars['kube-node1'].ansible_host if 'kube-node1' in hostvars else hostvars['kubernetes-node1'].ansible_host if 'kubernetes-node1' in hostvars else 'kube-node1' %}
+{% set kube_node2_host = hostvars['kube-node2'].ansible_host if 'kube-node2' in hostvars else hostvars['kubernetes-node2'].ansible_host if 'kubernetes-node2' in hostvars else 'kube-node2' %}
+{% set kube_node3_host = hostvars['kube-node3'].ansible_host if 'kube-node3' in hostvars else hostvars['kubernetes-node3'].ansible_host if 'kubernetes-node3' in hostvars else 'kube-node3' %}
+{# OPNsense and Home Assistant are not Ansible-managed, so they have no hostvars
+   entry. Set homelable_gateway_ip / homelable_homeassistant_ip in secrets.vault
+   to pin them; otherwise they fall back to a DNS name resolved by OPNsense. #}
+{% set homeassistant_host = hostvars['homeassistant'].ansible_host if 'homeassistant' in hostvars else homelable_homeassistant_ip | default('homeassistant') %}
+{% set opnsense_host = hostvars['opnsense'].ansible_host if 'opnsense' in hostvars else homelable_gateway_ip | default('OPNsense.localdomain') %}
+
+# --- Edge ---------------------------------------------------------------
+
+- nodeType: isp
+  label: Internet
+  x: 1740
+  y: 0
+  nodeIcon: globe
+  checkMethod: ping
+  checkTarget: "1.1.1.1"
+  notes: WAN uplink. Public address is kept dynamic by porkbun-ddns on the docker host.
+  links:
+    - label: OPNsense
+      linkType: ethernet
+
+- nodeType: firewall
+  label: OPNsense
+  x: 1740
+  y: 140
+  nodeIcon: brand:opnsense
+  hostname: OPNsense.localdomain
+  ipAddress: "{{ opnsense_host }}"
+  checkMethod: ping
+  notes: >-
+    Router, firewall and DHCP/DNS for the homelab LAN.
+    Web UI uses a self-signed certificate, so this node is checked with ping.
+  links:
+    - label: proxmox1
+      linkType: ethernet
+    - label: proxmox2
+      linkType: ethernet
+    - label: proxmox3
+      linkType: ethernet
+
+# --- Hypervisors --------------------------------------------------------
+
+- nodeType: proxmox
+  label: proxmox1
+  x: 720
+  y: 300
+  nodeIcon: brand:proxmox
+  hostname: proxmox
+  ipAddress: "{{ proxmox1_host }}"
+  checkMethod: tcp
+  checkTarget: "{{ proxmox1_host }}:8006"
+  notes: >-
+    Proxmox VE node "proxmox" — main hypervisor, runs most of the LXC service
+    stack plus the GitLab runner VM. Also runs Scrutiny (disk health) on :8080.
+    Checked over TCP/8006 because the API certificate is self-signed.
+  links:
+    - label: docker
+      linkType: virtual
+    - label: authentik
+      linkType: virtual
+    - label: prometheus-grafana
+      linkType: virtual
+    - label: media
+      linkType: virtual
+    - label: torrent
+      linkType: virtual
+    - label: media2
+      linkType: virtual
+    - label: runner
+      linkType: virtual
+
+- nodeType: proxmox
+  label: proxmox2
+  x: 1920
+  y: 300
+  nodeIcon: brand:proxmox
+  hostname: proxmox2
+  ipAddress: "{{ proxmox2_host }}"
+  checkMethod: tcp
+  checkTarget: "{{ proxmox2_host }}:8006"
+  notes: >-
+    Proxmox VE node "proxmox2" — hosts Immich and the Home Assistant VM.
+    Jellyfin (:8096) runs on the host itself rather than in a guest.
+    Checked over TCP/8006 because the API certificate is self-signed.
+  links:
+    - label: immich
+      linkType: virtual
+    - label: homeassistant
+      linkType: virtual
+
+- nodeType: proxmox
+  label: proxmox3
+  x: 2760
+  y: 300
+  nodeIcon: brand:proxmox
+  hostname: proxmox3
+  ipAddress: "{{ proxmox3_host }}"
+  checkMethod: tcp
+  checkTarget: "{{ proxmox3_host }}:8006"
+  notes: >-
+    Proxmox VE node "proxmox3" — dedicated to the kubeadm cluster VMs.
+    Checked over TCP/8006 because the API certificate is self-signed.
+  links:
+    - label: kube-control
+      linkType: virtual
+    - label: kube-node1
+      linkType: virtual
+    - label: kube-node2
+      linkType: virtual
+    - label: kube-node3
+      linkType: virtual
+
+# --- proxmox1 guests ----------------------------------------------------
+
+- nodeType: lxc
+  label: docker
+  x: 0
+  y: 520
+  nodeIcon: brand:docker
+  ipAddress: "{{ docker_host }}"
+  checkMethod: http
+  checkTarget: "http://{{ docker_host }}:3000"
+  cpuCore: 2
+  ram: 2
+  disk: 16
+  notes: >-
+    LXC 100 on proxmox1. Docker host for the front-of-house stack:
+    Homepage :3000, Uptime Kuma :3001, Homelable :3003 (this canvas),
+    Nginx Proxy Manager :81, Speedtest Tracker :8765, WatchYourLAN :8840,
+    What's-up-Docker, signal-cli REST :8080, alertmanager-signal :10000,
+    porkbun-ddns and promtail.
+
+- nodeType: lxc
+  label: authentik
+  x: 240
+  y: 520
+  nodeIcon: brand:authentik
+  ipAddress: "{{ authentik_host }}"
+  checkMethod: http
+  checkTarget: "http://{{ authentik_host }}:9000"
+  cpuCore: 2
+  ram: 2
+  disk: 8
+  notes: >-
+    LXC 101 on proxmox1. Authentik identity provider on :9000
+    (server + worker, PostgreSQL and Redis), with promtail shipping logs.
+
+- nodeType: lxc
+  label: prometheus-grafana
+  x: 480
+  y: 520
+  nodeIcon: brand:grafana
+  ipAddress: "{{ prometheus_grafana_host }}"
+  checkMethod: http
+  checkTarget: "http://{{ prometheus_grafana_host }}:3000"
+  cpuCore: 2
+  ram: 2
+  disk: 32
+  notes: >-
+    LXC 103 on proxmox1. Observability stack: Grafana :3000, Prometheus :9090,
+    Alertmanager :9093 and Loki :3100. Alerts route to Signal through the
+    alertmanager-signal webhook on the docker host.
+
+- nodeType: lxc
+  label: media
+  x: 720
+  y: 520
+  nodeIcon: brand:jellyseerr
+  ipAddress: "{{ media_host }}"
+  checkMethod: http
+  checkTarget: "http://{{ media_host }}:5055"
+  cpuCore: 8
+  ram: 4
+  disk: 16
+  notes: >-
+    LXC 104 on proxmox1. Jellyseerr :5055 (media requests), Tracearr :3000
+    with TimescaleDB and Redis, and Grimmory :6060 (ebook library) on MariaDB.
+
+- nodeType: lxc
+  label: torrent
+  x: 960
+  y: 520
+  nodeIcon: brand:qbittorrent
+  ipAddress: "{{ torrent_host }}"
+  checkMethod: http
+  checkTarget: "http://{{ torrent_host }}:8080"
+  cpuCore: 8
+  ram: 2
+  disk: 16
+  notes: >-
+    LXC 106 on proxmox1. qBittorrent behind a VPN tunnel (binhex arch-qbittorrentvpn):
+    WebUI :8080, Privoxy :8118, plus a NAT-PMP port-forward keeper.
+    All traffic egresses through the VPN, so it may not answer a plain LAN scan.
+
+- nodeType: lxc
+  label: media2
+  x: 1200
+  y: 520
+  nodeIcon: brand:paperless-ngx
+  ipAddress: "{{ media2_host }}"
+  checkMethod: http
+  checkTarget: "http://{{ media2_host }}:8000"
+  cpuCore: 2
+  ram: 2
+  disk: 24
+  notes: >-
+    LXC 107 on proxmox1. Paperless-ngx :8000 (document archive, PostgreSQL +
+    Redis broker) and RomM :80 (game library) on MariaDB.
+
+- nodeType: vm
+  label: runner
+  x: 1440
+  y: 520
+  nodeIcon: brand:gitlab
+  ipAddress: "{{ runner_host }}"
+  checkMethod: ssh
+  cpuCore: 4
+  ram: 4
+  disk: 128
+  notes: >-
+    VM 108 on proxmox1. GitLab shell runner that provisions this homelab.
+    Uses host CPU passthrough for nested virtualisation (Vagrant/libvirt tests).
+    No web UI — checked over SSH.
+
+# --- proxmox2 guests ----------------------------------------------------
+
+- nodeType: lxc
+  label: immich
+  x: 1800
+  y: 520
+  nodeIcon: brand:immich
+  ipAddress: "{{ immich_host }}"
+  checkMethod: http
+  checkTarget: "http://{{ immich_host }}:2283"
+  cpuCore: 6
+  ram: 4
+  disk: 24
+  notes: >-
+    LXC 102 on proxmox2. Immich photo library :2283 — server plus the machine
+    learning worker, backed by pgvecto-rs and Redis.
+
+- nodeType: vm
+  label: homeassistant
+  x: 2040
+  y: 520
+  nodeIcon: brand:home-assistant
+  ipAddress: "{{ homeassistant_host }}"
+  checkMethod: http
+  checkTarget: "http://{{ homeassistant_host }}:8123"
+  cpuCore: 2
+  ram: 4
+  disk: 32
+  notes: >-
+    VM 105 on proxmox2 (HAOS appliance image, "haosova"). Home Assistant :8123.
+    Built by Terraform but deliberately not managed by Ansible, so it has no
+    inventory entry — set homelable_homeassistant_ip in secrets.vault to pin it.
+
+# --- proxmox3 guests: kubeadm cluster -----------------------------------
+
+- nodeType: vm
+  label: kube-control
+  x: 2400
+  y: 520
+  nodeIcon: brand:kubernetes
+  ipAddress: "{{ kube_control_host }}"
+  checkMethod: tcp
+  checkTarget: "{{ kube_control_host }}:6443"
+  cpuCore: 2
+  ram: 4
+  disk: 32
+  notes: >-
+    VM 120 on proxmox3. kubeadm control plane, Kubernetes v1.36, Flannel CNI
+    (pod CIDR 10.244.0.0/16). API server on :6443 — checked over TCP because the
+    API certificate is signed by the cluster CA.
+
+- nodeType: vm
+  label: kube-node1
+  x: 2640
+  y: 520
+  nodeIcon: brand:kubernetes
+  ipAddress: "{{ kube_node1_host }}"
+  checkMethod: ssh
+  cpuCore: 2
+  ram: 4
+  disk: 32
+  notes: VM 121 on proxmox3. Kubernetes worker, containerd runtime. Joined to kube-control.
+
+- nodeType: vm
+  label: kube-node2
+  x: 2880
+  y: 520
+  nodeIcon: brand:kubernetes
+  ipAddress: "{{ kube_node2_host }}"
+  checkMethod: ssh
+  cpuCore: 2
+  ram: 4
+  disk: 32
+  notes: VM 122 on proxmox3. Kubernetes worker, containerd runtime. Joined to kube-control.
+
+- nodeType: vm
+  label: kube-node3
+  x: 3120
+  y: 520
+  nodeIcon: brand:kubernetes
+  ipAddress: "{{ kube_node3_host }}"
+  checkMethod: ssh
+  cpuCore: 2
+  ram: 4
+  disk: 32
+  notes: VM 123 on proxmox3. Kubernetes worker, containerd runtime. Joined to kube-control.

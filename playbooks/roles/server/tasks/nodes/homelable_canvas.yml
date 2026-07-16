@@ -1,0 +1,67 @@
+---
+# Push the network map in templates/docker/homelable/canvas.yaml.j2 to the
+# Homelable API, so the canvas is deployed like everything else rather than
+# hand-uploaded through the web UI.
+#
+# The backend publishes no host port of its own; nginx in the frontend container
+# proxies /api/ to it, so the API is reached through the frontend port.
+#
+# /canvas/save is declarative: it upserts the nodes and edges it is given and
+# deletes everything else in the design. Combined with the stable uuid5 ids from
+# canvas-payload.json.j2, re-running converges the canvas instead of duplicating
+# it — including removing the auto-discovered scan nodes this replaces.
+
+- name: server | homelable | Wait for the Homelable web endpoint
+  ansible.builtin.wait_for:
+    host: 127.0.0.1
+    port: "{{ homelable_web_port }}"
+    timeout: 90
+
+- name: server | homelable | Log in to the Homelable API
+  ansible.builtin.uri:
+    url: "{{ homelable_api_url }}/auth/login"
+    method: POST
+    body_format: json
+    body:
+      username: "{{ homelable_auth_username }}"
+      password: "{{ homelable_auth_password }}"
+    status_code: 200
+  register: _homelable_login
+  until: _homelable_login is succeeded
+  retries: 10
+  delay: 3
+  changed_when: false
+  no_log: true
+
+- name: server | homelable | Read the current canvas
+  ansible.builtin.uri:
+    url: "{{ homelable_api_url }}/canvas{{ '?design_id=' ~ homelable_design_id if homelable_design_id is defined else '' }}"
+    method: GET
+    headers:
+      Authorization: "Bearer {{ _homelable_login.json.access_token }}"
+    status_code: 200
+  register: _homelable_canvas_current
+  changed_when: false
+  no_log: true
+
+- name: server | homelable | Render the desired canvas
+  ansible.builtin.set_fact:
+    _homelable_canvas: "{{ lookup('ansible.builtin.template', 'docker/homelable/canvas.yaml.j2') | from_yaml }}"
+
+- name: server | homelable | Build the canvas payload
+  ansible.builtin.set_fact:
+    _homelable_plan: "{{ lookup('ansible.builtin.template', 'docker/homelable/canvas-payload.json.j2') | from_json }}"
+
+- name: server | homelable | Apply the canvas
+  ansible.builtin.uri:
+    url: "{{ homelable_api_url }}/canvas/save"
+    method: POST
+    body_format: json
+    body: "{{ _homelable_plan.payload }}"
+    headers:
+      Authorization: "Bearer {{ _homelable_login.json.access_token }}"
+    status_code: 200
+  when: >-
+    _homelable_plan.payload.nodes != _homelable_plan.current.nodes
+    or _homelable_plan.payload.edges != _homelable_plan.current.edges
+  no_log: true

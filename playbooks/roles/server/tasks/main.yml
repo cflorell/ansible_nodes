@@ -30,6 +30,11 @@
       ansible.builtin.import_tasks: nodes/docker.yml
       when: ansible_facts['hostname'] == "docker"
 
+    - name: Homelable canvas
+      tags: homelable-canvas
+      ansible.builtin.import_tasks: nodes/homelable_canvas.yml
+      when: ansible_facts['hostname'] == "docker"
+
     - name: Node Authentik
       tags: node-authentik
       ansible.builtin.import_tasks: nodes/authentik.yml

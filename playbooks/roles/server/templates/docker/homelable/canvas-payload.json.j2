@@ -1,0 +1,112 @@
+{#- Build a Homelable CanvasSaveRequest from canvas.yaml.j2.
+
+    Emits two objects:
+      payload — the body to POST to /api/v1/canvas/save
+      current — the canvas as it exists now, projected onto exactly the fields
+                payload sets, so the task can tell whether anything changed.
+
+    Both node/edge lists are sorted by id, and `current` is projected using the
+    keys of the desired node itself, so the two sides can never drift apart.
+
+    Node ids are uuid5(label) and edge ids are uuid5("source>target"): stable
+    across runs, which is what makes the POST converge instead of duplicating.
+
+    /canvas/save upserts every field it receives, so anything the server owns
+    (status, viewport, custom_style) is read back and passed through unchanged
+    rather than being reset to a default on every run.
+-#}
+{%- set cur = (_homelable_canvas_current.json | default({}, true)) -%}
+{%- set cur_nodes = cur.nodes | default([], true) -%}
+{%- set cur_edges = cur.edges | default([], true) -%}
+{%- set status_of = dict(cur_nodes | map(attribute='id') | zip(cur_nodes | map(attribute='status'))) -%}
+{%- set id_of = dict(_homelable_canvas | map(attribute='label') | zip(_homelable_canvas | map(attribute='label') | map('to_uuid'))) -%}
+{%- set ns = namespace(nodes=[], edges=[]) -%}
+
+{%- for n in _homelable_canvas -%}
+  {%- set nid = id_of[n.label] -%}
+  {%- set has_hw = (n.cpuCore is defined) or (n.ram is defined) or (n.disk is defined) -%}
+  {%- set _ = ns.nodes.append({
+        'id': nid,
+        'type': n.nodeType,
+        'label': n.label,
+        'hostname': n.hostname | default(none),
+        'ip': n.ipAddress | default(none),
+        'mac': none,
+        'os': none,
+        'status': status_of.get(nid, 'unknown'),
+        'check_method': n.checkMethod | default(none),
+        'check_target': n.checkTarget | default(none),
+        'services': [],
+        'notes': n.notes | default(none),
+        'parent_id': none,
+        'container_mode': false,
+        'custom_colors': none,
+        'custom_icon': n.nodeIcon | default(none),
+        'cpu_count': n.cpuCore | default(none),
+        'cpu_model': none,
+        'ram_gb': n.ram | default(none),
+        'disk_gb': n.disk | default(none),
+        'show_hardware': has_hw,
+        'show_port_numbers': false,
+        'properties': [],
+        'width': none,
+        'height': none,
+        'bottom_handles': 1,
+        'top_handles': 1,
+        'left_handles': 0,
+        'right_handles': 0,
+        'pos_x': n.x,
+        'pos_y': n.y,
+      }) -%}
+  {#- Edges hang off the source node's links[]; handles match the app's own
+      YAML import (source leaves 'bottom', target lands on the '-t' twin). -#}
+  {%- for l in n.links | default([], true) -%}
+    {%- set _ = ns.edges.append({
+          'id': (n.label ~ '>' ~ l.label) | to_uuid,
+          'source': nid,
+          'target': id_of[l.label],
+          'type': l.linkType | default('ethernet'),
+          'label': l.linkLabel | default(none),
+          'vlan_id': none,
+          'speed': none,
+          'custom_color': none,
+          'path_style': none,
+          'line_style': none,
+          'width_mult': none,
+          'animated': 'none',
+          'marker_start': 'none',
+          'marker_end': 'none',
+          'source_handle': l.sourceHandle | default('bottom'),
+          'target_handle': l.targetHandle | default('top-t'),
+          'waypoints': none,
+        }) -%}
+  {%- endfor -%}
+{%- endfor -%}
+
+{%- set nodes = ns.nodes | sort(attribute='id') -%}
+{%- set edges = ns.edges | sort(attribute='id') -%}
+{%- set node_keys = nodes[0].keys() | list -%}
+{%- set edge_keys = edges[0].keys() | list -%}
+{%- set proj = namespace(nodes=[], edges=[]) -%}
+{%- for n in cur_nodes | sort(attribute='id') -%}
+  {%- set _ = proj.nodes.append(dict(node_keys | zip(node_keys | map('extract', n)))) -%}
+{%- endfor -%}
+{%- for e in cur_edges | sort(attribute='id') -%}
+  {%- set _ = proj.edges.append(dict(edge_keys | zip(edge_keys | map('extract', e)))) -%}
+{%- endfor -%}
+
+{{
+  {
+    'payload': {
+      'design_id': homelable_design_id | default(none),
+      'viewport': cur.viewport | default({'x': 0, 'y': 0, 'zoom': 1}, true),
+      'custom_style': cur.custom_style | default(none),
+      'nodes': nodes,
+      'edges': edges,
+    },
+    'current': {
+      'nodes': proj.nodes,
+      'edges': proj.edges,
+    },
+  } | to_json
+}}
