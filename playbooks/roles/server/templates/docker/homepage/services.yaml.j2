@@ -92,14 +92,14 @@
         icon: loki.png
         href: http://{{ prometheus_grafana_host }}:3100/
         description: Log aggregation
-    - Uptime Kuma:
-        icon: uptime-kuma.png
-        href: http://{{ docker_host }}:3001/
+    - Gatus:
+        icon: gatus.png
+        href: http://{{ docker_host }}:8081/
         description: Status checks
         widget:
-          type: uptimekuma
-          url: http://{{ docker_host }}:3001/
-          slug: "{{ uptime_kuma_status_slug | default('changeme') }}"
+          type: gatus
+          url: http://{{ docker_host }}:8081/
+          fields: ["up", "down", "uptime"]
     - Speedtest:
         icon: speedtest-tracker.png
         href: http://{{ docker_host }}:8765/

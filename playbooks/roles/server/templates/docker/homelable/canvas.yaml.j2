@@ -169,7 +169,7 @@
   links:
     - label: homepage
       linkType: virtual
-    - label: uptime-kuma
+    - label: gatus
       linkType: virtual
     - label: whats-up-docker
       linkType: virtual
@@ -203,13 +203,14 @@
     templated by Ansible from the same inventory as this canvas.
 
 - nodeType: docker_container
-  label: uptime-kuma
-  nodeIcon: brand:uptime-kuma
+  label: gatus
+  nodeIcon: brand:gatus
   ipAddress: "{{ docker_host }}"
   checkMethod: http
-  checkTarget: "http://{{ docker_host }}:3001"
+  checkTarget: "http://{{ docker_host }}:8081"
   notes: >-
-    Uptime Kuma v2 — independent uptime probes and public status page.
+    Gatus — declarative uptime checks and alerting (Telegram + Signal),
+    config-as-code in this repo instead of Uptime Kuma's web UI.
 
 - nodeType: docker_container
   label: whats-up-docker
