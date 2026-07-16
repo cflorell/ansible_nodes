@@ -22,6 +22,77 @@
 {%- set id_of = dict(_homelable_canvas | map(attribute='label') | zip(_homelable_canvas | map(attribute='label') | map('to_uuid'))) -%}
 {%- set ns = namespace(nodes=[], edges=[]) -%}
 
+{#- ---------------------------------------------------------------------------
+    Layout. The API stores absolute positions and has no auto-layout, so the
+    tree in canvas.yaml.j2 is packed here.
+
+    Ranks 0-3 (internet / gateway / hypervisor / guest) are laid out left to
+    right in declaration order, each hypervisor centred over its own guests.
+
+    A guest's services are NOT spread across rank 4 — 44 of them in one row made
+    the canvas ~11000px wide and unreadable. They hang in a vertical column
+    indented under their host instead, entering from the left with an orthogonal
+    ('smooth') edge. The host's drop line sits at x+NODE_W/2, left of the column
+    at x+INDENT, so the edges never cross a node. That keeps the canvas roughly
+    5000x1600 and reads like an inventory tree.
+
+    The walk is written out per level rather than recursively, so it assumes the
+    canvas is exactly internet -> gateway -> hypervisor -> guest -> service.
+    A node deeper than that would never be assigned a position and the render
+    would fail loudly on the pos_x lookup below, which is the intent.
+--------------------------------------------------------------------------- -#}
+{%- set NODE_W = 180 -%}
+{%- set INDENT = 140 -%}       {#- service column offset from its host's x -#}
+{%- set SVC_TOP = 120 -%}      {#- first service, below its host -#}
+{%- set SVC_ROW = 76 -%}       {#- vertical pitch inside a service column -#}
+{%- set GUEST_GAP = 70 -%}
+{%- set PMX_GAP = 180 -%}
+{%- set ROW_Y = [0, 150, 340, 570] -%}
+{%- set kids = {} -%}
+{%- for n in _homelable_canvas -%}
+  {%- set _ = kids.update({n.label: (n.links | default([], true)) | map(attribute='label') | list}) -%}
+{%- endfor -%}
+{%- set targets = [] -%}
+{%- for n in _homelable_canvas -%}
+  {%- for l in n.links | default([], true) -%}
+    {%- set _ = targets.append(l.label) -%}
+  {%- endfor -%}
+{%- endfor -%}
+{%- set root = (_homelable_canvas | map(attribute='label') | reject('in', targets) | list) | first -%}
+{%- set lay = namespace(cursor=0, x={}, y={}, vert={}) -%}
+{%- for gw in kids[root] -%}
+  {%- set pmx_xs = [] -%}
+  {%- for pmx in kids[gw] -%}
+    {%- set guest_xs = [] -%}
+    {%- for guest in kids[pmx] -%}
+      {%- set svcs = kids[guest] | default([], true) -%}
+      {%- set gx = lay.cursor -%}
+      {%- set _ = lay.x.update({guest: gx}) -%}
+      {%- set _ = lay.y.update({guest: ROW_Y[3]}) -%}
+      {%- set _ = guest_xs.append(gx) -%}
+      {%- for s in svcs -%}
+        {%- set _ = lay.x.update({s: gx + INDENT}) -%}
+        {%- set _ = lay.y.update({s: ROW_Y[3] + SVC_TOP + loop.index0 * SVC_ROW}) -%}
+        {%- set _ = lay.vert.update({s: true}) -%}
+      {%- endfor -%}
+      {%- set width = (INDENT + NODE_W) if svcs else NODE_W -%}
+      {%- set lay.cursor = lay.cursor + width + GUEST_GAP -%}
+    {%- endfor -%}
+    {%- set px = (((guest_xs | min) + (guest_xs | max)) / 2) | round | int -%}
+    {%- set _ = lay.x.update({pmx: px}) -%}
+    {%- set _ = lay.y.update({pmx: ROW_Y[2]}) -%}
+    {%- set _ = pmx_xs.append(px) -%}
+    {%- set lay.cursor = lay.cursor + PMX_GAP -%}
+  {%- endfor -%}
+  {%- set gwx = (((pmx_xs | min) + (pmx_xs | max)) / 2) | round | int -%}
+  {%- set _ = lay.x.update({gw: gwx}) -%}
+  {%- set _ = lay.y.update({gw: ROW_Y[1]}) -%}
+  {%- set _ = lay.x.update({root: gwx}) -%}
+  {%- set _ = lay.y.update({root: ROW_Y[0]}) -%}
+{%- endfor -%}
+
+{#- A service is entered from its left, and that handle only exists when the side
+    is given a connection point (left/right default to none). -#}
 {%- for n in _homelable_canvas -%}
   {%- set nid = id_of[n.label] -%}
   {%- set has_hw = (n.cpuCore is defined) or (n.ram is defined) or (n.disk is defined) -%}
@@ -53,14 +124,17 @@
         'height': none,
         'bottom_handles': 1,
         'top_handles': 1,
-        'left_handles': 0,
+        'left_handles': 1 if lay.vert.get(n.label) else 0,
         'right_handles': 0,
-        'pos_x': n.x,
-        'pos_y': n.y,
+        'pos_x': lay.x[n.label],
+        'pos_y': lay.y[n.label],
       }) -%}
-  {#- Edges hang off the source node's links[]; handles match the app's own
-      YAML import (source leaves 'bottom', target lands on the '-t' twin). -#}
+  {#- Edges hang off the source node's links[]. Tree edges leave the source's
+      'bottom' and land on the target's invisible '-t' twin: 'top-t' for the
+      ranked rows, 'left-t' for a service in an indented column (routed
+      orthogonally so the drop line runs beside the column, not through it). -#}
   {%- for l in n.links | default([], true) -%}
+    {%- set into_column = lay.vert.get(l.label) -%}
     {%- set _ = ns.edges.append({
           'id': (n.label ~ '>' ~ l.label) | to_uuid,
           'source': nid,
@@ -70,14 +144,14 @@
           'vlan_id': none,
           'speed': none,
           'custom_color': none,
-          'path_style': none,
+          'path_style': 'smooth' if into_column else 'bezier',
           'line_style': none,
           'width_mult': none,
           'animated': 'none',
           'marker_start': 'none',
           'marker_end': 'none',
           'source_handle': l.sourceHandle | default('bottom'),
-          'target_handle': l.targetHandle | default('top-t'),
+          'target_handle': l.targetHandle | default('left-t' if into_column else 'top-t'),
           'waypoints': none,
         }) -%}
   {%- endfor -%}

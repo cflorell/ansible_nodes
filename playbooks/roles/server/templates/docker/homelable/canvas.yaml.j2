@@ -10,12 +10,24 @@
 #
 # Node ids are derived from `label` (uuid5), so labels are the stable identity:
 # renaming a label replaces the node and drops any manual edits made to it.
+# Labels must be unique, which is why the six promtail sidecars are qualified
+# with their host, and why qbittorrent is labelled after its service rather than
+# its container_name (`torrent`, which would collide with the LXC node).
 #
-# `x`/`y` are canvas coordinates in pixels. The API stores absolute positions and
-# has no auto-layout, so the layout lives here: nodes are ranked top-to-bottom
-# (internet 0 / gateway 140 / hypervisor 300 / guest 520) and each guest group is
-# centred under its host. They are ignored by the app's own YAML import, which
-# runs dagre instead, so this file stays importable from the UI as a fallback.
+# Positions are NOT declared here. canvas-payload.json.j2 lays the tree out from
+# the `links` below: children are packed left to right in declaration order and
+# each parent is centred over its own children. Add a service to a host's links
+# and the layout re-flows on the next run. That also means declaration order is
+# what controls left-to-right placement.
+#
+# The tree is internet -> gateway -> hypervisor -> guest -> container. Services
+# that run on a hypervisor directly (scrutiny, jellyfin) hang off the proxmox
+# node, so they sit at the guest rank rather than the container rank.
+#
+# Containers that publish a host port get an http check against that port;
+# purely internal ones (databases, workers, log shippers) get no check at all,
+# so they stay "unknown" grey rather than claiming to be up. `checkMethod: none`
+# is deliberately avoided — the backend treats it as always-online.
 #
 # Schema: https://github.com/Pouzor/homelable -> frontend/src/types/yaml.ts
 {% set docker_host = hostvars.get('docker', {}).get('ansible_host', 'docker') %}
@@ -43,8 +55,6 @@
 
 - nodeType: isp
   label: Internet
-  x: 1740
-  y: 0
   nodeIcon: globe
   checkMethod: ping
   checkTarget: "1.1.1.1"
@@ -55,15 +65,13 @@
 
 - nodeType: firewall
   label: OPNsense
-  x: 1740
-  y: 140
   nodeIcon: brand:opnsense
   hostname: OPNsense.localdomain
   ipAddress: "{{ opnsense_host }}"
   checkMethod: ping
   notes: >-
-    Router, firewall and DHCP/DNS for the homelab LAN.
-    Web UI uses a self-signed certificate, so this node is checked with ping.
+    Router, firewall and DHCP/DNS for the homelab LAN. Web UI uses a self-
+    signed certificate, so this node is checked with ping.
   links:
     - label: proxmox1
       linkType: ethernet
@@ -76,17 +84,15 @@
 
 - nodeType: proxmox
   label: proxmox1
-  x: 720
-  y: 300
   nodeIcon: brand:proxmox
   hostname: proxmox
   ipAddress: "{{ proxmox1_host }}"
   checkMethod: tcp
   checkTarget: "{{ proxmox1_host }}:8006"
   notes: >-
-    Proxmox VE node "proxmox" — main hypervisor, runs most of the LXC service
-    stack plus the GitLab runner VM. Also runs Scrutiny (disk health) on :8080.
-    Checked over TCP/8006 because the API certificate is self-signed.
+    Proxmox VE node "proxmox" — main hypervisor: most of the LXC service stack
+    plus the GitLab runner VM. Checked over TCP/8006 because the API
+    certificate is self-signed.
   links:
     - label: docker
       linkType: virtual
@@ -102,38 +108,40 @@
       linkType: virtual
     - label: runner
       linkType: virtual
+    - label: scrutiny
+      linkType: virtual
 
 - nodeType: proxmox
   label: proxmox2
-  x: 1920
-  y: 300
   nodeIcon: brand:proxmox
   hostname: proxmox2
   ipAddress: "{{ proxmox2_host }}"
   checkMethod: tcp
   checkTarget: "{{ proxmox2_host }}:8006"
   notes: >-
-    Proxmox VE node "proxmox2" — hosts Immich and the Home Assistant VM.
-    Jellyfin (:8096) runs on the host itself rather than in a guest.
-    Checked over TCP/8006 because the API certificate is self-signed.
+    Proxmox VE node "proxmox2" — hosts Immich and the Home Assistant VM, and
+    runs Jellyfin directly on the host. Checked over TCP/8006 because the API
+    certificate is self-signed.
   links:
     - label: immich
       linkType: virtual
     - label: homeassistant
       linkType: virtual
+    - label: jellyfin
+      linkType: virtual
+    - label: promtail (proxmox2)
+      linkType: virtual
 
 - nodeType: proxmox
   label: proxmox3
-  x: 2760
-  y: 300
   nodeIcon: brand:proxmox
   hostname: proxmox3
   ipAddress: "{{ proxmox3_host }}"
   checkMethod: tcp
   checkTarget: "{{ proxmox3_host }}:8006"
   notes: >-
-    Proxmox VE node "proxmox3" — dedicated to the kubeadm cluster VMs.
-    Checked over TCP/8006 because the API certificate is self-signed.
+    Proxmox VE node "proxmox3" — dedicated to the kubeadm cluster VMs. Checked
+    over TCP/8006 because the API certificate is self-signed.
   links:
     - label: kube-control
       linkType: virtual
@@ -148,8 +156,6 @@
 
 - nodeType: lxc
   label: docker
-  x: 0
-  y: 520
   nodeIcon: brand:docker
   ipAddress: "{{ docker_host }}"
   checkMethod: http
@@ -158,16 +164,139 @@
   ram: 2
   disk: 16
   notes: >-
-    LXC 100 on proxmox1. Docker host for the front-of-house stack:
-    Homepage :3000, Uptime Kuma :3001, Homelable :3003 (this canvas),
-    Nginx Proxy Manager :81, Speedtest Tracker :8765, WatchYourLAN :8840,
-    What's-up-Docker, signal-cli REST :8080, alertmanager-signal :10000,
-    porkbun-ddns and promtail.
+    LXC 100 on proxmox1. Docker host for the front-of-house stack — dashboard,
+    uptime, reverse proxy, alerting and this canvas.
+  links:
+    - label: homepage
+      linkType: virtual
+    - label: uptime-kuma
+      linkType: virtual
+    - label: whats-up-docker
+      linkType: virtual
+    - label: homelable-frontend
+      linkType: virtual
+    - label: homelable-backend
+      linkType: virtual
+    - label: nginx-proxy-manager
+      linkType: virtual
+    - label: speedtest
+      linkType: virtual
+    - label: watchyourlan
+      linkType: virtual
+    - label: signal-cli-rest-api
+      linkType: virtual
+    - label: alertmanager-signal
+      linkType: virtual
+    - label: porkbun-ddns
+      linkType: virtual
+    - label: promtail (docker)
+      linkType: virtual
+
+- nodeType: docker_container
+  label: homepage
+  nodeIcon: gauge
+  ipAddress: "{{ docker_host }}"
+  checkMethod: http
+  checkTarget: "http://{{ docker_host }}:3000"
+  notes: >-
+    Homepage dashboard (ghcr.io/gethomepage/homepage). Its service list is
+    templated by Ansible from the same inventory as this canvas.
+
+- nodeType: docker_container
+  label: uptime-kuma
+  nodeIcon: brand:uptime-kuma
+  ipAddress: "{{ docker_host }}"
+  checkMethod: http
+  checkTarget: "http://{{ docker_host }}:3001"
+  notes: >-
+    Uptime Kuma v2 — independent uptime probes and public status page.
+
+- nodeType: docker_container
+  label: whats-up-docker
+  nodeIcon: brand:whats-up-docker
+  ipAddress: "{{ docker_host }}"
+  checkMethod: http
+  checkTarget: "http://{{ docker_host }}:3002"
+  notes: >-
+    What's-up-Docker — watches every container here for newer image tags.
+
+- nodeType: docker_container
+  label: homelable-frontend
+  nodeIcon: network
+  ipAddress: "{{ docker_host }}"
+  checkMethod: http
+  checkTarget: "http://{{ docker_host }}:3003"
+  notes: >-
+    Homelable web UI — this canvas. Its nginx also proxies /api to the
+    backend, which is how Ansible reaches the API.
+
+- nodeType: docker_container
+  label: homelable-backend
+  nodeIcon: server
+  notes: >-
+    Homelable API and status checker — owns the SQLite DB behind this canvas.
+    Publishes no host port; reachable only through the frontend's nginx.
+
+- nodeType: docker_container
+  label: nginx-proxy-manager
+  nodeIcon: brand:nginx-proxy-manager
+  ipAddress: "{{ docker_host }}"
+  checkMethod: http
+  checkTarget: "http://{{ docker_host }}:81"
+  notes: >-
+    Reverse proxy and TLS termination. Admin UI on :81, serves :80 and :443.
+
+- nodeType: docker_container
+  label: speedtest
+  nodeIcon: linechart
+  ipAddress: "{{ docker_host }}"
+  checkMethod: http
+  checkTarget: "http://{{ docker_host }}:8765"
+  notes: >-
+    Speedtest Tracker (linuxserver) — periodic internet speed history.
+
+- nodeType: docker_container
+  label: watchyourlan
+  nodeIcon: network
+  ipAddress: "{{ docker_host }}"
+  checkMethod: http
+  checkTarget: "http://{{ docker_host }}:8840"
+  notes: >-
+    WatchYourLAN — ARP-based LAN device inventory. Runs with host networking,
+    which is why it declares no port mapping.
+
+- nodeType: docker_container
+  label: signal-cli-rest-api
+  nodeIcon: brand:signal
+  ipAddress: "{{ docker_host }}"
+  checkMethod: http
+  checkTarget: "http://{{ docker_host }}:8080"
+  notes: >-
+    signal-cli REST API — outbound Signal messages for alerting.
+
+- nodeType: docker_container
+  label: alertmanager-signal
+  nodeIcon: brand:alertmanager
+  ipAddress: "{{ docker_host }}"
+  checkMethod: http
+  checkTarget: "http://{{ docker_host }}:10000"
+  notes: >-
+    Webhook that turns Alertmanager notifications into Signal messages.
+
+- nodeType: docker_container
+  label: porkbun-ddns
+  nodeIcon: globe
+  notes: >-
+    Keeps the Porkbun DNS records pointed at the dynamic WAN address.
+
+- nodeType: docker_container
+  label: promtail (docker)
+  nodeIcon: upload
+  notes: >-
+    Ships this host's container logs to Loki on prometheus-grafana.
 
 - nodeType: lxc
   label: authentik
-  x: 240
-  y: 520
   nodeIcon: brand:authentik
   ipAddress: "{{ authentik_host }}"
   checkMethod: http
@@ -176,13 +305,55 @@
   ram: 2
   disk: 8
   notes: >-
-    LXC 101 on proxmox1. Authentik identity provider on :9000
-    (server + worker, PostgreSQL and Redis), with promtail shipping logs.
+    LXC 101 on proxmox1. Single-sign-on for the homelab.
+  links:
+    - label: authentik-server
+      linkType: virtual
+    - label: authentik-worker
+      linkType: virtual
+    - label: postgres
+      linkType: virtual
+    - label: redis
+      linkType: virtual
+    - label: promtail (authentik)
+      linkType: virtual
+
+- nodeType: docker_container
+  label: authentik-server
+  nodeIcon: brand:authentik
+  ipAddress: "{{ authentik_host }}"
+  checkMethod: http
+  checkTarget: "http://{{ authentik_host }}:9000"
+  notes: >-
+    Authentik server — OIDC/SAML identity provider, web UI and API (:9000,
+    :9443).
+
+- nodeType: docker_container
+  label: authentik-worker
+  nodeIcon: brand:authentik
+  notes: >-
+    Authentik background worker — outposts, scheduled tasks and migrations.
+
+- nodeType: docker_container
+  label: postgres
+  nodeIcon: brand:postgresql
+  notes: >-
+    PostgreSQL 16 — Authentik's database.
+
+- nodeType: docker_container
+  label: redis
+  nodeIcon: brand:redis
+  notes: >-
+    Redis — Authentik cache and task queue.
+
+- nodeType: docker_container
+  label: promtail (authentik)
+  nodeIcon: upload
+  notes: >-
+    Ships this host's container logs to Loki on prometheus-grafana.
 
 - nodeType: lxc
   label: prometheus-grafana
-  x: 480
-  y: 520
   nodeIcon: brand:grafana
   ipAddress: "{{ prometheus_grafana_host }}"
   checkMethod: http
@@ -191,14 +362,64 @@
   ram: 2
   disk: 32
   notes: >-
-    LXC 103 on proxmox1. Observability stack: Grafana :3000, Prometheus :9090,
-    Alertmanager :9093 and Loki :3100. Alerts route to Signal through the
-    alertmanager-signal webhook on the docker host.
+    LXC 103 on proxmox1. Metrics, logs and alerting. Alerts leave through the
+    Signal webhook on the docker host.
+  links:
+    - label: grafana
+      linkType: virtual
+    - label: prometheus
+      linkType: virtual
+    - label: alertmanager
+      linkType: virtual
+    - label: loki
+      linkType: virtual
+    - label: promtail (prometheus-grafana)
+      linkType: virtual
+
+- nodeType: docker_container
+  label: grafana
+  nodeIcon: brand:grafana
+  ipAddress: "{{ prometheus_grafana_host }}"
+  checkMethod: http
+  checkTarget: "http://{{ prometheus_grafana_host }}:3000"
+  notes: >-
+    Grafana — dashboards over Prometheus metrics and Loki logs.
+
+- nodeType: docker_container
+  label: prometheus
+  nodeIcon: brand:prometheus
+  ipAddress: "{{ prometheus_grafana_host }}"
+  checkMethod: http
+  checkTarget: "http://{{ prometheus_grafana_host }}:9090"
+  notes: >-
+    Prometheus — scrapes node_exporter across the homelab.
+
+- nodeType: docker_container
+  label: alertmanager
+  nodeIcon: brand:alertmanager
+  ipAddress: "{{ prometheus_grafana_host }}"
+  checkMethod: http
+  checkTarget: "http://{{ prometheus_grafana_host }}:9093"
+  notes: >-
+    Alertmanager — routes alerts to the Signal webhook on the docker host.
+
+- nodeType: docker_container
+  label: loki
+  nodeIcon: brand:loki
+  ipAddress: "{{ prometheus_grafana_host }}"
+  checkMethod: http
+  checkTarget: "http://{{ prometheus_grafana_host }}:3100"
+  notes: >-
+    Loki — log aggregation. Every promtail on this canvas ships here.
+
+- nodeType: docker_container
+  label: promtail (prometheus-grafana)
+  nodeIcon: upload
+  notes: >-
+    Ships this host's container logs to Loki.
 
 - nodeType: lxc
   label: media
-  x: 720
-  y: 520
   nodeIcon: brand:jellyseerr
   ipAddress: "{{ media_host }}"
   checkMethod: http
@@ -207,13 +428,79 @@
   ram: 4
   disk: 16
   notes: >-
-    LXC 104 on proxmox1. Jellyseerr :5055 (media requests), Tracearr :3000
-    with TimescaleDB and Redis, and Grimmory :6060 (ebook library) on MariaDB.
+    LXC 104 on proxmox1. Media requests, playback tracing and the ebook
+    library.
+  links:
+    - label: jellyseerr
+      linkType: virtual
+    - label: tracearr
+      linkType: virtual
+    - label: tracearr-db
+      linkType: virtual
+    - label: tracearr-redis
+      linkType: virtual
+    - label: grimmory
+      linkType: virtual
+    - label: mariadb
+      linkType: virtual
+    - label: promtail (media)
+      linkType: virtual
+
+- nodeType: docker_container
+  label: jellyseerr
+  nodeIcon: brand:jellyseerr
+  ipAddress: "{{ media_host }}"
+  checkMethod: http
+  checkTarget: "http://{{ media_host }}:5055"
+  notes: >-
+    Jellyseerr — media requests, backed by Jellyfin over on proxmox2.
+
+- nodeType: docker_container
+  label: tracearr
+  nodeIcon: brand:tracearr
+  ipAddress: "{{ media_host }}"
+  checkMethod: http
+  checkTarget: "http://{{ media_host }}:3000"
+  notes: >-
+    Tracearr — media playback tracing and history.
+
+- nodeType: docker_container
+  label: tracearr-db
+  nodeIcon: database
+  notes: >-
+    TimescaleDB (PostgreSQL 16) — Tracearr's time-series store.
+
+- nodeType: docker_container
+  label: tracearr-redis
+  nodeIcon: brand:redis
+  notes: >-
+    Redis — Tracearr cache.
+
+- nodeType: docker_container
+  label: grimmory
+  nodeIcon: book
+  ipAddress: "{{ media_host }}"
+  checkMethod: http
+  checkTarget: "http://{{ media_host }}:6060"
+  notes: >-
+    Grimmory — ebook library over the Ebooks share, successor to BookLore.
+    Still backed by the MariaDB below, whose database and user remain named
+    booklore (the upstream migration keeps them as they were).
+
+- nodeType: docker_container
+  label: mariadb
+  nodeIcon: brand:mariadb
+  notes: >-
+    MariaDB — Grimmory's database.
+
+- nodeType: docker_container
+  label: promtail (media)
+  nodeIcon: upload
+  notes: >-
+    Ships this host's container logs to Loki.
 
 - nodeType: lxc
   label: torrent
-  x: 960
-  y: 520
   nodeIcon: brand:qbittorrent
   ipAddress: "{{ torrent_host }}"
   checkMethod: http
@@ -222,14 +509,41 @@
   ram: 2
   disk: 16
   notes: >-
-    LXC 106 on proxmox1. qBittorrent behind a VPN tunnel (binhex arch-qbittorrentvpn):
-    WebUI :8080, Privoxy :8118, plus a NAT-PMP port-forward keeper.
-    All traffic egresses through the VPN, so it may not answer a plain LAN scan.
+    LXC 106 on proxmox1. All traffic egresses through a VPN tunnel, so this
+    host may not answer a plain LAN scan.
+  links:
+    - label: qbittorrentvpn
+      linkType: virtual
+    - label: torrent-natpmp-keeper
+      linkType: virtual
+    - label: promtail (torrent)
+      linkType: virtual
+
+- nodeType: docker_container
+  label: qbittorrentvpn
+  nodeIcon: brand:qbittorrent
+  ipAddress: "{{ torrent_host }}"
+  checkMethod: http
+  checkTarget: "http://{{ torrent_host }}:8080"
+  notes: >-
+    qBittorrent behind a VPN tunnel (binhex/arch-qbittorrentvpn). WebUI :8080,
+    Privoxy :8118. Its container is named `torrent`, hence the label here.
+
+- nodeType: docker_container
+  label: torrent-natpmp-keeper
+  nodeIcon: refresh
+  notes: >-
+    Renews the VPN's NAT-PMP port forward. Shares the VPN container's network
+    namespace, so it has no address of its own.
+
+- nodeType: docker_container
+  label: promtail (torrent)
+  nodeIcon: upload
+  notes: >-
+    Ships this host's container logs to Loki.
 
 - nodeType: lxc
   label: media2
-  x: 1200
-  y: 520
   nodeIcon: brand:paperless-ngx
   ipAddress: "{{ media2_host }}"
   checkMethod: http
@@ -238,13 +552,57 @@
   ram: 2
   disk: 24
   notes: >-
-    LXC 107 on proxmox1. Paperless-ngx :8000 (document archive, PostgreSQL +
-    Redis broker) and RomM :80 (game library) on MariaDB.
+    LXC 107 on proxmox1. Document archive and game library.
+  links:
+    - label: paperless-ngx
+      linkType: virtual
+    - label: paperless-db
+      linkType: virtual
+    - label: paperless-broker
+      linkType: virtual
+    - label: romm
+      linkType: virtual
+    - label: romm-db
+      linkType: virtual
+
+- nodeType: docker_container
+  label: paperless-ngx
+  nodeIcon: brand:paperless-ngx
+  ipAddress: "{{ media2_host }}"
+  checkMethod: http
+  checkTarget: "http://{{ media2_host }}:8000"
+  notes: >-
+    Paperless-ngx — document archive, OCR and full-text search.
+
+- nodeType: docker_container
+  label: paperless-db
+  nodeIcon: brand:postgresql
+  notes: >-
+    PostgreSQL 18 — Paperless-ngx database.
+
+- nodeType: docker_container
+  label: paperless-broker
+  nodeIcon: brand:redis
+  notes: >-
+    Redis — Paperless-ngx task broker.
+
+- nodeType: docker_container
+  label: romm
+  nodeIcon: brand:romm
+  ipAddress: "{{ media2_host }}"
+  checkMethod: http
+  checkTarget: "http://{{ media2_host }}:80"
+  notes: >-
+    RomM — game and ROM library, published on the host's :80.
+
+- nodeType: docker_container
+  label: romm-db
+  nodeIcon: brand:mariadb
+  notes: >-
+    MariaDB — RomM database.
 
 - nodeType: vm
   label: runner
-  x: 1440
-  y: 520
   nodeIcon: brand:gitlab
   ipAddress: "{{ runner_host }}"
   checkMethod: ssh
@@ -252,16 +610,26 @@
   ram: 4
   disk: 128
   notes: >-
-    VM 108 on proxmox1. GitLab shell runner that provisions this homelab.
-    Uses host CPU passthrough for nested virtualisation (Vagrant/libvirt tests).
-    No web UI — checked over SSH.
+    VM 108 on proxmox1. GitLab shell runner that provisions this homelab. Host
+    CPU passthrough for nested virtualisation. No containers of its own — it
+    runs jobs. Checked over SSH.
+
+# --- proxmox1: services on the hypervisor itself -------------------------
+
+- nodeType: docker_container
+  label: scrutiny
+  nodeIcon: brand:scrutiny
+  ipAddress: "{{ proxmox1_host }}"
+  checkMethod: http
+  checkTarget: "http://{{ proxmox1_host }}:8080"
+  notes: >-
+    Scrutiny — S.M.A.R.T. disk health for this host's drives (:8080, InfluxDB
+    :8086). Runs on the hypervisor itself, not in a guest.
 
 # --- proxmox2 guests ----------------------------------------------------
 
 - nodeType: lxc
   label: immich
-  x: 1800
-  y: 520
   nodeIcon: brand:immich
   ipAddress: "{{ immich_host }}"
   checkMethod: http
@@ -270,13 +638,46 @@
   ram: 4
   disk: 24
   notes: >-
-    LXC 102 on proxmox2. Immich photo library :2283 — server plus the machine
-    learning worker, backed by pgvecto-rs and Redis.
+    LXC 102 on proxmox2. Photo library with its own ML worker.
+  links:
+    - label: immich_server
+      linkType: virtual
+    - label: immich_machine_learning
+      linkType: virtual
+    - label: immich_postgres
+      linkType: virtual
+    - label: immich_redis
+      linkType: virtual
+
+- nodeType: docker_container
+  label: immich_server
+  nodeIcon: brand:immich
+  ipAddress: "{{ immich_host }}"
+  checkMethod: http
+  checkTarget: "http://{{ immich_host }}:2283"
+  notes: >-
+    Immich server — photo library API and web UI.
+
+- nodeType: docker_container
+  label: immich_machine_learning
+  nodeIcon: bot
+  notes: >-
+    Immich ML worker — face recognition and CLIP search embeddings.
+
+- nodeType: docker_container
+  label: immich_postgres
+  nodeIcon: brand:postgresql
+  notes: >-
+    pgvecto-rs (PostgreSQL 14 with vector search) — Immich's database.
+
+- nodeType: docker_container
+  label: immich_redis
+  nodeIcon: brand:redis
+  notes: >-
+    Redis — Immich job queue.
 
 - nodeType: vm
   label: homeassistant
-  x: 2040
-  y: 520
   nodeIcon: brand:home-assistant
   ipAddress: "{{ homeassistant_host }}"
   checkMethod: http
@@ -285,16 +686,33 @@
   ram: 4
   disk: 32
   notes: >-
-    VM 105 on proxmox2 (HAOS appliance image, "haosova"). Home Assistant :8123.
-    Built by Terraform but deliberately not managed by Ansible, so it has no
-    inventory entry — set homelable_homeassistant_ip in secrets.vault to pin it.
+    VM 105 on proxmox2 (HAOS appliance image, "haosova"). Home Assistant
+    :8123. Built by Terraform but deliberately not managed by Ansible, so it
+    has no inventory entry and no compose stack here — set
+    homelable_homeassistant_ip in secrets.vault to pin its address.
+
+# --- proxmox2: services on the hypervisor itself -------------------------
+
+- nodeType: docker_container
+  label: jellyfin
+  nodeIcon: brand:jellyfin
+  ipAddress: "{{ proxmox2_host }}"
+  checkMethod: http
+  checkTarget: "http://{{ proxmox2_host }}:8096"
+  notes: >-
+    Jellyfin media server, host networking (:8096, DLNA :7359). Runs on the
+    hypervisor itself, not in a guest.
+
+- nodeType: docker_container
+  label: promtail (proxmox2)
+  nodeIcon: upload
+  notes: >-
+    Ships this host's container logs to Loki.
 
 # --- proxmox3 guests: kubeadm cluster -----------------------------------
 
 - nodeType: vm
   label: kube-control
-  x: 2400
-  y: 520
   nodeIcon: brand:kubernetes
   ipAddress: "{{ kube_control_host }}"
   checkMethod: tcp
@@ -304,41 +722,42 @@
   disk: 32
   notes: >-
     VM 120 on proxmox3. kubeadm control plane, Kubernetes v1.36, Flannel CNI
-    (pod CIDR 10.244.0.0/16). API server on :6443 — checked over TCP because the
-    API certificate is signed by the cluster CA.
+    (pod CIDR 10.244.0.0/16). API server on :6443 — checked over TCP because
+    the certificate is signed by the cluster CA. Workloads live in Kubernetes,
+    not in compose files, so no services are drawn under it.
 
 - nodeType: vm
   label: kube-node1
-  x: 2640
-  y: 520
   nodeIcon: brand:kubernetes
   ipAddress: "{{ kube_node1_host }}"
   checkMethod: ssh
   cpuCore: 2
   ram: 4
   disk: 32
-  notes: VM 121 on proxmox3. Kubernetes worker, containerd runtime. Joined to kube-control.
+  notes: >-
+    VM 121 on proxmox3. Kubernetes worker, containerd runtime. Joined to kube-
+    control.
 
 - nodeType: vm
   label: kube-node2
-  x: 2880
-  y: 520
   nodeIcon: brand:kubernetes
   ipAddress: "{{ kube_node2_host }}"
   checkMethod: ssh
   cpuCore: 2
   ram: 4
   disk: 32
-  notes: VM 122 on proxmox3. Kubernetes worker, containerd runtime. Joined to kube-control.
+  notes: >-
+    VM 122 on proxmox3. Kubernetes worker, containerd runtime. Joined to kube-
+    control.
 
 - nodeType: vm
   label: kube-node3
-  x: 3120
-  y: 520
   nodeIcon: brand:kubernetes
   ipAddress: "{{ kube_node3_host }}"
   checkMethod: ssh
   cpuCore: 2
   ram: 4
   disk: 32
-  notes: VM 123 on proxmox3. Kubernetes worker, containerd runtime. Joined to kube-control.
+  notes: >-
+    VM 123 on proxmox3. Kubernetes worker, containerd runtime. Joined to kube-
+    control.
