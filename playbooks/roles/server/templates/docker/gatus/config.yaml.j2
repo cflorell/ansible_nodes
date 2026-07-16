@@ -1,0 +1,262 @@
+web:
+  port: 8080
+
+ui:
+  title: "Homelab Status"
+  default-sort-by: group
+
+alert-defaults: &alert-defaults
+  description: "homelab monitoring"
+  send-on-resolved: true
+  failure-threshold: 3
+  success-threshold: 2
+
+notify-all: &notify-all
+  - type: telegram
+  - type: signal
+
+connected-conditions: &connected-conditions
+  - "[CONNECTED] == true"
+
+http-conditions: &http-conditions
+  - "[STATUS] < 400"
+
+alerting:
+  telegram:
+    token: "{{ telegram_api_token }}"
+    id: "{{ telegram_chat_id }}"
+    default-alert: *alert-defaults
+
+  signal:
+    api-url: "http://signal-cli-rest-api:8080"
+    number: "{{ signal_alertmanager_number }}"
+    recipients:
+{% for recipient in signal_alertmanager_recipients %}
+      - "{{ recipient }}"
+{% endfor %}
+    default-alert: *alert-defaults
+
+endpoints:
+  # --- Nodes managed by terraform_nodes (ping) ---
+{% for host in groups['nodes'] %}
+  - name: "{{ host }}"
+    group: nodes
+    url: "icmp://{{ hostvars[host].ansible_host }}"
+    interval: 1m
+    conditions: *connected-conditions
+    alerts: *notify-all
+{% endfor %}
+{% for host in groups['kubernetes_control'] + groups['kubernetes_workers'] %}
+  - name: "{{ host }}"
+    group: nodes
+    url: "icmp://{{ hostvars[host].ansible_host }}"
+    interval: 1m
+    conditions: *connected-conditions
+    alerts: *notify-all
+{% endfor %}
+
+  # --- Services from roles/server/templates/docker/docker-compose.yml.j2 ---
+  - name: homepage
+    group: docker
+    url: "http://homepage:3000"
+    interval: 2m
+    conditions: *http-conditions
+    alerts: *notify-all
+
+  - name: speedtest-tracker
+    group: docker
+    url: "http://speedtest:80"
+    interval: 5m
+    conditions: *http-conditions
+    alerts: *notify-all
+
+  - name: signal-cli-rest-api
+    group: docker
+    url: "http://signal-cli-rest-api:8080/v1/about"
+    interval: 5m
+    conditions:
+      - "[STATUS] == 200"
+    alerts: *notify-all
+
+  - name: alertmanager-signal
+    group: docker
+    url: "tcp://alertmanager-signal:10000"
+    interval: 5m
+    conditions: *connected-conditions
+    alerts: *notify-all
+
+  - name: nginx-proxy-manager
+    group: docker
+    url: "http://nginx-proxy-manager:81"
+    interval: 2m
+    conditions: *http-conditions
+    alerts: *notify-all
+
+  - name: promtail
+    group: docker
+    url: "http://promtail:9080/ready"
+    interval: 5m
+    conditions:
+      - "[STATUS] == 200"
+    alerts: *notify-all
+
+  - name: watchyourlan
+    group: docker
+    url: "http://{{ docker_server_ip }}:8840"
+    interval: 5m
+    conditions: *http-conditions
+    alerts: *notify-all
+
+  - name: whats-up-docker
+    group: docker
+    url: "http://whats-up-docker:3000"
+    interval: 5m
+    conditions: *http-conditions
+    alerts: *notify-all
+
+  - name: homelable
+    group: docker
+    url: "http://{{ docker_server_ip }}:3003"
+    interval: 5m
+    conditions: *http-conditions
+    alerts: *notify-all
+
+  # --- Services from roles/server/templates/authentik/docker-compose.yml.j2 ---
+  # postgresql, redis and worker expose no ports and aren't checkable here.
+  - name: authentik-server
+    group: authentik
+    url: "http://{{ hostvars['authentik'].ansible_host }}:9000"
+    interval: 2m
+    conditions: *http-conditions
+    alerts: *notify-all
+
+  # --- Services from roles/server/templates/immich/docker-compose.yml.j2 ---
+  # immich-machine-learning, redis and database expose no ports and aren't checkable here.
+  - name: immich-server
+    group: immich
+    url: "http://{{ hostvars['immich'].ansible_host }}:2283"
+    interval: 2m
+    conditions: *http-conditions
+    alerts: *notify-all
+
+  # --- Services from roles/server/templates/media/docker-compose.yml.j2 ---
+  # timescale, redis and mariadb expose no ports and aren't checkable here.
+  - name: jellyseerr
+    group: media
+    url: "http://{{ hostvars['media'].ansible_host }}:5055"
+    interval: 5m
+    conditions: *http-conditions
+    alerts: *notify-all
+
+  - name: tracearr
+    group: media
+    url: "http://{{ hostvars['media'].ansible_host }}:3000"
+    interval: 5m
+    conditions: *http-conditions
+    alerts: *notify-all
+
+  - name: grimmory
+    group: media
+    url: "http://{{ hostvars['media'].ansible_host }}:6060/api/v1/healthcheck"
+    interval: 5m
+    conditions:
+      - "[STATUS] == 200"
+    alerts: *notify-all
+
+  # --- Services from roles/server/templates/media2/docker-compose.yml.j2 ---
+  # broker and db expose no ports and aren't checkable here.
+  - name: paperless-ngx
+    group: media2
+    url: "http://{{ hostvars['media2'].ansible_host }}:8000"
+    interval: 5m
+    conditions: *http-conditions
+    alerts: *notify-all
+
+  - name: romm
+    group: media2
+    url: "http://{{ hostvars['media2'].ansible_host }}:80"
+    interval: 5m
+    conditions: *http-conditions
+    alerts: *notify-all
+
+  # --- Services from roles/server/templates/prometheus-grafana/docker-compose.yml.j2 ---
+  - name: prometheus
+    group: prometheus-grafana
+    url: "http://{{ hostvars['prometheus-grafana'].ansible_host }}:9090/-/healthy"
+    interval: 2m
+    conditions:
+      - "[STATUS] == 200"
+    alerts: *notify-all
+
+  - name: alertmanager
+    group: prometheus-grafana
+    url: "http://{{ hostvars['prometheus-grafana'].ansible_host }}:9093/-/healthy"
+    interval: 2m
+    conditions:
+      - "[STATUS] == 200"
+    alerts: *notify-all
+
+  - name: grafana
+    group: prometheus-grafana
+    url: "http://{{ hostvars['prometheus-grafana'].ansible_host }}:3000/api/health"
+    interval: 2m
+    conditions:
+      - "[STATUS] == 200"
+    alerts: *notify-all
+
+  - name: loki
+    group: prometheus-grafana
+    url: "http://{{ hostvars['prometheus-grafana'].ansible_host }}:3100/ready"
+    interval: 2m
+    conditions:
+      - "[STATUS] == 200"
+    alerts: *notify-all
+
+  # --- Services from roles/server/templates/proxmox1/docker-compose.yml.j2 ---
+  - name: scrutiny
+    group: proxmox1
+    url: "http://{{ hostvars['proxmox1'].ansible_host }}:8080"
+    interval: 5m
+    conditions: *http-conditions
+    alerts: *notify-all
+
+  # --- Services from roles/server/templates/proxmox2/docker-compose.yml.j2 ---
+  - name: jellyfin
+    group: proxmox2
+    url: "http://{{ hostvars['proxmox2'].ansible_host }}:8096"
+    interval: 2m
+    conditions: *http-conditions
+    alerts: *notify-all
+
+  # --- Services from roles/server/templates/torrent/docker-compose.yml.j2 ---
+  # torrent-natpmp-keeper shares qbittorrentvpn's network namespace and isn't separately checkable.
+  - name: qbittorrent
+    group: torrent
+    url: "http://{{ hostvars['torrent'].ansible_host }}:8080"
+    interval: 5m
+    conditions: *http-conditions
+    alerts: *notify-all
+
+  # --- roles/kubernetes_control, roles/kubernetes_worker ---
+  # kubeadm sets up the API server and kubelet with mTLS/token-gated endpoints, so these
+  # are plain TCP-connect checks rather than HTTP health assertions.
+  - name: kube-apiserver
+    group: kubernetes
+    url: "tcp://{{ hostvars[groups['kubernetes_control'][0]].ansible_host }}:6443"
+    interval: 2m
+    conditions: *connected-conditions
+    alerts: *notify-all
+
+{% for host in groups['kubernetes_control'] + groups['kubernetes_workers'] %}
+  - name: "kubelet-{{ host }}"
+    group: kubernetes
+    url: "tcp://{{ hostvars[host].ansible_host }}:10250"
+    interval: 5m
+    conditions: *connected-conditions
+    alerts: *notify-all
+{% endfor %}
+
+  # --- roles/runner ---
+  # GitLab Runner (shell executor) only polls gitlab.com outbound; it has no inbound
+  # port to check. The "runner" node's ICMP ping in the [nodes] group above is the
+  # only applicable check.

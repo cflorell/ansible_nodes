@@ -7,13 +7,13 @@
   loop:
     - homepage
     - speedtest
-    - uptime-kuma
     - signal-cli
     - alertmanager-signal
     - nginx-proxy-manager
     - promtail
     - WatchYourLAN
     - homelable
+    - gatus
 
 - name: server | node-docker | Move promtail-config.yml
   ansible.builtin.template:
@@ -52,6 +52,14 @@
   ansible.builtin.template:
     src: "docker/homelable/.env.j2"
     dest: "/{{ ansible_facts['user_id'] }}/homelable/.env"
+    owner: "{{ ansible_facts['user_id'] }}"
+    group: "{{ ansible_facts['user_id'] }}"
+    mode: "0600"
+
+- name: server | node-docker | Move gatus/config.yaml
+  ansible.builtin.template:
+    src: "docker/gatus/config.yaml.j2"
+    dest: "/{{ ansible_facts['user_id'] }}/gatus/config.yaml"
     owner: "{{ ansible_facts['user_id'] }}"
     group: "{{ ansible_facts['user_id'] }}"
     mode: "0600"

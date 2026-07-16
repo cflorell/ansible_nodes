@@ -36,15 +36,13 @@ services:
               max-size: "200k"
       restart: unless-stopped
 
-  uptime-kuma:
-      image: louislam/uptime-kuma:2
-      container_name: uptime-kuma
-      user: root
-      volumes:
-          - ./uptime-kuma:/app/data
-          - /var/run/docker.sock:/var/run/docker.sock
+  gatus:
+      image: ghcr.io/twin/gatus:stable
+      container_name: gatus
       ports:
-          - 3001:3001  # <Host Port>:<Container Port>
+          - 8081:8080  # <Host Port>:<Container Port>
+      volumes:
+          - ./gatus/config.yaml:/config/config.yaml
       restart: unless-stopped
 
   signal-cli-rest-api:
