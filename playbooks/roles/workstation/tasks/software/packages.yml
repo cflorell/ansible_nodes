@@ -25,7 +25,7 @@
       - "{{ hunspell_en_us_package }}"
       - "{{ hunspell_sv_package }}"
       - "{{ hyphen_en_package }}"
-      - hyphen-sv
+      - "{{ hyphen_sv_package }}"
       - iotop
       - jq
       - "{{ libnotify_package }}"
@@ -47,7 +47,6 @@
       - shutter
       - sshpass
       - terminator
-      - tldr
       - tmux
       - traceroute
       - transmission-gtk
@@ -60,6 +59,10 @@
       - "{{ wpasupplicant_package }}"
       - "{{ xfonts_terminus_package }}"
     update_cache: true
+  retries: 5
+  delay: 15
+  register: pkg_install_result
+  until: pkg_install_result is succeeded
 
 - name: software | utilities | install parcelite
   ansible.builtin.package:
@@ -76,15 +79,6 @@
   register: result
   until: result is succeeded
   when: ansible_facts['distribution'] != 'Archlinux'
-
-- name: software | utilities | Install broot
-  kewlfft.aur.aur:
-    use: yay
-    name:
-      - broot
-  become: true
-  become_user: aur_builder
-  when: ansible_facts['distribution'] == 'Archlinux'
 
 - name: software | misc |  remove crap workstation packages on debian and ubuntu hosts
   ansible.builtin.package:

@@ -5,8 +5,9 @@ fira_code_fonts_package: ttf-fira-code
 fonts_inconsolata_package: ttf-inconsolata
 xfonts_terminus_package: terminus-font
 hunspell_en_us_package: hunspell-en_us
-hunspell_sv_package: hunspell-sv
-hyphen_en_package: hyphen-en
+hunspell_sv_package: ""
+hyphen_en_package: hyphen
+hyphen_sv_package: ""
 libnotify_package: libnotify
 p7zip_package: p7zip
 python_dev_package: python-dev

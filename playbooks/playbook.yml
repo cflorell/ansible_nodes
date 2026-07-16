@@ -2,7 +2,25 @@
 - name: Pre tasks
   hosts: all
   tags: always
+  gather_facts: false
   pre_tasks:
+    - name: Check if host is Arch Linux
+      ansible.builtin.raw: test -f /etc/arch-release || grep -qi '^ID=arch' /etc/os-release 2>/dev/null || echo "not arch"
+      register: is_arch
+      ignore_errors: true
+      changed_when: false
+
+    - name: Install Python on Arch Linux (bootstrap)
+      ansible.builtin.raw: pacman -Sy --noconfirm python
+      when: is_arch.rc == 0
+      become: true
+      register: python_install
+      ignore_errors: true
+      changed_when: false
+
+    - name: Gather facts
+      ansible.builtin.setup:
+
     - name: Runtime check
       ansible.builtin.import_tasks: pre_tasks/runtime_check.yml
       tags:

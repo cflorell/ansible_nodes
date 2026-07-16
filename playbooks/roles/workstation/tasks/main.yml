@@ -31,7 +31,7 @@
       when: ansible_facts['distribution'] == "Fedora"
 
     - name: Arch AUR
-      tags: fedora-non-free
+      tags: arch-aur
       ansible.builtin.import_tasks: system_setup/arch_aur.yml
       when: ansible_facts['distribution'] == "Archlinux"
 
