@@ -19,8 +19,13 @@
     ansible_facts['distribution']_release: jammy
   when: ansible_facts['distribution'] == "Linux Mint"
 
+- name: Detect Windows Subsystem for Linux (WSL)
+  ansible.builtin.set_fact:
+    ansible_facts['is_wsl']: "{{ ansible_facts['kernel'] is search('(?i)microsoft') }}"
+
 - name: Pre check OS end
   ansible.builtin.debug:
     msg:
       - "ansible_facts['distribution']:{{ ansible_facts['distribution'] }}"
       - "ansible_facts['distribution']_release:{{ ansible_facts['distribution_release'] }}"
+      - "ansible_facts['is_wsl']:{{ ansible_facts['is_wsl'] }}"

@@ -3,24 +3,15 @@
   ansible.builtin.package:
     name:
       - "{{ ag_package }}"
-      - arandr
       - bat
       - btop
       - ca-certificates
-      - "{{ chromium_package }}"
       - cifs-utils
-      - "{{ cups_package }}"
       - curl
-      - dconf-editor
       - direnv
       - gnupg
       - dnsutils
-      - filezilla
-      - "{{ fira_code_fonts_package }}"
-      - firefox
-      - "{{ fonts_inconsolata_package }}"
       - fzf
-      - gparted
       - htop
       - "{{ hunspell_en_us_package }}"
       - "{{ hunspell_sv_package }}"
@@ -28,8 +19,6 @@
       - "{{ hyphen_sv_package }}"
       - iotop
       - jq
-      - "{{ libnotify_package }}"
-      - libreoffice
       - lsb-release
       - lsof
       - mc
@@ -39,35 +28,57 @@
       - net-tools
       - nmap
       - "{{ p7zip_package }}"
-      - pavucontrol
       - ripgrep
       - rsync
       - "{{ samba_client_package }}"
       - screen
-      - shutter
       - sshpass
-      - terminator
       - tmux
       - traceroute
-      - transmission-gtk
       - unrar
       - vifm
-      - "{{ vim_package }}"
-      - vlc
+      - "{{ 'vim' if ((ansible_facts['is_wsl'] | default(false)) and ansible_facts['distribution'] == 'Archlinux') else vim_package }}"
       - wget
       - whois
-      - "{{ wpasupplicant_package }}"
-      - "{{ xfonts_terminus_package }}"
     update_cache: true
   retries: 5
   delay: 15
   register: pkg_install_result
   until: pkg_install_result is succeeded
 
+- name: software | utilities | install desktop packages
+  ansible.builtin.package:
+    name:
+      - arandr
+      - "{{ chromium_package }}"
+      - "{{ cups_package }}"
+      - dconf-editor
+      - filezilla
+      - "{{ fira_code_fonts_package }}"
+      - firefox
+      - "{{ fonts_inconsolata_package }}"
+      - gparted
+      - "{{ libnotify_package }}"
+      - libreoffice
+      - pavucontrol
+      - shutter
+      - terminator
+      - transmission-gtk
+      - vlc
+      - "{{ wpasupplicant_package }}"
+      - "{{ xfonts_terminus_package }}"
+  when: not (ansible_facts['is_wsl'] | default(false))
+  retries: 5
+  delay: 15
+  register: pkg_install_desktop_result
+  until: pkg_install_desktop_result is succeeded
+
 - name: software | utilities | install parcelite
   ansible.builtin.package:
     name: parcellite
-  when: ansible_facts['distribution'] in ['Ubuntu', 'Debian', 'LMDE']
+  when:
+    - ansible_facts['distribution'] in ['Ubuntu', 'Debian', 'LMDE']
+    - not (ansible_facts['is_wsl'] | default(false))
 
 - name: software | utilities | Download and install broot
   ansible.builtin.get_url:

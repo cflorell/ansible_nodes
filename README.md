@@ -18,7 +18,8 @@ The main playbook configures three broad host types:
 
 - `server` and `nodes`: Proxmox hosts and server VMs/LXCs.
 - `kubernetes`: kubeadm-managed control plane and worker VMs.
-- `workstation`: desktop or laptop machines.
+- `workstation`: desktop or laptop machines, including WSL (Windows Subsystem
+  for Linux) distros running Ubuntu, Debian, Fedora, or Arch.
 - `all`: common base system configuration shared across hosts.
 
 `ansible.cfg` uses `inventory/hosts` as the default inventory file. The real
@@ -180,6 +181,18 @@ For a one-off bypass:
 ```bash
 SKIP_PRIVATE_LINK_CHECK=1 git push
 ```
+
+## WSL support
+
+The `workstation` role supports Windows Subsystem for Linux in addition to
+bare-metal/VM Arch, Fedora, and Ubuntu. WSL is detected automatically (via the
+kernel version string) and used to skip tasks that don't make sense inside
+WSL: desktop/GUI packages, fonts, Flatpak, and VS Code (install VS Code on the
+Windows side with the "Remote - WSL" extension instead). Everything else,
+including the standard distro-specific package vars, is unaffected — add the
+WSL distro to the `workstation` group like any other host, using
+`ansible_connection=local` when running Ansible from inside the WSL instance
+itself. See `inventory/hosts.example` for a sample entry.
 
 ## Vagrant testing
 

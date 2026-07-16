@@ -20,10 +20,12 @@
     - name: System fonts
       tags: fonts
       ansible.builtin.import_tasks: system_setup/fonts.yml
+      when: not (ansible_facts['is_wsl'] | default(false))
 
     - name: Flatpak support
       tags: flatpak
       ansible.builtin.import_tasks: system_setup/flatpak.yml
+      when: not (ansible_facts['is_wsl'] | default(false))
 
     - name: Fedora non-free
       tags: fedora-non-free
@@ -51,4 +53,6 @@
     - name: Visual Studio Code
       tags: vscode
       ansible.builtin.import_tasks: software/vscode.yml
-      when: vscode is defined and vscode
+      when:
+        - vscode is defined and vscode
+        - not (ansible_facts['is_wsl'] | default(false))
