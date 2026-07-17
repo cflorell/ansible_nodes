@@ -37,6 +37,11 @@
     name: "{{ gitlab_runner_vagrant_packages }}"
     update_cache: true
 
+- name: runner | install CI tooling packages
+  ansible.builtin.apt:
+    name: "{{ gitlab_runner_ci_packages }}"
+    update_cache: true
+
 - name: runner | add GitLab Runner user to Vagrant groups
   ansible.builtin.user:
     name: gitlab-runner
