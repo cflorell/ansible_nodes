@@ -134,6 +134,8 @@ services:
       timeout: 5s
       retries: 10
 
+{% include "common/docker-socket-proxy.yml.j2" %}
+
 networks:
   tracearr-network:
     driver: bridge

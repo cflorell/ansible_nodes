@@ -1,0 +1,15 @@
+---
+branch: master
+
+ssh_port: 22
+ssh_users: root
+
+# platform-specific
+microcode_amd_install: false
+microcode_intel_install: false
+
+nfs_client: false
+nfs_server: false
+proxmox: false
+
+docker: false

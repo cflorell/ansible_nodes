@@ -114,13 +114,17 @@ services:
       IFACES: "eth0@if7"
 
   whats-up-docker:
-    # docker.io/getwud/wud no longer publishes version tags; ghcr.io mirror does
     image: ghcr.io/getwud/wud:8.3.0
     container_name: whats-up-docker
     ports:
       - 3002:3000
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
+    environment:
+{% for host in docker_remote_hosts %}
+      - WUD_WATCHER_{{ host | upper | replace('-', '_') }}_HOST={{ hostvars[host]['ansible_host'] }}
+      - WUD_WATCHER_{{ host | upper | replace('-', '_') }}_PORT={{ docker_socket_proxy_port }}
+{% endfor %}
     restart: unless-stopped
 
   homelable-backend:

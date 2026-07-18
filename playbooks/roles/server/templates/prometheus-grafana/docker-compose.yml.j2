@@ -55,3 +55,5 @@ services:
       - ./promtail:/etc/promtail
     restart: unless-stopped
     command: -config.file=/etc/promtail/promtail-config.yml
+
+{% include "common/docker-socket-proxy.yml.j2" %}

@@ -67,3 +67,5 @@ services:
       -c shared_buffers=512MB
       -c wal_compression=on
     restart: always
+
+{% include "common/docker-socket-proxy.yml.j2" %}
