@@ -1,4 +1,4 @@
-FROM alpine:3.20
+FROM alpine:3.24
 
 COPY run.sh /usr/local/bin/run.sh
 RUN chmod 0755 /usr/local/bin/run.sh \
