@@ -2,7 +2,7 @@
 
 services:
   postgresql:
-    image: docker.io/library/postgres:16-alpine
+    image: docker.io/library/postgres:16.14-alpine
     container_name: postgres
     restart: unless-stopped
     healthcheck:
@@ -20,7 +20,7 @@ services:
     env_file:
       - .env
   redis:
-    image: docker.io/library/redis:alpine
+    image: docker.io/library/redis:8.8.0-alpine
     container_name: redis
     command: --save 60 1 --loglevel warning
     restart: unless-stopped
@@ -31,9 +31,9 @@ services:
       retries: 5
       timeout: 3s
     volumes:
-      - redis:/data
+      - ./redis:/data
   server:
-    image: ${AUTHENTIK_IMAGE:-ghcr.io/goauthentik/server}:${AUTHENTIK_TAG:-2024.12.1}
+    image: ${AUTHENTIK_IMAGE:-ghcr.io/goauthentik/server}:${AUTHENTIK_TAG:-2026.5.5}
     container_name: authentik-server
     restart: unless-stopped
     command: server
@@ -57,7 +57,7 @@ services:
       redis:
         condition: service_healthy
   worker:
-    image: ${AUTHENTIK_IMAGE:-ghcr.io/goauthentik/server}:${AUTHENTIK_TAG:-2024.12.1}
+    image: ${AUTHENTIK_IMAGE:-ghcr.io/goauthentik/server}:${AUTHENTIK_TAG:-2026.5.5}
     container_name: authentik-worker
     restart: unless-stopped
     command: worker
@@ -88,7 +88,7 @@ services:
         condition: service_healthy
 
   promtail:
-    image: grafana/promtail:3.2.1
+    image: grafana/promtail:3.6.11
     container_name: promtail
     user: root
     volumes:
@@ -96,9 +96,3 @@ services:
       - ./promtail:/etc/promtail
     restart: unless-stopped
     command: -config.file=/etc/promtail/promtail-config.yml
-
-volumes:
-  database:
-    driver: local
-  redis:
-    driver: local

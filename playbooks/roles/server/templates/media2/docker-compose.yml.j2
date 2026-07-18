@@ -1,13 +1,13 @@
 services:
   # Paperless
   broker:
-    image: docker.io/library/redis:8
+    image: docker.io/library/redis:8.8.0
     container_name: paperless-broker
     restart: unless-stopped
     volumes:
       - ./paperless/redisdata:/data
   db:
-    image: docker.io/library/postgres:18
+    image: docker.io/library/postgres:18.4
     container_name: paperless-db
     restart: unless-stopped
     volumes:
@@ -18,7 +18,7 @@ services:
       POSTGRES_PASSWORD: "{{ paperless_db_password }}"
 
   webserver:
-    image: ghcr.io/paperless-ngx/paperless-ngx:latest
+    image: ghcr.io/paperless-ngx/paperless-ngx:2.20.15
     container_name: paperless-ngx
     restart: unless-stopped
     depends_on:
@@ -37,7 +37,7 @@ services:
 
   # RomM
   romm:
-    image: rommapp/romm:latest
+    image: rommapp/romm:5.0.0
     container_name: romm
     restart: unless-stopped
     environment:
@@ -63,7 +63,7 @@ services:
         restart: true
 
   romm-db:
-    image: mariadb:latest
+    image: mariadb:12.3.2
     container_name: romm-db
     restart: unless-stopped
     environment:

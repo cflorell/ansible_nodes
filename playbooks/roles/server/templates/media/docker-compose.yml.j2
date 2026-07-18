@@ -1,7 +1,7 @@
 ---
 services:
   jellyseerr:
-    image: ghcr.io/seerr-team/seerr:latest
+    image: ghcr.io/seerr-team/seerr:v3.3.0
     container_name: jellyseerr
     user: root
     environment:
@@ -14,7 +14,7 @@ services:
     restart: unless-stopped
 
   promtail:
-    image: grafana/promtail:3.2.1
+    image: grafana/promtail:3.6.11
     container_name: promtail
     user: root
     volumes:
@@ -24,7 +24,7 @@ services:
     command: -config.file=/etc/promtail/promtail-config.yml
 
   tracearr:
-    image: ghcr.io/connorgallopo/tracearr:latest
+    image: ghcr.io/connorgallopo/tracearr:1.5.0
     container_name: tracearr
     ports:
       - "${PORT:-3000}:3000"
@@ -52,7 +52,7 @@ services:
     # Official TimescaleDB image with PostgreSQL 16
     # Note: TimescaleDB Toolkit is not included in the official image
     # For Toolkit support, use the supervised deployment instead
-    image: timescale/timescaledb:latest-pg16
+    image: timescale/timescaledb:2.28.3-pg16
     container_name: tracearr-db
     shm_size: 256mb  # Required for PostgreSQL shared memory
     # Allow unlimited tuple decompression for migrations on compressed hypertables
@@ -62,7 +62,7 @@ services:
       - POSTGRES_PASSWORD={{ tracearr_postgres_password }}
       - POSTGRES_DB=tracearr
     volumes:
-      - timescale_data:/var/lib/postgresql/data
+      - ./timescale_data:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U tracearr"]
       interval: 10s
@@ -73,11 +73,11 @@ services:
       - tracearr-network
 
   redis:
-    image: redis:8-alpine
+    image: redis:8.8.0-alpine
     container_name: tracearr-redis
     command: redis-server --appendonly yes
     volumes:
-      - redis_data:/data
+      - ./redis_data:/data
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
@@ -115,7 +115,7 @@ services:
     restart: unless-stopped
 
   mariadb:
-    image: lscr.io/linuxserver/mariadb:11.4.5
+    image: lscr.io/linuxserver/mariadb:11.4.12
     container_name: mariadb
     environment:
       - PUID=${DB_USER_ID}
@@ -137,7 +137,3 @@ services:
 networks:
   tracearr-network:
     driver: bridge
-
-volumes:
-  timescale_data:
-  redis_data:

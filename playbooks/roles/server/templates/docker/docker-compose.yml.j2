@@ -1,6 +1,6 @@
 services:
   homepage:
-    image: ghcr.io/gethomepage/homepage:latest
+    image: ghcr.io/gethomepage/homepage:v1.13.2
     container_name: homepage
     ports:
       - 3000:3000
@@ -14,7 +14,7 @@ services:
 
   speedtest:
       container_name: speedtest
-      image: lscr.io/linuxserver/speedtest-tracker
+      image: lscr.io/linuxserver/speedtest-tracker:1.14.5
       user: root
       ports:
           - 8765:80
@@ -37,7 +37,7 @@ services:
       restart: unless-stopped
 
   gatus:
-      image: ghcr.io/twin/gatus:stable
+      image: ghcr.io/twin/gatus:v5.36.0
       container_name: gatus
       ports:
           - 8081:8080  # <Host Port>:<Container Port>
@@ -46,7 +46,7 @@ services:
       restart: unless-stopped
 
   signal-cli-rest-api:
-      image: bbernhard/signal-cli-rest-api:latest
+      image: bbernhard/signal-cli-rest-api:0.100
       container_name: signal-cli-rest-api
       user: root
       environment:
@@ -58,7 +58,7 @@ services:
       restart: unless-stopped
 
   alertmanager-signal:
-      image: docker.io/schlauerlauer/alertmanager-webhook-signal:latest
+      image: docker.io/schlauerlauer/alertmanager-webhook-signal:1.1.1
       container_name: alertmanager-signal
       user: root
       ports:
@@ -68,7 +68,7 @@ services:
       restart: unless-stopped
 
   nginx-proxy-manager:
-      image: jc21/nginx-proxy-manager:latest
+      image: jc21/nginx-proxy-manager:2.15.1
       restart: unless-stopped
       container_name: nginx-proxy-manager
       user: root
@@ -82,7 +82,7 @@ services:
           - ./nginx-proxy-manager/log:/tmp/letsencrypt-log
 
   porkbun-ddns:
-      image: "mietzen/porkbun-ddns:latest"
+      image: "mietzen/porkbun-ddns:1.1.27"
       container_name: porkbun-ddns
       user: root
       environment:
@@ -94,7 +94,7 @@ services:
       restart: unless-stopped
 
   promtail:
-    image: grafana/promtail:3.2.1
+    image: grafana/promtail:3.6.11
     container_name: promtail
     user: root
     volumes:
@@ -104,7 +104,7 @@ services:
     command: -config.file=/etc/promtail/promtail-config.yml
 
   wyl:
-    image: aceberg/watchyourlan
+    image: aceberg/watchyourlan:2.1.4
     network_mode: "host"      
     restart: unless-stopped
     volumes:
@@ -114,7 +114,8 @@ services:
       IFACES: "eth0@if7"
 
   whats-up-docker:
-    image: getwud/wud:latest
+    # docker.io/getwud/wud no longer publishes version tags; ghcr.io mirror does
+    image: ghcr.io/getwud/wud:8.3.0
     container_name: whats-up-docker
     ports:
       - 3002:3000
@@ -123,7 +124,7 @@ services:
     restart: unless-stopped
 
   homelable-backend:
-    image: ghcr.io/pouzor/homelable-backend:latest
+    image: ghcr.io/pouzor/homelable-backend:3.1.0
     container_name: homelable-backend
     env_file:
       - ./homelable/.env
@@ -141,7 +142,7 @@ services:
     restart: unless-stopped
 
   homelable-frontend:
-    image: ghcr.io/pouzor/homelable-frontend:latest
+    image: ghcr.io/pouzor/homelable-frontend:3.1.0
     container_name: homelable-frontend
     ports:
       - 3003:80
