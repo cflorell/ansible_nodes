@@ -16,6 +16,7 @@
   register: locale_exists
   changed_when: false
   failed_when: false
+  check_mode: false
 
 - name: system setup | fedora locale | Generate locale
   ansible.builtin.command: localedef -c -i {{ config_system_locale.split('.')[0] }} -f {{ config_system_locale.split('.')[-1] }} {{ config_system_locale }}

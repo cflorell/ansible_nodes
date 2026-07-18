@@ -21,7 +21,7 @@ is_private_path() {
     *.example|*.example.*)
       return 1
       ;;
-    secrets*.yml|secrets*.vault|*.vault|*.env|*.key|*.pem|*.crt|*.ovpn|*.smbcredentials)
+    secrets*.yml|secrets*.vault|*.vault|*.sops.yaml|*.sops.json|*.env|*.key|*.pem|*.crt|*.ovpn|*.smbcredentials)
       return 0
       ;;
     inventory/hosts|inventory/proxmox.yml|inventory/terraform_nodes.json|inventory/facts/*)

@@ -5,9 +5,12 @@ gitlab_runner_token: "{{ gitlab_runner_tokens[inventory_hostname] | default('') 
 gitlab_runner_description: "{{ inventory_hostname }}"
 
 # Tools required by CI jobs that run on this runner, e.g. the
-# terraform_nodes plan/apply jobs. Terraform installs from the
-# HashiCorp apt repository configured by this role.
+# terraform_nodes plan/apply jobs and ansible_nodes check/apply jobs.
+# Terraform installs from the HashiCorp apt repository configured by
+# this role. sops isn't packaged for apt, so it's installed separately
+# below as a release binary.
 gitlab_runner_ci_packages:
+  - age
   - jq
   - terraform
 

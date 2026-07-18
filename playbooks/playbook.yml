@@ -9,6 +9,7 @@
       register: is_arch
       failed_when: false
       changed_when: false
+      check_mode: false
 
     - name: Install Python on Arch Linux (bootstrap)
       ansible.builtin.raw: pacman -Sy --noconfirm python
@@ -24,10 +25,6 @@
       ansible.builtin.import_tasks: pre_tasks/runtime_check.yml
       tags:
         - always
-
-    - name: Import secrets
-      ansible.builtin.include_vars: ../secrets.vault
-      no_log: true
 
     - name: Update apt cache explicitly (for Debian/Ubuntu)
       ansible.builtin.apt:

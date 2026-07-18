@@ -1,0 +1,46 @@
+---
+- name: software | sops | install age
+  ansible.builtin.package:
+    name: age
+
+- name: software | sops | query latest sops release
+  ansible.builtin.uri:
+    url: https://api.github.com/repos/getsops/sops/releases/latest
+    return_content: true
+  register: sops_release
+  retries: 3
+  delay: 3
+  until: sops_release is succeeded
+
+- name: software | sops | download sops binary
+  ansible.builtin.get_url:
+    url: "https://github.com/getsops/sops/releases/download/{{ sops_release.json.tag_name }}/sops-{{ sops_release.json.tag_name }}.linux.amd64"
+    dest: /usr/local/bin/sops
+    mode: "0755"
+  become: true
+  retries: 3
+  delay: 3
+
+- name: software | sops | create age config directory
+  ansible.builtin.file:
+    path: /home/christoffer/.config/sops/age
+    state: directory
+    owner: christoffer
+    group: christoffer
+    mode: "0700"
+
+- name: software | sops | check for personal age key in private secrets
+  ansible.builtin.stat:
+    path: "{{ homelab_secrets_dir }}/age/personal-key.txt"
+  delegate_to: localhost
+  become: false
+  register: personal_age_key
+
+- name: software | sops | install personal age key
+  ansible.builtin.copy:
+    src: "{{ homelab_secrets_dir }}/age/personal-key.txt"
+    dest: /home/christoffer/.config/sops/age/keys.txt
+    owner: christoffer
+    group: christoffer
+    mode: "0600"
+  when: personal_age_key.stat.exists
