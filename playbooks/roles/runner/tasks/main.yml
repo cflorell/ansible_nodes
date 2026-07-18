@@ -42,6 +42,23 @@
     name: "{{ gitlab_runner_ci_packages }}"
     update_cache: true
 
+- name: runner | query latest sops release
+  ansible.builtin.uri:
+    url: https://api.github.com/repos/getsops/sops/releases/latest
+    return_content: true
+  register: sops_release
+  retries: 3
+  delay: 3
+  until: sops_release is succeeded
+
+- name: runner | download sops binary
+  ansible.builtin.get_url:
+    url: "https://github.com/getsops/sops/releases/download/{{ sops_release.json.tag_name }}/sops-{{ sops_release.json.tag_name }}.linux.amd64"
+    dest: /usr/local/bin/sops
+    mode: "0755"
+  retries: 3
+  delay: 3
+
 - name: runner | add GitLab Runner user to Vagrant groups
   ansible.builtin.user:
     name: gitlab-runner
@@ -96,20 +113,20 @@
   register: output
   changed_when: output.rc != 0
 
-- name: runner | install Vagrant plugins
-  become: true
-  become_user: gitlab-runner
-  ansible.builtin.command:
-    argv:
-      - vagrant
-      - plugin
-      - install
-      - "{{ item }}"
-  environment:
-    HOME: /home/gitlab-runner
-    USER: root
-    VAGRANT_DEFAULT_PROVIDER: libvirt
-    VAGRANT_DISABLE_STRICT_DEPENDENCY_ENFORCEMENT: "1"
-  loop: "{{ gitlab_runner_vagrant_plugins }}"
-  register: output
-  changed_when: output.rc != 0
+# - name: runner | install Vagrant plugins
+#   become: true
+#   become_user: gitlab-runner
+#   ansible.builtin.command:
+#     argv:
+#       - vagrant
+#       - plugin
+#       - install
+#       - "{{ item }}"
+#   environment:
+#     HOME: /home/gitlab-runner
+#     USER: root
+#     VAGRANT_DEFAULT_PROVIDER: libvirt
+#     VAGRANT_DISABLE_STRICT_DEPENDENCY_ENFORCEMENT: "1"
+#   loop: "{{ gitlab_runner_vagrant_plugins }}"
+#   register: output
+#   changed_when: output.rc != 0

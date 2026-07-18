@@ -43,6 +43,10 @@
       tags: utilities
       ansible.builtin.import_tasks: software/packages.yml
 
+    - name: SOPS + age
+      tags: sops
+      ansible.builtin.import_tasks: software/sops.yml
+
     - name: Starship
       tags: starship
       ansible.builtin.import_tasks: software/starship.yml

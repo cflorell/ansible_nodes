@@ -9,6 +9,7 @@
       register: is_arch
       failed_when: false
       changed_when: false
+      check_mode: false
 
     - name: Install Python on Arch Linux (bootstrap)
       ansible.builtin.raw: pacman -Sy --noconfirm python
@@ -24,10 +25,6 @@
       ansible.builtin.import_tasks: pre_tasks/runtime_check.yml
       tags:
         - always
-
-    - name: Import secrets
-      ansible.builtin.include_vars: ../secrets.vault
-      no_log: true
 
     - name: Update apt cache explicitly (for Debian/Ubuntu)
       ansible.builtin.apt:
@@ -46,6 +43,28 @@
         update_cache: true
       become: true
       when: ansible_facts["os_family"] == "Archlinux"
+
+    - name: Runner CI SSH keypair bootstrap
+      when: inventory_hostname == 'runner'
+      become: true
+      block:
+        - name: runner | ssh | ensure /root/.ssh exists
+          ansible.builtin.file:
+            path: /root/.ssh
+            state: directory
+            mode: "0700"
+
+        - name: runner | ssh | ensure CI keypair exists
+          community.crypto.openssh_keypair:
+            path: /root/.ssh/id_ed25519
+            type: ed25519
+            mode: "0600"
+          register: runner_ssh_keypair
+
+        - name: runner | ssh | expose runner public key to later plays
+          ansible.builtin.set_fact:
+            runner_ssh_public_key: "{{ runner_ssh_keypair.public_key }}"
+            cacheable: true
 
 # Must patch proxmox instance before running base tasks on them.
 # Otherwise it will fail dues to missing enterprise repo.

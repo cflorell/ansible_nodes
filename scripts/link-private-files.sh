@@ -137,7 +137,7 @@ else
 fi
 
 private_files=(
-  "secrets.vault"
+  "playbooks/group_vars/all/secrets.sops.yaml"
   "inventory/hosts"
   "inventory/proxmox.yml"
   "playbooks/roles/server/files/torrent/se.protonvpn.udp.ovpn"

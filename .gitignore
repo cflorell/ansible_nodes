@@ -9,6 +9,8 @@ inventory/facts
 secrets*.yml
 secrets*.vault
 *.vault
+*.sops.yaml
+*.sops.json
 *.env
 *.key
 *.pem
