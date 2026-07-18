@@ -58,6 +58,7 @@
           community.crypto.openssh_keypair:
             path: /root/.ssh/id_ed25519
             type: ed25519
+            mode: "0600"
           register: runner_ssh_keypair
 
         - name: runner | ssh | expose runner public key to later plays

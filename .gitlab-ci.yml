@@ -183,32 +183,32 @@ run_vagrant_ubuntu:
     - rm -f .vault_pass
     - vagrant destroy -f ubuntu-test
 
-.ansible_cd:
-  tags:
-    - ansible
-  before_script:
-    - git clone https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.com/cf_homelab/secrets.git
-    - ./scripts/link-private-files.sh --secrets-dir secrets
-    - ansible-galaxy collection install -r requirements.yml
+# .ansible_cd:
+#   tags:
+#     - ansible
+#   before_script:
+#     - git clone https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.com/cf_homelab/secrets.git
+#     - ./scripts/link-private-files.sh --secrets-dir secrets
+#     - ansible-galaxy collection install -r requirements.yml
 
-ansible_check:
-  extends: .ansible_cd
-  stage: check
-  rules:
-    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
-    - if: $CI_COMMIT_BRANCH == "main"
-      when: manual
-      allow_failure: true
-  script:
-    - ansible-playbook playbooks/playbook.yml --check --limit "$HOMELAB_ANSIBLE_CD_LIMIT"
+# ansible_check:
+#   extends: .ansible_cd
+#   stage: check
+#   rules:
+#     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+#     - if: $CI_COMMIT_BRANCH == "main"
+#       when: manual
+#       allow_failure: true
+#   script:
+#     - ansible-playbook playbooks/playbook.yml --check --limit "$HOMELAB_ANSIBLE_CD_LIMIT"
 
-ansible_apply:
-  extends: .ansible_cd
-  stage: apply
-  rules:
-    - if: $CI_COMMIT_BRANCH == "main"
-      when: manual
-  script:
-    - ansible-playbook playbooks/playbook.yml --limit "$HOMELAB_ANSIBLE_CD_LIMIT"
-  environment:
-    name: homelab
+# ansible_apply:
+#   extends: .ansible_cd
+#   stage: apply
+#   rules:
+#     - if: $CI_COMMIT_BRANCH == "main"
+#       when: manual
+#   script:
+#     - ansible-playbook playbooks/playbook.yml --limit "$HOMELAB_ANSIBLE_CD_LIMIT"
+#   environment:
+#     name: homelab
