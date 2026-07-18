@@ -76,7 +76,7 @@
       - gitlab_runner_url | length > 0
       - gitlab_runner_token | length > 0
       - gitlab_runner_token != "glrt-change-me"
-    fail_msg: "Set gitlab_runner_url and gitlab_runner_token in secrets.vault before registering the runner."
+    fail_msg: "Set gitlab_runner_url and gitlab_runner_tokens[{{ inventory_hostname }}] in secrets.vault before registering the runner."
 
 - name: runner | register shell runner
   ansible.builtin.command:

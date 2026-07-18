@@ -1,6 +1,7 @@
 ---
 gitlab_runner_url: "https://gitlab.com"
-gitlab_runner_token: ""
+gitlab_runner_tokens: {}
+gitlab_runner_token: "{{ gitlab_runner_tokens[inventory_hostname] | default('') }}"
 gitlab_runner_description: "{{ inventory_hostname }}"
 
 # Tools required by CI jobs that run on this runner, e.g. the
