@@ -61,15 +61,3 @@
         path: /home/christoffer/.config/git
         state: directory
         mode: "0700"
-
-    - name: "config | git | Copy global.commit.template"
-      ansible.builtin.copy:
-        src: files/users/christoffer/git/global.commit.template
-        dest: /home/christoffer/.config/git/commit_template
-        mode: "0644"
-
-    - name: "config | git | Set commit.template"
-      community.general.git_config:
-        name: commit.template
-        scope: global
-        value: /home/christoffer/.config/git/commit_template
