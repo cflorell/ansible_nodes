@@ -1,0 +1,41 @@
+---
+- name: software | lazyvim | symlink fdfind to fd
+  ansible.builtin.file:
+    src: /usr/bin/fdfind
+    dest: /usr/local/bin/fd
+    state: link
+  when: ansible_facts['distribution'] in ['Ubuntu', 'Debian', 'LMDE']
+
+- name: software | lazyvim | check for an existing nvim config
+  ansible.builtin.stat:
+    path: /root/.config/nvim/init.lua
+  register: lazyvim_config
+
+- name: software | lazyvim | ensure /root/.config exists
+  ansible.builtin.file:
+    path: /root/.config
+    state: directory
+    owner: root
+    group: root
+    mode: "0700"
+  when: not lazyvim_config.stat.exists
+
+- name: software | lazyvim | clone the LazyVim starter config
+  ansible.builtin.git:
+    repo: https://github.com/LazyVim/starter.git
+    dest: /root/.config/nvim
+    depth: 1
+  when: not lazyvim_config.stat.exists
+
+- name: software | lazyvim | drop the starter's git metadata
+  ansible.builtin.file:
+    path: /root/.config/nvim/.git
+    state: absent
+  when: not lazyvim_config.stat.exists
+
+- name: software | lazyvim | install plugins headlessly
+  ansible.builtin.command: nvim --headless "+Lazy! sync" +qa
+  environment:
+    HOME: /root
+  when: not lazyvim_config.stat.exists
+  changed_when: true

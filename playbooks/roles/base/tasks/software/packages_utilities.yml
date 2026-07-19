@@ -7,13 +7,18 @@
       - colordiff
       - curl
       - dnsutils
+      - "{{ fd_package }}"
+      - gcc
       - git
       - htop
       - iotop
+      - make
       - nano
       - ncdu
       - net-tools
+      - neovim
       - "{{ nfs_package }}"
+      - ripgrep
       - rsync
       - tmux
       - traceroute

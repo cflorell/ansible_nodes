@@ -1,3 +1,4 @@
 clock_package: chrony
 cron_package: cronie
+fd_package: fd-find
 nfs_package: nfs-utils

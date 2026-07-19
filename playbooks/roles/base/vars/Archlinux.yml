@@ -1,3 +1,4 @@
 clock_package: systemd-timesyncd
 cron_package: cronie
+fd_package: fd
 nfs_package: nfs-utils
