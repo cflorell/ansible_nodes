@@ -21,11 +21,6 @@
       tags: git
       ansible.builtin.import_tasks: config/git.yml
 
-    - name: Caps2esc
-      tags: caps2esc
-      ansible.builtin.import_tasks: config/caps2esc.yml
-      when: caps2esc is defined and caps2esc
-
     - name: System fonts
       tags: fonts
       ansible.builtin.import_tasks: system_setup/fonts.yml
