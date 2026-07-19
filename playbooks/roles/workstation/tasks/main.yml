@@ -21,6 +21,11 @@
       tags: git
       ansible.builtin.import_tasks: config/git.yml
 
+    - name: GPG key
+      tags: gpg
+      ansible.builtin.import_tasks: config/gpg.yml
+      when: deploy_gpg_key is defined and deploy_gpg_key
+
     - name: System fonts
       tags: fonts
       ansible.builtin.import_tasks: system_setup/fonts.yml
