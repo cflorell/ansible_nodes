@@ -121,7 +121,13 @@ services:
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
     environment:
-{% for host in docker_remote_hosts %}
+      # Configuring any watcher disables WUD's implicit local one, so the local
+      # socket watcher must be declared explicitly alongside the remote hosts.
+      - WUD_WATCHER_LOCAL_SOCKET=/var/run/docker.sock
+{# Watch every inventory host that runs docker (they all expose the read-only
+   docker-socket-proxy from common/docker-socket-proxy.yml.j2) except this
+   host itself, which the local socket watcher above covers. #}
+{% for host in groups['nodes'] + groups['server'] if host != inventory_hostname and hostvars[host]['docker'] | default(false) %}
       - WUD_WATCHER_{{ host | upper | replace('-', '_') }}_HOST={{ hostvars[host]['ansible_host'] }}
       - WUD_WATCHER_{{ host | upper | replace('-', '_') }}_PORT={{ docker_socket_proxy_port }}
 {% endfor %}

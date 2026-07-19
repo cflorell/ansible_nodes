@@ -71,3 +71,9 @@
     files:
       - docker-compose.yml
     recreate: always
+
+# Marks the hub as refreshed for this run, so the "Sync monitoring hub" play in
+# playbook.yml knows it does not need to run these tasks a second time.
+- name: server | node-docker | mark monitoring hub as synced for this run
+  ansible.builtin.set_fact:
+    monitoring_hub_synced: true

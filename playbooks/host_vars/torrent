@@ -5,3 +5,60 @@ nfs_server: false
 docker: true
 
 proxmox: false
+
+# Service registry — consumed by the gatus/homepage/homelable-canvas templates
+# on the docker host. Schema documented in host_vars/docker.
+services:
+  - name: qbittorrent
+    port: 8080
+    check: http
+    canvas:
+      label: qbittorrentvpn
+      icon: brand:qbittorrent
+      notes: >-
+        qBittorrent behind a VPN tunnel (binhex/arch-qbittorrentvpn). WebUI
+        :8080, Privoxy :8118. Its container is named `torrent`, hence the
+        label here.
+    homepage:
+      name: qBittorrent
+      group: Tools
+      icon: qbittorrent.png
+      description: Torrent client
+      widget:
+        type: qbittorrent
+        username: "{{ qbittorrent_user | default('changeme') }}"
+        password: "{{ qbittorrent_password | default('changeme') }}"
+        enableLeechProgress: true
+        enableLeechSize: true
+      extra:
+        proxmoxNode: proxmox
+        proxmoxVMID: 106
+        proxmoxType: lxc
+
+  # Privoxy runs inside the qbittorrentvpn container; it only gets a dashboard
+  # tile, no canvas node or uptime check of its own.
+  - name: privoxy
+    port: 8118
+    check: none
+    canvas: false
+    homepage:
+      name: Privoxy
+      group: Tools
+      icon: qbittorrent.png
+      description: Torrent HTTP proxy
+
+  - name: torrent-natpmp-keeper
+    check: none
+    canvas:
+      icon: refresh
+      notes: >-
+        Renews the VPN's NAT-PMP port forward. Shares the VPN container's
+        network namespace, so it has no address of its own.
+
+  - name: promtail
+    check: none
+    canvas:
+      label: promtail (torrent)
+      icon: upload
+      notes: >-
+        Ships this host's container logs to Loki.

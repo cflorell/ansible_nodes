@@ -127,7 +127,7 @@ groups:
   - name: MiscAlerts
     rules:
       - alert: NodeUnreachable
-        expr: up{job="node"} == 0
+        expr: up{job="node_exporter"} == 0
         for: 5m
         labels:
           severity: critical

@@ -33,13 +33,12 @@
 
 - name: kubernetes worker | join cluster
   ansible.builtin.command:
-    argv:
-      - "{{ kubernetes_worker_join_command.stdout.split() }}"
-      - "--node-name"
-      - "{{ inventory_hostname }}"
-      - "--cri-socket"
-      - "{{ kubernetes_cri_socket }}"
-      - "{{ kubernetes_kubeadm_join_extra_args }}"
+    argv: >-
+      {{
+        kubernetes_worker_join_command.stdout.split()
+        + ['--node-name', inventory_hostname, '--cri-socket', kubernetes_cri_socket]
+        + kubernetes_kubeadm_join_extra_args
+      }}
   when: not kubernetes_kubelet_conf.stat.exists
   register: output
   changed_when: output.rc != 0

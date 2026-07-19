@@ -7,3 +7,32 @@ docker: true
 proxmox: true
 
 node_exporter: true
+
+# Service registry — consumed by the gatus/homepage/homelable-canvas templates
+# on the docker host. Schema documented in host_vars/docker. These containers
+# run on the hypervisor itself, so the canvas hangs them off the proxmox1 node.
+services:
+  - name: scrutiny
+    port: 8080
+    check: http
+    canvas:
+      icon: brand:scrutiny
+      notes: >-
+        Scrutiny — S.M.A.R.T. disk health for this host's drives (:8080,
+        InfluxDB :8086). Runs on the hypervisor itself, not in a guest.
+    homepage:
+      name: Scrutiny
+      group: Monitor
+      icon: scrutiny.png
+      description: Disk health
+      weight: 70
+      widget:
+        type: scrutiny
+
+  - name: promtail
+    check: none
+    canvas:
+      label: promtail (proxmox1)
+      icon: upload
+      notes: >-
+        Ships this host's container logs to Loki.

@@ -3,3 +3,96 @@ nfs_client: true
 nfs_server: false
 
 docker: true
+
+# Service registry — consumed by the gatus/homepage/homelable-canvas templates
+# on the docker host. Schema documented in host_vars/docker.
+services:
+  - name: grafana
+    port: 3000
+    check: http
+    path: /api/health
+    status: 200
+    interval: 2m
+    canvas:
+      icon: brand:grafana
+      notes: >-
+        Grafana — dashboards over Prometheus metrics and Loki logs.
+    homepage:
+      name: Grafana
+      group: Monitor
+      icon: grafana.png
+      description: Metrics dashboards
+      weight: 10
+      widget:
+        type: grafana
+        version: 2
+        alerts: alertmanager
+        username: "{{ grafana_username | default('changeme') }}"
+        # | string: the vaulted value is numeric and would otherwise render as
+        # an unquoted YAML int in the generated widget config
+        password: "{{ grafana_password | default('changeme') | string }}"
+      extra:
+        proxmoxNode: proxmox
+        proxmoxVMID: 103
+        proxmoxType: lxc
+
+  - name: prometheus
+    port: 9090
+    check: http
+    path: /-/healthy
+    status: 200
+    interval: 2m
+    canvas:
+      icon: brand:prometheus
+      notes: >-
+        Prometheus — scrapes node_exporter across the homelab.
+    homepage:
+      name: Prometheus
+      group: Monitor
+      icon: prometheus.png
+      description: Metrics collection
+      weight: 20
+      widget:
+        type: prometheus
+
+  - name: alertmanager
+    port: 9093
+    check: http
+    path: /-/healthy
+    status: 200
+    interval: 2m
+    canvas:
+      icon: brand:alertmanager
+      notes: >-
+        Alertmanager — routes alerts to the Signal webhook on the docker host.
+    homepage:
+      name: Alertmanager
+      group: Monitor
+      icon: prometheus.png
+      description: Alert routing
+      weight: 30
+
+  - name: loki
+    port: 3100
+    check: http
+    path: /ready
+    status: 200
+    interval: 2m
+    canvas:
+      icon: brand:loki
+      notes: >-
+        Loki — log aggregation. Every promtail on this canvas ships here.
+    homepage:
+      name: Loki
+      group: Monitor
+      icon: loki.png
+      description: Log aggregation
+      weight: 40
+
+  - name: promtail
+    check: none
+    canvas:
+      label: promtail (prometheus-grafana)
+      icon: upload
+      notes: >-
+        Ships this host's container logs to Loki.

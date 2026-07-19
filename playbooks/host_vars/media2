@@ -3,3 +3,72 @@ nfs_client: true
 nfs_server: false
 
 docker: true
+
+# Service registry — consumed by the gatus/homepage/homelable-canvas templates
+# on the docker host. Schema documented in host_vars/docker.
+services:
+  - name: paperless-ngx
+    port: 8000
+    check: http
+    canvas:
+      icon: brand:paperless-ngx
+      notes: >-
+        Paperless-ngx — document archive, OCR and full-text search.
+    homepage:
+      name: Paperless
+      group: Library
+      icon: paperless-ngx.png
+      description: Document archive
+      widget:
+        type: paperlessngx
+        username: "{{ paperless_username | default('changeme') }}"
+        password: "{{ paperless_password | default('changeme') }}"
+      extra:
+        proxmoxNode: proxmox
+        proxmoxVMID: 107
+        proxmoxType: lxc
+
+  - name: paperless-db
+    check: none
+    canvas:
+      icon: brand:postgresql
+      notes: >-
+        PostgreSQL 18 — Paperless-ngx database.
+
+  - name: paperless-broker
+    check: none
+    canvas:
+      icon: brand:redis
+      notes: >-
+        Redis — Paperless-ngx task broker.
+
+  - name: romm
+    port: 80
+    check: http
+    canvas:
+      icon: brand:romm
+      notes: >-
+        RomM — game and ROM library, published on the host's :80.
+    homepage:
+      name: RomM
+      group: Multimedia
+      icon: romm.png
+      description: Game library
+      widget:
+        type: romm
+        fields: ["platforms", "totalRoms", "saves", "states"]
+
+  - name: romm-db
+    check: none
+    canvas:
+      icon: brand:mariadb
+      notes: >-
+        MariaDB — RomM database.
+
+  - name: promtail
+    check: none
+    canvas:
+      label: promtail (media2)
+      icon: upload
+      notes: >-
+        Ships this host's container logs to Loki.

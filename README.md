@@ -34,7 +34,7 @@ host manually.
 Install Ansible and the required collections:
 
 ```bash
-python3 -m pip install --user ansible ansible-lint
+python3 -m pip install --user ansible -r requirements-lint.txt
 ansible-galaxy collection install -r requirements.yml
 ```
 
@@ -131,6 +131,39 @@ ansible-playbook playbooks/playbook.yml --limit runner --tags runner
 ansible-playbook playbooks/playbook.yml --limit kubernetes --tags kubernetes
 ansible-playbook playbooks/playbook.yml --limit workstation-test --tags workstation
 ```
+
+### Service registry and monitoring sync
+
+Gatus endpoints, Homepage tiles, the Homelable canvas containers,
+whats-up-docker's watcher list and Prometheus' node_exporter targets are all
+generated from per-host declarations instead of being maintained by hand
+inside each monitoring service's GUI:
+
+- `services:` in `playbooks/host_vars/<host>` — one entry per container in
+  that host's compose stack (schema documented in `playbooks/host_vars/docker`).
+  Declaring a service there is what puts it on the status page, the dashboard
+  and the network map.
+- `docker: true` in a host's host_vars puts its docker-socket-proxy on
+  whats-up-docker's watch list and gives it a Gatus TCP check.
+- `node_exporter: true` installs node_exporter on the host **and** adds it to
+  Prometheus' scrape targets.
+
+So adding a new service to an existing node is: add it to the node's
+docker-compose template, add a `services:` entry to its host_vars, then deploy
+the node with the hub included in the limit:
+
+```bash
+ansible-playbook playbooks/playbook.yml --limit media,docker --tags node-media
+```
+
+No extra tag is needed: the "Sync monitoring hub" play is tagged `always` and
+re-renders gatus/homepage/homelable/whats-up-docker on the `docker` host on
+every run that includes it, skipping itself when the server play already did
+the work (so full runs don't deploy the hub twice). Ansible cannot reach hosts
+outside `--limit`, so if `docker` is left out the run ends with a WARNING that
+the hub was not re-rendered. Include `prometheus-grafana` in the limit when
+scrape targets changed, i.e. a host gained or lost `node_exporter: true`.
+Use `--skip-tags monitoring-sync` to deploy a node without touching the hub.
 
 The `runner` role registers a GitLab shell runner. Set `gitlab_runner_url` and
 `gitlab_runner_token` in `secrets.sops.yaml` before the first runner provision.
