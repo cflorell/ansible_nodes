@@ -1,0 +1,60 @@
+---
+- name: config | gpg | create gnupg directory
+  ansible.builtin.file:
+    path: /home/christoffer/.gnupg
+    state: directory
+    owner: christoffer
+    group: christoffer
+    mode: "0700"
+
+- name: config | gpg | check for personal gpg key in private secrets
+  ansible.builtin.stat:
+    path: "{{ homelab_secrets_dir }}/gpg/christoffer-secret-key.asc"
+  delegate_to: localhost
+  become: false
+  register: personal_gpg_key
+
+- name: config | gpg | import christoffer's personal gpg key
+  become: true
+  become_user: christoffer
+  when: personal_gpg_key.stat.exists
+  block:
+    - name: config | gpg | check for existing secret key
+      ansible.builtin.command:
+        cmd: gpg --batch --list-secret-keys
+      register: existing_gpg_keys
+      changed_when: false
+      failed_when: false
+
+    - name: config | gpg | stage and import personal gpg key
+      when: existing_gpg_keys.stdout == ""
+      block:
+        - name: config | gpg | create key staging directory
+          ansible.builtin.file:
+            path: /home/christoffer/.gpg-import
+            state: directory
+            mode: "0700"
+
+        - name: config | gpg | stage personal gpg key and ownertrust
+          ansible.builtin.copy:
+            src: "{{ homelab_secrets_dir }}/gpg/{{ item }}"
+            dest: "/home/christoffer/.gpg-import/{{ item }}"
+            mode: "0600"
+          loop:
+            - christoffer-secret-key.asc
+            - christoffer-ownertrust.txt
+
+        - name: config | gpg | import personal gpg key
+          ansible.builtin.command:
+            cmd: gpg --batch --import /home/christoffer/.gpg-import/christoffer-secret-key.asc
+          changed_when: true
+
+        - name: config | gpg | import ownertrust
+          ansible.builtin.command:
+            cmd: gpg --import-ownertrust /home/christoffer/.gpg-import/christoffer-ownertrust.txt
+          changed_when: true
+      always:
+        - name: config | gpg | remove staged key files
+          ansible.builtin.file:
+            path: /home/christoffer/.gpg-import
+            state: absent
