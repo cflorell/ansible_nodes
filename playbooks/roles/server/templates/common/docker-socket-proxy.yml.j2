@@ -11,4 +11,10 @@
       - "{{ docker_socket_proxy_port }}:2375"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
+    # Docker's default docker-default AppArmor profile denies the unix
+    # socketpair HAProxy's master/worker CLI needs, which crash-loops this
+    # container (exit 1, "Cannot create worker master CLI socketpair") on
+    # bare-metal Proxmox hosts where AppArmor is actually enforced.
+    security_opt:
+      - apparmor:unconfined
     restart: unless-stopped

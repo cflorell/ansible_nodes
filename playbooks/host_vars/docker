@@ -10,3 +10,183 @@ docker: true
 # (the 3003:80 mapping in roles/server/templates/docker/docker-compose.yml.j2).
 homelable_web_port: 3003
 homelable_api_url: "http://127.0.0.1:{{ homelable_web_port }}/api/v1"
+
+# Service registry — one entry per container in this host's compose stack.
+# The gatus, homepage and homelable-canvas templates on the docker host are
+# generated from these lists, so declaring a service here is what puts it on
+# the status page, the dashboard and the network map. Schema:
+#   name       gatus endpoint name; also the default canvas label
+#   port       published host port (omit when nothing is published)
+#   check      http | tcp | none — none means internal-only, no uptime check
+#   path       optional URL path for the gatus check
+#   status     optional exact-status gatus condition (default: [STATUS] < 400)
+#   interval   optional gatus interval (default 5m)
+#   gatus      set false to keep a checkable service off the status page
+#   gatus_url  full URL override (e.g. container-DNS URLs on the docker host)
+#   canvas     homelable node: label/icon/notes, check: false to draw without a
+#              check, method to override checkMethod; canvas: false = no node
+#   homepage   dashboard tile: name/group/icon/description, optional weight
+#              (sort within group, default 100), widget (url injected when
+#              absent) and extra (verbatim tile keys, e.g. proxmoxNode)
+services:
+  - name: homepage
+    port: 3000
+    check: http
+    interval: 2m
+    canvas:
+      icon: gauge
+      notes: >-
+        Homepage dashboard (ghcr.io/gethomepage/homepage). Its service list is
+        templated by Ansible from the same registry as this canvas.
+    homepage:
+      name: Homepage
+      group: Home
+      icon: homepage.png
+      description: Dashboard
+      extra:
+        proxmoxNode: proxmox
+        proxmoxVMID: 100
+        proxmoxType: lxc
+
+  - name: gatus
+    port: 8081
+    check: http
+    gatus: false # Gatus cannot alert on itself being down
+    canvas:
+      icon: brand:gatus
+      notes: >-
+        Gatus — declarative uptime checks and alerting (Telegram + Signal),
+        config-as-code in this repo instead of Uptime Kuma's web UI.
+    homepage:
+      name: Gatus
+      group: Monitor
+      icon: gatus.png
+      description: Status checks
+      weight: 50
+      widget:
+        type: gatus
+        fields: ["up", "down", "uptime"]
+
+  - name: whats-up-docker
+    port: 3002
+    check: http
+    canvas:
+      icon: brand:whats-up-docker
+      notes: >-
+        What's-up-Docker — watches every container here for newer image tags.
+
+  - name: homelable
+    port: 3003
+    check: http
+    canvas:
+      label: homelable-frontend
+      icon: network
+      notes: >-
+        Homelable web UI — this canvas. Its nginx also proxies /api to the
+        backend, which is how Ansible reaches the API.
+
+  - name: homelable-backend
+    check: none
+    canvas:
+      icon: server
+      notes: >-
+        Homelable API and status checker — owns the SQLite DB behind this
+        canvas. Publishes no host port; reachable only through the frontend's
+        nginx.
+
+  - name: nginx-proxy-manager
+    port: 81
+    check: http
+    interval: 2m
+    canvas:
+      icon: brand:nginx-proxy-manager
+      notes: >-
+        Reverse proxy and TLS termination. Admin UI on :81, serves :80 and
+        :443.
+    homepage:
+      name: Nginx Proxy Manager
+      group: Tools
+      icon: nginx-proxy-manager.png
+      description: Reverse proxy
+
+  - name: speedtest-tracker
+    port: 8765
+    check: http
+    canvas:
+      label: speedtest
+      icon: linechart
+      notes: >-
+        Speedtest Tracker (linuxserver) — periodic internet speed history.
+    homepage:
+      name: Speedtest
+      group: Monitor
+      icon: speedtest-tracker.png
+      description: Internet speed history
+      weight: 60
+      widget:
+        type: speedtest
+        version: 2
+        key: "{{ speedtest_app_key | default('changeme') }}"
+        bitratePrecision: 3
+
+  - name: watchyourlan
+    port: 8840
+    check: http
+    canvas:
+      icon: network
+      notes: >-
+        WatchYourLAN — ARP-based LAN device inventory. Runs with host
+        networking, which is why it declares no port mapping.
+    homepage:
+      name: WatchYourLAN
+      group: Monitor
+      icon: watchyourlan.png
+      description: Network inventory
+      weight: 80
+
+  - name: signal-cli-rest-api
+    port: 8080
+    check: http
+    path: /v1/about
+    status: 200
+    canvas:
+      icon: brand:signal
+      notes: >-
+        signal-cli REST API — outbound Signal messages for alerting.
+    homepage:
+      name: Signal CLI REST API
+      group: Tools
+      icon: signal.png
+      description: Signal API
+
+  - name: alertmanager-signal
+    port: 10000
+    check: tcp
+    canvas:
+      icon: brand:alertmanager
+      method: http
+      notes: >-
+        Webhook that turns Alertmanager notifications into Signal messages.
+    homepage:
+      name: Alertmanager Signal
+      group: Tools
+      icon: alertmanager.png
+      description: Signal webhook
+
+  - name: porkbun-ddns
+    check: none
+    canvas:
+      icon: globe
+      notes: >-
+        Keeps the Porkbun DNS records pointed at the dynamic WAN address.
+
+  - name: promtail
+    check: http
+    gatus_url: "http://promtail:9080/ready" # no published port; container DNS
+    status: 200
+    canvas:
+      label: promtail (docker)
+      icon: upload
+      check: false
+      notes: >-
+        Ships this host's container logs to Loki on prometheus-grafana.

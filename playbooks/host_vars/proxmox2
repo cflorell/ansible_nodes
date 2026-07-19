@@ -7,3 +7,38 @@ docker: true
 proxmox: true
 
 node_exporter: true
+
+# Service registry — consumed by the gatus/homepage/homelable-canvas templates
+# on the docker host. Schema documented in host_vars/docker. These containers
+# run on the hypervisor itself, so the canvas hangs them off the proxmox2 node.
+services:
+  - name: jellyfin
+    port: 8096
+    check: http
+    interval: 2m
+    canvas:
+      icon: brand:jellyfin
+      notes: >-
+        Jellyfin media server, host networking (:8096, DLNA :7359). Runs on
+        the hypervisor itself, not in a guest.
+    homepage:
+      name: Jellyfin
+      group: Multimedia
+      icon: jellyfin.png
+      description: Media server
+      weight: 10
+      widget:
+        type: jellyfin
+        key: "{{ jellyfin_api_key | default('changeme') }}"
+        version: 2
+        enableBlocks: true
+        enableNowPlaying: true
+        showEpisodeNumber: true
+
+  - name: promtail
+    check: none
+    canvas:
+      label: promtail (proxmox2)
+      icon: upload
+      notes: >-
+        Ships this host's container logs to Loki.

@@ -57,7 +57,11 @@ ansible_lint:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
     - if: $CI_COMMIT_BRANCH == "main"
   script:
-    - ansible-lint
+    - python3 -m venv .venv-lint
+    - .venv-lint/bin/pip install --quiet -r requirements-lint.txt
+    - .venv-lint/bin/ansible-lint
+  after_script:
+    - rm -rf .venv-lint
 
 parse-sast-results:
   stage: post-sast

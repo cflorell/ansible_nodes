@@ -125,6 +125,78 @@
     - role: prometheus.prometheus.node_exporter
       when: node_exporter is defined and node_exporter
 
+# Re-renders the monitoring hub so gatus/homepage/homelable/whats-up-docker and
+# the prometheus scrape targets pick up services declared in the host_vars
+# `services` registries. Tagged `always` so no extra --tags is ever needed:
+# any run whose --limit includes docker (and prometheus-grafana) converges the
+# hub automatically. The node tasks set monitoring_hub_synced /
+# prometheus_stack_synced when the server play already ran them, so a full run
+# does not deploy the hub twice. Ansible cannot reach hosts outside --limit,
+# so when the hub is excluded the follow-up play below warns instead.
+# `--skip-tags monitoring-sync` opts out of the sync explicitly.
+- name: Sync monitoring hub with deployed services
+  hosts: docker, prometheus-grafana
+  tags: [always, monitoring-sync]
+  become: true
+  tasks:
+    # Captured up front: nodes/docker.yml itself sets monitoring_hub_synced,
+    # which must not stop the canvas push right after it.
+    - name: Determine what this run already refreshed
+      ansible.builtin.set_fact:
+        hub_needs_sync: "{{ monitoring_hub_synced is not defined }}"
+        prom_needs_sync: "{{ prometheus_stack_synced is not defined }}"
+
+    - name: Refresh the docker node stack (gatus, homepage, whats-up-docker)
+      ansible.builtin.include_role:
+        name: server
+        tasks_from: nodes/docker.yml
+      when:
+        - ansible_facts['hostname'] == "docker"
+        - hub_needs_sync
+
+    - name: Push the homelable canvas
+      ansible.builtin.include_role:
+        name: server
+        tasks_from: nodes/homelable_canvas.yml
+      when:
+        - ansible_facts['hostname'] == "docker"
+        - hub_needs_sync
+
+    - name: Refresh the prometheus-grafana stack (scrape targets)
+      ansible.builtin.include_role:
+        name: server
+        tasks_from: nodes/prometheus-grafana.yml
+      when:
+        - ansible_facts['hostname'] == "prometheus-grafana"
+        - prom_needs_sync
+
+- name: Warn when the monitoring hub was outside this run
+  hosts: server, nodes
+  gather_facts: false
+  tags: always
+  tasks:
+    # Playbook runs with the default linear strategy, so run_once here is safe.
+    - name: Warn that gatus/homepage/homelable/whats-up-docker were not re-rendered  # noqa: run-once[task]
+      ansible.builtin.debug:
+        msg: >-
+          WARNING: the docker host was not part of this run, so gatus, homepage,
+          the homelable canvas and whats-up-docker were NOT re-rendered. If this
+          run changed any service, re-run with the hub included, e.g.
+          --limit <node>,docker
+      run_once: true
+      when: hostvars['docker'].monitoring_hub_synced is not defined
+
+    # Playbook runs with the default linear strategy, so run_once here is safe.
+    - name: Note that prometheus scrape targets were not re-rendered  # noqa: run-once[task]
+      ansible.builtin.debug:
+        msg: >-
+          NOTE: prometheus-grafana was not part of this run, so prometheus
+          scrape targets were not re-rendered. This only matters when a host
+          gained or lost `node_exporter: true` — if so, re-run with
+          --limit prometheus-grafana included.
+      run_once: true
+      when: hostvars['prometheus-grafana'].prometheus_stack_synced is not defined
+
 - name: end of run cleanup
   hosts: all
   become: true

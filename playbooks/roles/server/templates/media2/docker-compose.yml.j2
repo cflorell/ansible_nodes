@@ -1,4 +1,14 @@
 services:
+  promtail:
+    image: grafana/promtail:3.6.11
+    container_name: promtail
+    user: root
+    volumes:
+      - /var/log:/var/log
+      - ./promtail:/etc/promtail
+    restart: unless-stopped
+    command: -config.file=/etc/promtail/promtail-config.yml
+
   # Paperless
   broker:
     image: docker.io/library/redis:8.8.0

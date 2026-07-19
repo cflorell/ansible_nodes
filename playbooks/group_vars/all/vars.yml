@@ -6,12 +6,3 @@ config_system_language: 'en_US.UTF-8'
 # whats-up-docker on the `docker` host can watch their containers remotely
 # (see roles/server/templates/common/docker-socket-proxy.yml.j2).
 docker_socket_proxy_port: 2375
-docker_remote_hosts:
-  - authentik
-  - immich
-  - media
-  - media2
-  - torrent
-  - prometheus-grafana
-  - proxmox1
-  - proxmox2

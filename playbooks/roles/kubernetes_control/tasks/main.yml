@@ -6,16 +6,14 @@
 
 - name: kubernetes control | initialize control plane
   ansible.builtin.command:
-    argv:
-      - kubeadm
-      - init
-      - --pod-network-cidr
-      - "{{ kubernetes_pod_network_cidr }}"
-      - --node-name
-      - "{{ inventory_hostname }}"
-      - --cri-socket
-      - "{{ kubernetes_cri_socket }}"
-      - "{{ kubernetes_kubeadm_init_extra_args | default(omit) }}"
+    argv: >-
+      {{
+        ['kubeadm', 'init',
+         '--pod-network-cidr', kubernetes_pod_network_cidr,
+         '--node-name', inventory_hostname,
+         '--cri-socket', kubernetes_cri_socket]
+        + kubernetes_kubeadm_init_extra_args
+      }}
   when: not kubernetes_admin_conf.stat.exists
   register: output
   changed_when: output.rc != 0

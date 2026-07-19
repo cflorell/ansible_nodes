@@ -3,3 +3,53 @@ nfs_client: true
 nfs_server: false
 
 docker: true
+
+# Service registry — consumed by the gatus/homepage/homelable-canvas templates
+# on the docker host. Schema documented in host_vars/docker.
+services:
+  - name: immich-server
+    port: 2283
+    check: http
+    interval: 2m
+    canvas:
+      label: immich_server
+      icon: brand:immich
+      notes: >-
+        Immich server — photo library API and web UI.
+    homepage:
+      name: Immich
+      group: Home
+      icon: immich.png
+      description: Photo library
+      widget:
+        type: immich
+        key: "{{ immich_api_key | default('changeme') }}"
+        version: 2
+      extra:
+        proxmoxNode: proxmox2
+        proxmoxVMID: 102
+        proxmoxType: lxc
+
+  - name: immich-machine-learning
+    check: none
+    canvas:
+      label: immich_machine_learning
+      icon: bot
+      notes: >-
+        Immich ML worker — face recognition and CLIP search embeddings.
+
+  - name: immich-postgres
+    check: none
+    canvas:
+      label: immich_postgres
+      icon: brand:postgresql
+      notes: >-
+        pgvecto-rs (PostgreSQL 14 with vector search) — Immich's database.
+
+  - name: immich-redis
+    check: none
+    canvas:
+      label: immich_redis
+      icon: brand:redis
+      notes: >-
+        Redis — Immich job queue.

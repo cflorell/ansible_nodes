@@ -3,3 +3,55 @@ nfs_client: false
 nfs_server: false
 
 docker: true
+
+# Service registry — consumed by the gatus/homepage/homelable-canvas templates
+# on the docker host. Schema documented in host_vars/docker.
+services:
+  - name: authentik-server
+    port: 9000
+    check: http
+    interval: 2m
+    canvas:
+      icon: brand:authentik
+      notes: >-
+        Authentik server — OIDC/SAML identity provider, web UI and API (:9000,
+        :9443).
+    homepage:
+      name: Authentik
+      group: Home
+      icon: authentik.png
+      description: Identity provider
+      extra:
+        proxmoxNode: proxmox
+        proxmoxVMID: 101
+        proxmoxType: lxc
+
+  - name: authentik-worker
+    check: none
+    canvas:
+      icon: brand:authentik
+      notes: >-
+        Authentik background worker — outposts, scheduled tasks and
+        migrations.
+
+  - name: postgres
+    check: none
+    canvas:
+      icon: brand:postgresql
+      notes: >-
+        PostgreSQL 16 — Authentik's database.
+
+  - name: redis
+    check: none
+    canvas:
+      icon: brand:redis
+      notes: >-
+        Redis — Authentik cache and task queue.
+
+  - name: promtail
+    check: none
+    canvas:
+      label: promtail (authentik)
+      icon: upload
+      notes: >-
+        Ships this host's container logs to Loki on prometheus-grafana.

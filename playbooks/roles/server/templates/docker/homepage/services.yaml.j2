@@ -1,55 +1,45 @@
 ---
 # For configuration options and examples, please see:
 # https://gethomepage.dev/configs/services/
-{% set docker_host = hostvars.get('docker', {}).get('ansible_host', 'docker') %}
-{% set authentik_host = hostvars.get('authentik', {}).get('ansible_host', 'authentik') %}
-{% set immich_host = hostvars.get('immich', {}).get('ansible_host', 'immich') %}
-{% set media_host = hostvars.get('media', {}).get('ansible_host', 'media') %}
-{% set media2_host = hostvars.get('media2', {}).get('ansible_host', 'media2') %}
-{% set prometheus_grafana_host = hostvars.get('prometheus-grafana', {}).get('ansible_host', 'prometheus-grafana') %}
+#
+# The Home/Monitor/Multimedia/Library/Tools groups are generated from the
+# `services` registry in playbooks/host_vars/<host> (schema documented in
+# host_vars/docker) — add a service there and its tile appears here. Tiles for
+# things that are not registry services (the Home Assistant VM, the
+# hypervisors, the runner and kubernetes VMs) stay hand-written below.
 {% set proxmox1_host = hostvars.get('proxmox1', {}).get('ansible_host', 'proxmox1') %}
 {% set proxmox2_host = hostvars.get('proxmox2', {}).get('ansible_host', 'proxmox2') %}
 {% set proxmox3_host = hostvars['proxmox3'].ansible_host if 'proxmox3' in hostvars else 'proxmox3' %}
-{% set torrent_host = hostvars.get('torrent', {}).get('ansible_host', 'torrent') %}
 {% set runner_host = hostvars.get('runner', {}).get('ansible_host', 'runner') %}
 {% set kube_control_host = hostvars['kube-control'].ansible_host if 'kube-control' in hostvars else hostvars['kubernetes-control'].ansible_host if 'kubernetes-control' in hostvars else 'kube-control' %}
 {% set kube_node1_host = hostvars['kube-node1'].ansible_host if 'kube-node1' in hostvars else hostvars['kubernetes-node1'].ansible_host if 'kubernetes-node1' in hostvars else 'kube-node1' %}
 {% set kube_node2_host = hostvars['kube-node2'].ansible_host if 'kube-node2' in hostvars else hostvars['kubernetes-node2'].ansible_host if 'kubernetes-node2' in hostvars else 'kube-node2' %}
 {% set kube_node3_host = hostvars['kube-node3'].ansible_host if 'kube-node3' in hostvars else hostvars['kubernetes-node3'].ansible_host if 'kubernetes-node3' in hostvars else 'kube-node3' %}
 {% set homeassistant_host = hostvars['homeassistant'].ansible_host if 'homeassistant' in hostvars else 'homeassistant' %}
+{% set ns = namespace(tiles=[]) %}
+{% for host in groups['nodes'] + groups['server'] %}
+{% set addr = hostvars[host].ansible_host %}
+{% for svc in hostvars[host]['services'] | default([]) if svc.homepage is defined %}
+{% set hp = svc.homepage %}
+{% set href = 'http://' ~ addr ~ ':' ~ svc.port ~ '/' %}
+{% set tile = {'icon': hp.icon, 'href': href, 'description': hp.description} %}
+{% if hp.widget is defined %}
+{% set _ = tile.update({'widget': hp.widget | combine({'url': hp.widget.url | default(href)})}) %}
+{% endif %}
+{% if hp.extra is defined %}
+{% set _ = tile.update(hp.extra) %}
+{% endif %}
+{% set _ = ns.tiles.append({'name': hp.name, 'group': hp.group, 'weight': hp.weight | default(100), 'tile': tile}) %}
+{% endfor %}
+{% endfor %}
+{% for grp in ['Home', 'Monitor', 'Multimedia', 'Library', 'Tools'] %}
 
-- Home:
-    - Homepage:
-        icon: homepage.png
-        href: http://{{ docker_host }}:3000/
-        description: Dashboard
-        proxmoxNode: proxmox
-        proxmoxVMID: 100
-        proxmoxType: lxc
-    - Authentik:
-        icon: authentik.png
-        href: http://{{ authentik_host }}:9000/
-        description: Identity provider
-#        widget:
-#          type: authentik
-#          url: http://{{ authentik_host }}:9000/
-#          key: "{{ authentik_api_token | default('changeme') }}"
-#          version: 2
-        proxmoxNode: proxmox
-        proxmoxVMID: 101
-        proxmoxType: lxc
-    - Immich:
-        icon: immich.png
-        href: http://{{ immich_host }}:2283/
-        description: Photo library
-        widget:
-          type: immich
-          url: http://{{ immich_host }}:2283/
-          key: "{{ immich_api_key | default('changeme') }}"
-          version: 2
-        proxmoxNode: proxmox2
-        proxmoxVMID: 102
-        proxmoxType: lxc
+- {{ grp }}:
+{% for t in ns.tiles | selectattr('group', 'equalto', grp) | sort(attribute='weight') %}
+    - {{ t.name }}:
+{{ t.tile | to_nice_yaml(indent=2) | indent(8, true) }}
+{%- endfor %}
+{% if grp == 'Home' %}
     - Home Assistant:
         icon: home-assistant.png
         href: http://{{ homeassistant_host }}:8123/
@@ -61,158 +51,8 @@
         proxmoxNode: proxmox2
         proxmoxVMID: 105
         proxmoxType: qemu
-
-- Monitor:
-    - Grafana:
-        icon: grafana.png
-        href: http://{{ prometheus_grafana_host }}:3000/
-        description: Metrics dashboards
-        widget:
-          type: grafana
-          version: 2
-          alerts: alertmanager
-          url: http://{{ prometheus_grafana_host }}:3000/
-          username: "{{ grafana_username | default('changeme') }}"
-          password: "{{ grafana_password | default('changeme') }}"
-        proxmoxNode: proxmox
-        proxmoxVMID: 103
-        proxmoxType: lxc
-    - Prometheus:
-        icon: prometheus.png
-        href: http://{{ prometheus_grafana_host }}:9090/
-        description: Metrics collection
-        widget:
-          type: prometheus
-          url: http://{{ prometheus_grafana_host }}:9090/
-    - Alertmanager:
-        icon: prometheus.png
-        href: http://{{ prometheus_grafana_host }}:9093/
-        description: Alert routing
-    - Loki:
-        icon: loki.png
-        href: http://{{ prometheus_grafana_host }}:3100/
-        description: Log aggregation
-    - Gatus:
-        icon: gatus.png
-        href: http://{{ docker_host }}:8081/
-        description: Status checks
-        widget:
-          type: gatus
-          url: http://{{ docker_host }}:8081/
-          fields: ["up", "down", "uptime"]
-    - Speedtest:
-        icon: speedtest-tracker.png
-        href: http://{{ docker_host }}:8765/
-        description: Internet speed history
-        widget:
-          type: speedtest
-          url: http://{{ docker_host }}:8765/
-          version: 2
-          key: "{{ speedtest_app_key | default('changeme') }}"
-          bitratePrecision: 3
-    - Scrutiny:
-        icon: scrutiny.png
-        href: http://{{ proxmox1_host }}:8080/
-        description: Disk health
-        widget:
-          type: scrutiny
-          url: http://{{ proxmox1_host }}:8080/
-    - WatchYourLAN:
-        icon: watchyourlan.png
-        href: http://{{ docker_host }}:8840/
-        description: Network inventory
-
-- Multimedia:
-    - Jellyfin:
-        icon: jellyfin.png
-        href: http://{{ proxmox2_host }}:8096/
-        description: Media server
-        widget:
-          type: jellyfin
-          url: http://{{ proxmox2_host }}:8096/
-          key: "{{ jellyfin_api_key | default('changeme') }}"
-          version: 2
-          enableBlocks: true
-          enableNowPlaying: true
-          showEpisodeNumber: true
-    - Jellyseerr:
-        icon: jellyseerr.png
-        href: http://{{ media_host }}:5055/
-        description: Media requests
-        widget:
-          type: jellyseerr
-          url: http://{{ media_host }}:5055/
-          key: "{{ jellyseerr_api_key | default('changeme') }}"
-    - Tracearr:
-        icon: tracearr.png
-        href: http://{{ media_host }}:3000/
-        description: Media tracing
-    - RomM:
-        icon: romm.png
-        href: http://{{ media2_host }}:80/
-        description: Game library
-        widget:
-          type: romm
-          url: http://{{ media2_host }}:80/
-          fields: ["platforms", "totalRoms", "saves", "states"]
-
-- Library:
-    - Grimmory:
-        icon: Grimmory.png
-        href: http://{{ media_host }}:6060/
-        description: Ebook library
-        widget:
-          type: booklore
-          url: http://{{ media_host }}:6060/
-          username: "{{ grimmory_username | default('changeme') }}"
-          password: "{{ grimmory_password | default('changeme') }}"
-        proxmoxNode: proxmox
-        proxmoxVMID: 104
-        proxmoxType: lxc
-    - Paperless:
-        icon: paperless-ngx.png
-        href: http://{{ media2_host }}:8000/
-        description: Document archive
-        widget:
-          type: paperlessngx
-          url: http://{{ media2_host }}:8000/
-          username: "{{ paperless_username | default('changeme') }}"
-          password: "{{ paperless_password | default('changeme') }}"
-        proxmoxNode: proxmox
-        proxmoxVMID: 107
-        proxmoxType: lxc
-
-- Tools:
-    - Nginx Proxy Manager:
-        icon: nginx-proxy-manager.png
-        href: http://{{ docker_host }}:81/
-        description: Reverse proxy
-    - Alertmanager Signal:
-        icon: alertmanager.png
-        href: http://{{ docker_host }}:10000/
-        description: Signal webhook
-    - Signal CLI REST API:
-        icon: signal.png
-        href: http://{{ docker_host }}:8080/
-        description: Signal API
-    - qBittorrent:
-        icon: qbittorrent.png
-        href: http://{{ torrent_host }}:8080/
-        description: Torrent client
-        widget:
-          type: qbittorrent
-          url: http://{{ torrent_host }}:8080/
-          username: "{{ qbittorrent_user | default('changeme') }}"
-          password: "{{ qbittorrent_password | default('changeme') }}"
-          enableLeechProgress: true
-          enableLeechSize: true
-        proxmoxNode: proxmox
-        proxmoxVMID: 106
-        proxmoxType: lxc
-    - Privoxy:
-        icon: qbittorrent.png
-        href: http://{{ torrent_host }}:8118/
-        description: Torrent HTTP proxy
+{% endif %}
+{% endfor %}
 
 - Infrastructure:
     - Proxmox:

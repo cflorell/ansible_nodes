@@ -3,3 +3,89 @@ nfs_client: true
 nfs_server: false
 
 docker: true
+
+# Service registry — consumed by the gatus/homepage/homelable-canvas templates
+# on the docker host. Schema documented in host_vars/docker.
+services:
+  - name: jellyseerr
+    port: 5055
+    check: http
+    canvas:
+      icon: brand:jellyseerr
+      notes: >-
+        Jellyseerr — media requests, backed by Jellyfin over on proxmox2.
+    homepage:
+      name: Jellyseerr
+      group: Multimedia
+      icon: jellyseerr.png
+      description: Media requests
+      widget:
+        type: jellyseerr
+        key: "{{ jellyseerr_api_key | default('changeme') }}"
+
+  - name: tracearr
+    port: 3000
+    check: http
+    canvas:
+      icon: brand:tracearr
+      notes: >-
+        Tracearr — media playback tracing and history.
+    homepage:
+      name: Tracearr
+      group: Multimedia
+      icon: tracearr.png
+      description: Media tracing
+
+  - name: tracearr-db
+    check: none
+    canvas:
+      icon: database
+      notes: >-
+        TimescaleDB (PostgreSQL 16) — Tracearr's time-series store.
+
+  - name: tracearr-redis
+    check: none
+    canvas:
+      icon: brand:redis
+      notes: >-
+        Redis — Tracearr cache.
+
+  - name: grimmory
+    port: 6060
+    check: http
+    path: /api/v1/healthcheck
+    status: 200
+    canvas:
+      icon: book
+      notes: >-
+        Grimmory — ebook library over the Ebooks share, successor to BookLore.
+        Still backed by the MariaDB below, whose database and user remain
+        named booklore (the upstream migration keeps them as they were).
+    homepage:
+      name: Grimmory
+      group: Library
+      icon: Grimmory.png
+      description: Ebook library
+      widget:
+        type: booklore
+        username: "{{ grimmory_username | default('changeme') }}"
+        password: "{{ grimmory_password | default('changeme') }}"
+      extra:
+        proxmoxNode: proxmox
+        proxmoxVMID: 104
+        proxmoxType: lxc
+
+  - name: mariadb
+    check: none
+    canvas:
+      icon: brand:mariadb
+      notes: >-
+        MariaDB — Grimmory's database.
+
+  - name: promtail
+    check: none
+    canvas:
+      label: promtail (media)
+      icon: upload
+      notes: >-
+        Ships this host's container logs to Loki.
