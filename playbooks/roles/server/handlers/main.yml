@@ -1,0 +1,21 @@
+---
+- name: restart docker
+  ansible.builtin.systemd:
+    name: docker
+    state: restarted
+
+- name: reload systemd daemon
+  ansible.builtin.systemd:
+    daemon_reload: true
+
+- name: mount nfs filesystems
+  ansible.builtin.command:
+    cmd: mount -a
+  register: output
+  changed_when: output.rc != 0
+
+- name: reexport nfs shares
+  ansible.builtin.command:
+    cmd: exportfs -ra
+  register: output
+  changed_when: output.rc != 0

@@ -4,7 +4,6 @@ skip_list:
   - name[template]
   - latest[git]
   - var-naming[no-role-prefix]
-  - no-handler
   - command-instead-of-module
 
 exclude_paths:

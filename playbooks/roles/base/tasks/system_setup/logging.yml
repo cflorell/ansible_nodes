@@ -11,10 +11,4 @@
     dest: /etc/systemd/journald.conf
     regexp: ^#MaxFileSec=
     line: MaxFileSec=5day
-  register: journald_config
-
-- name: system setup | logging | restart journald (config changed)
-  ansible.builtin.service:
-    name: systemd-journald
-    state: restarted
-  when: journald_config.changed
+  notify: restart journald

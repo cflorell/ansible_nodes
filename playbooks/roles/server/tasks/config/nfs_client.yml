@@ -111,16 +111,6 @@
           {% for mount in nfs_client_fuse_mounts %}
           {{ mount.source }} {{ mount.path }} {{ mount.fstype }} {{ mount.options }} 0 0
           {% endfor %}
-      register: fstab_updated
-
-    - name: server | nfs-client | Reload systemd daemon
-      ansible.builtin.systemd:
-        daemon_reload: true
-      when: fstab_updated.changed
-
-    - name: server | nfs-client | Mount all filesystems
-      ansible.builtin.command:
-        cmd: mount -a
-      when: fstab_updated.changed
-      register: output
-      changed_when: output.rc != 0
+      notify:
+        - reload systemd daemon
+        - mount nfs filesystems

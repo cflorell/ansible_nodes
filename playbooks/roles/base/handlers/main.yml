@@ -2,3 +2,8 @@
 - name: apt_update
   ansible.builtin.apt:
     update_cache: true
+
+- name: restart journald
+  ansible.builtin.service:
+    name: systemd-journald
+    state: restarted

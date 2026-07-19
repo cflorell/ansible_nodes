@@ -35,7 +35,7 @@
     owner: "{{ ansible_facts['user_id'] }}"
     group: "{{ ansible_facts['user_id'] }}"
     mode: "0644"
-  register: daemon_json
+  notify: restart docker
 
 - name: server | docker | Install Loki Docker Driver plugin
   community.docker.docker_plugin:
@@ -48,9 +48,3 @@
     plugin_name: grafana/loki-docker-driver:latest
     alias: loki
     state: enable
-
-- name: server | docker | Restart Docker service
-  ansible.builtin.systemd:
-    name: docker
-    state: restarted
-  when: daemon_json.changed

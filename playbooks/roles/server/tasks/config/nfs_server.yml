@@ -25,19 +25,9 @@
       UUID="fbcba08d-6ec3-4643-82af-dfa3908b90ec" /mnt/Storage3 ext4 errors=remount-ro 0 1
       #LABEL="18TBToshiba"
       UUID="54db6770-5058-4382-83d9-b8fd73f2e238" /mnt/Storage4 ext4 errors=remount-ro 0 1
-  register: fstab_updated
-
-- name: server | nfs-server | Reload systemd daemon
-  ansible.builtin.systemd:
-    daemon_reload: true
-  when: fstab_updated.changed
-
-- name: server | nfs-server | Mount all filesystems
-  ansible.builtin.command:
-    cmd: mount -a
-  when: fstab_updated.changed
-  register: output
-  changed_when: output.rc != 0
+  notify:
+    - reload systemd daemon
+    - mount nfs filesystems
 
 - name: server | nfs-server | install nfs
   ansible.builtin.apt:
@@ -53,11 +43,4 @@
       {% endfor %}
 
       {% endfor %}
-  register: exports_updated
-
-- name: server | nfs-server | Re-export all NFS shares
-  ansible.builtin.command:
-    cmd: exportfs -ra
-  when: exports_updated.changed
-  register: output
-  changed_when: output.rc != 0
+  notify: reexport nfs shares
