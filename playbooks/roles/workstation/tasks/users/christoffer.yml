@@ -176,29 +176,3 @@
     owner: christoffer
     group: christoffer
     mode: "0600"
-
-- name: users | christoffer | create samba directory
-  ansible.builtin.file:
-    path: "/home/christoffer/Documents/samba"
-    state: directory
-    owner: christoffer
-    group: christoffer
-    mode: "0700"
-  when: samba is defined and samba
-
-- name: users | christoffer | Add .smbcredentials
-  ansible.builtin.template:
-    src: "christoffer/smbcredentials.j2"
-    dest: "/home/christoffer/.smbcredentials"
-    owner: christoffer
-    group: christoffer
-    mode: "0600"
-  when: samba is defined and samba
-
-
-- name: users | christoffer | Add samba share
-  ansible.builtin.blockinfile:
-    path: /etc/fstab
-    block: |
-      {{ samba_share_source }} /home/christoffer/Documents/samba cifs credentials=/home/christoffer/.smbcredentials,uid=1000,gid=1000 0 0
-  when: samba is defined and samba

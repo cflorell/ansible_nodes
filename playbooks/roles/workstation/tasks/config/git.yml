@@ -54,7 +54,7 @@
 
 - name: "config | git | Copy global.commit.template"
   ansible.builtin.copy:
-    src: christoffer/global.commit.template
+    src: files/users/christoffer/git/global.commit.template
     dest: "{{ ansible_facts['user_dir'] }}/.config/git/commit_template"
     mode: "0644"
 
