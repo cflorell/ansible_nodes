@@ -7,7 +7,7 @@
 
 - name: system setup | tweaks | add flathub remote
   become: true
-  become_user: "{{ ansible_facts['user_id'] }}"
+  become_user: christoffer
   community.general.flatpak_remote:
     name: flathub
     flatpakrepo_url: https://flathub.org/repo/flathub.flatpakrepo

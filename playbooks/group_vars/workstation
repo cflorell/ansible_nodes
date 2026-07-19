@@ -12,8 +12,6 @@ microcode_intel_install: true
 starship: true
 vscode: true
 
-samba: false
-
 # Control-node path to the private secrets repo, used to source the personal
 # age key onto this workstation. lookup('env', ...) always resolves on the
 # control node (not the managed host), matching scripts/link-private-files.sh's

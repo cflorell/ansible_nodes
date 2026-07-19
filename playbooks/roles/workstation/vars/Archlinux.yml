@@ -14,6 +14,5 @@ python_dev_package: python-dev
 python_setup_tools: python-setuptools
 python_pip_pacakge: python-pip
 python_virtualenv_package: python-virtualenv
-samba_client_package: samba
 vim_package: gvim
 wpasupplicant_package: wpa_supplicant

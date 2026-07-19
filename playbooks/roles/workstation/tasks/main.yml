@@ -17,6 +17,10 @@
       tags: zsh
       ansible.builtin.import_tasks: config/zsh.yml
 
+    - name: Git
+      tags: git
+      ansible.builtin.import_tasks: config/git.yml
+
     - name: System fonts
       tags: fonts
       ansible.builtin.import_tasks: system_setup/fonts.yml
