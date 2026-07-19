@@ -15,6 +15,7 @@
   tags: earlyoom,packages,system,setup
   ansible.builtin.package:
     name: earlyoom
+  when: "'server' not in group_names"
 
 - name: system setup | memory | enable and start earlyoom
   tags: earlyoom,packages,system,setup
@@ -22,3 +23,11 @@
     name: earlyoom
     enabled: true
     state: started
+  when: "'server' not in group_names"
+
+- name: system setup | memory | remove earlyoom package on proxmox nodes
+  tags: earlyoom,packages,system,setup
+  ansible.builtin.package:
+    name: earlyoom
+    state: absent
+  when: "'server' in group_names"
