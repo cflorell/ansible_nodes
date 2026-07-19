@@ -8,4 +8,4 @@ skip_list:
   - command-instead-of-module
 
 exclude_paths:
-  - .github/*
+  - playbooks/group_vars/all/secrets.sops.yaml
