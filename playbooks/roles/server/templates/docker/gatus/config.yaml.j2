@@ -65,6 +65,21 @@ endpoints:
     alerts: *notify-all
 {% endfor %}
 
+  # --- Proxmox web UI/API (pveproxy) — ICMP above only proves the host is up;
+  #     this catches pveproxy/pvedaemon wedged while the host still pings.
+  #     Self-signed cert by default, hence client.insecure. ---
+{% for host in groups['server'] %}
+  - name: "{{ host }}-pveproxy"
+    group: server
+    url: "https://{{ hostvars[host].ansible_host }}:8006"
+    interval: 5m
+    client:
+      insecure: true
+    conditions:
+      - "[STATUS] < 500"
+    alerts: *notify-all
+{% endfor %}
+
   # --- Home Assistant OS VM (terraform_nodes/haosova.tf, not Ansible-managed) ---
   # Same address fallback chain as the homelable canvas: inventory entry, then
   # homelable_homeassistant_ip from the vault, then a DNS name OPNsense resolves.
@@ -73,6 +88,17 @@ endpoints:
     url: "http://{{ hostvars['homeassistant'].ansible_host if 'homeassistant' in hostvars else homelable_homeassistant_ip | default('homeassistant') }}:8123"
     interval: 2m
     conditions: *http-conditions
+    alerts: *notify-all
+
+  # --- OPNsense gateway — nothing else here checks the router itself, and
+  #     it's the single point of failure for the whole LAN plus WAN/DDNS.
+  #     opnsense_gateway_ip is vault-backed with no group_vars default, same
+  #     pattern as homelable_homeassistant_ip above.
+  - name: opnsense
+    group: server
+    url: "icmp://{{ opnsense_gateway_ip | default('192.168.2.1') }}"
+    interval: 1m
+    conditions: *connected-conditions
     alerts: *notify-all
 
   # --- Per-service checks, generated from the `services` registry in
@@ -114,6 +140,47 @@ endpoints:
     alerts: *notify-all
 {% endfor %}
 
+  # --- NFS server (roles server hosts with nfs_server: true, e.g. proxmox1) ---
+  # Immich/media/media2/torrent/docker mount from here as nfs_client: true; a
+  # wedged nfsd would stall those apps while the host still answers ICMP.
+{% for host in groups['nodes'] + groups['server'] if hostvars[host]['nfs_server'] | default(false) %}
+  - name: "{{ host }}-nfs-server"
+    group: {{ host }}
+    url: "tcp://{{ hostvars[host].ansible_host }}:2049"
+    interval: 5m
+    conditions: *connected-conditions
+    alerts: *notify-all
+{% endfor %}
+
+  # --- Public DNS / TLS for the porkbun-ddns domain (roles/server porkbun-ddns,
+  #     nginx-proxy-manager). Checked against public resolvers, not our own, so
+  #     a broken porkbun-ddns update (expired API key, deleted record, etc.)
+  #     shows up here. Note this only proves the domain still resolves — it
+  #     can't assert the *current* WAN IP, since detecting drift there is
+  #     exactly what DDNS exists to fix. ---
+  - name: porkbun-ddns-resolution
+    group: docker
+    url: "8.8.8.8:53"
+    interval: 15m
+    dns:
+      query-name: "{{ porkbun_domain }}"
+      query-type: "A"
+    conditions:
+      - "[DNS_RCODE] == NOERROR"
+    alerts: *notify-all
+
+  # TLS cert expiration on whatever nginx-proxy-manager serves for this domain.
+  # Runs over the LAN path, but NPM presents the same cert internally, so this
+  # still catches a Let's Encrypt renewal failure before it visibly expires.
+  - name: porkbun-ddns-cert
+    group: docker
+    url: "https://{{ gatus_cert_check_hostname | default(porkbun_domain) }}"
+    interval: 1h
+    conditions:
+      - "[STATUS] < 500"
+      - "[CERTIFICATE_EXPIRATION] > 240h"
+    alerts: *notify-all
+
   # --- roles/kubernetes_control, roles/kubernetes_worker ---
   # kubeadm sets up the API server and kubelet with mTLS/token-gated endpoints, so these
   # are plain TCP-connect checks rather than HTTP health assertions.
@@ -121,6 +188,15 @@ endpoints:
     group: kubernetes
     url: "tcp://{{ hostvars[groups['kubernetes_control'][0]].ansible_host }}:6443"
     interval: 2m
+    conditions: *connected-conditions
+    alerts: *notify-all
+
+  # etcd — a corrupt/unreachable etcd is a much nastier failure mode than a
+  # dead kubelet, and TCP-connect is cheap to add alongside the checks above.
+  - name: etcd
+    group: kubernetes
+    url: "tcp://{{ hostvars[groups['kubernetes_control'][0]].ansible_host }}:2379"
+    interval: 5m
     conditions: *connected-conditions
     alerts: *notify-all
 
