@@ -11,7 +11,7 @@
     - vars.yml
   pre_tasks:
     - name: Runtime check
-      ansible.builtin.import_tasks: ../../playbooks/pre_tasks/runtime_check.yml
+      ansible.builtin.import_tasks: ../../playbooks/lifecycle/runtime_check.yml
   roles:
     - role: base
     - role: workstation

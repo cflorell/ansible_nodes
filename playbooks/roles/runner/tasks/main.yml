@@ -50,6 +50,11 @@
   retries: 3
   delay: 3
   until: sops_release is succeeded
+  # ansible.builtin.uri declares no check_mode support, so --check skips it
+  # unconditionally by default, leaving sops_release without a `json` key and
+  # breaking the get_url task below that reads the release tag from it. This
+  # is a read-only GET with nothing to dry-run around.
+  check_mode: false
 
 - name: runner | download sops binary
   ansible.builtin.get_url:

@@ -32,6 +32,11 @@
   delay: 3
   changed_when: false
   no_log: true
+  # ansible.builtin.uri declares no check_mode support at all, so --check
+  # skips it unconditionally by default, leaving _homelable_login without a
+  # `json` key and breaking every task below that reads the access token from
+  # it. This login has no side effects worth dry-running around.
+  check_mode: false
 
 - name: server | homelable | Read the current canvas
   ansible.builtin.uri:
@@ -43,6 +48,10 @@
   register: _homelable_canvas_current
   changed_when: false
   no_log: true
+  # Read-only GET; run it for real under --check too, otherwise the payload
+  # diff below always compares against an empty canvas (see the default({})
+  # fallback in canvas-payload.json.j2) instead of a meaningful dry-run.
+  check_mode: false
 
 - name: server | homelable | Render the desired canvas
   ansible.builtin.set_fact:
