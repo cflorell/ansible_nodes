@@ -9,7 +9,7 @@
     group: root
     mode: '0644'
   notify: apt_update
-  when: ansible_facts['distribution'] == ['Debian', 'LMDE']
+  when: ansible_facts['distribution'] == 'Debian'
 
 - name: system setup | repositories | install package management tools
   tags: packages,system,settings

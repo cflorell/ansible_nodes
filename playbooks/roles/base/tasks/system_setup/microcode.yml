@@ -6,7 +6,7 @@
   when:
     - microcode_amd_install is defined
     - microcode_amd_install
-    - ansible_facts['distribution'] in ['Ubuntu', 'Debian', 'LMDE'] # Fedora already includes in linux-firmware package
+    - ansible_facts['distribution'] in ['Ubuntu', 'Debian'] # Fedora already includes in linux-firmware package
 
 - name: system setup | microcode | install package for intel
   tags: cpu,intel,microcode,system setup
@@ -15,4 +15,4 @@
   when:
     - microcode_intel_install is defined
     - microcode_intel_install
-    - ansible_facts['distribution'] in ['Ubuntu', 'Debian', 'LMDE'] # Fedora already includes in linux-firmware package
+    - ansible_facts['distribution'] in ['Ubuntu', 'Debian'] # Fedora already includes in linux-firmware package

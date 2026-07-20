@@ -65,7 +65,7 @@
 - name: software | utilities | install parcelite
   ansible.builtin.package:
     name: parcellite
-  when: ansible_facts['distribution'] in ['Ubuntu', 'Debian', 'LMDE']
+  when: ansible_facts['distribution'] in ['Ubuntu', 'Debian']
 
 - name: software | utilities | Download and install broot
   ansible.builtin.get_url:
@@ -82,4 +82,4 @@
   ansible.builtin.package:
     state: absent
     name: [thunderbird*, rhythmbox*, celluoid, hypnotix, hexchat, brltty]
-  when: ansible_facts['distribution'] in ["Debian", "Ubuntu", "LMDE"]
+  when: ansible_facts['distribution'] in ["Debian", "Ubuntu"]

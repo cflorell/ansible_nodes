@@ -205,11 +205,11 @@
       tags: always
       ansible.builtin.apt:
         autoclean: true
-      when: ansible_facts['distribution'] in ['Ubuntu', 'Debian', 'LMDE']
+      when: ansible_facts['distribution'] in ['Ubuntu', 'Debian']
 
     - name: autoremove orphan packages (debian and ubuntu)
       tags: always
       ansible.builtin.apt:
         autoremove: true
         purge: true
-      when: ansible_facts['distribution'] in ['Ubuntu', 'Debian', 'LMDE']
+      when: ansible_facts['distribution'] in ['Ubuntu', 'Debian']

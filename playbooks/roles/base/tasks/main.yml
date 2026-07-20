@@ -37,7 +37,7 @@
     - name: Locale debian
       tags: locale
       ansible.builtin.import_tasks: system_setup/locale_debian.yml
-      when: ansible_facts['distribution'] in ['Ubuntu', 'Debian', 'LMDE', 'Archlinux']
+      when: ansible_facts['distribution'] in ['Ubuntu', 'Debian', 'Archlinux']
 
     - name: Locale fedora
       tags: locale

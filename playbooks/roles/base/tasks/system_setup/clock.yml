@@ -15,7 +15,7 @@
     name: systemd-timesyncd
     state: started
     enabled: true
-  when: ansible_facts['distribution'] in ['Ubuntu', 'Debian', 'LMDE', 'Archlinux']
+  when: ansible_facts['distribution'] in ['Ubuntu', 'Debian', 'Archlinux']
 
 - name: system setup | clock | start and enable chrony
   tags: ntp,system settings

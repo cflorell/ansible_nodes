@@ -14,7 +14,7 @@
     password: '{{ christoffer_password }}'
     shell: /bin/bash
   no_log: true
-  when: ansible_facts['distribution'] in ['Ubuntu', 'Debian', 'LMDE']
+  when: ansible_facts['distribution'] in ['Ubuntu', 'Debian']
 
 - name: users | christoffer | create user Fedora
   ansible.builtin.user:

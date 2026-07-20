@@ -1,4 +1,0 @@
-clock_package: systemd-timesyncd
-cron_package: cron
-fd_package: fd-find
-nfs_package: nfs-common

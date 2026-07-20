@@ -9,7 +9,7 @@
     components: main
     state: present
     enabled: true
-  when: ansible_facts['distribution'] in ['Ubuntu', 'Debian', 'LMDE']
+  when: ansible_facts['distribution'] in ['Ubuntu', 'Debian']
 
 - name: workstation | vscode | Import Microsoft GPG key
   ansible.builtin.get_url:
