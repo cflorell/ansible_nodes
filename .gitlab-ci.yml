@@ -125,7 +125,8 @@ molecule:
     - ansible
   parallel:
     matrix:
-      - MOLECULE_SCENARIO: [workstation] # base role tested in workstation
+      # base role is tested as part of the workstation scenario.
+      - MOLECULE_SCENARIO: [workstation]
         MOLECULE_PLATFORM: [arch-test, fedora-test, ubuntu-test]
   before_script:
     - python3 -m venv .venv-molecule

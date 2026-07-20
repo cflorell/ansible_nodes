@@ -1,6 +1,10 @@
 ---
 - name: Run server tasks
   block:
+    - name: Root config
+      tags: root_config
+      ansible.builtin.import_tasks: users/root.yml
+
     - name: Setup proxmox
       tags: proxmox
       ansible.builtin.import_tasks: config/proxmox.yml

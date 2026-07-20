@@ -303,7 +303,3 @@ the script header for details). It forwards all arguments to the venv's
 ./scripts/molecule.sh login    -s base --host ubuntu-test
 ./scripts/molecule.sh destroy  -s base
 ```
-
-GitLab CI runs `molecule test` for both scenarios (a `parallel:matrix` over
-`MOLECULE_SCENARIO`) on the self-hosted `ansible`/libvirt runner whenever the
-`base`/`workstation` roles, `pre_tasks`, or the `molecule/` config change.
