@@ -1,0 +1,121 @@
+---
+- name: Pre tasks
+  hosts: all
+  tags: always
+  gather_facts: false
+  pre_tasks:
+    - name: Check if host is Arch Linux
+      ansible.builtin.raw: test -f /etc/arch-release || grep -qi '^ID=arch' /etc/os-release 2>/dev/null
+      register: is_arch
+      failed_when: false
+      changed_when: false
+      check_mode: false
+
+    - name: Install Python on Arch Linux (bootstrap)
+      ansible.builtin.raw: pacman -Sy --noconfirm python
+      when: is_arch.rc == 0
+      become: true
+      register: python_install
+      changed_when: false
+
+    - name: Gather facts
+      ansible.builtin.setup:
+
+    - name: Runtime check
+      ansible.builtin.import_tasks: runtime_check.yml
+      tags:
+        - always
+
+    - name: Update apt cache explicitly (for Debian/Ubuntu)
+      ansible.builtin.apt:
+        update_cache: true
+      become: true
+      when: ansible_facts["os_family"] == "Debian"
+
+    - name: Update dnf cache explicitly (for RHEL/CentOS/Fedora)
+      ansible.builtin.dnf:
+        update_cache: true
+      become: true
+      when: ansible_facts["os_family"] == "RedHat"
+
+    - name: Update pacman cache explicitly (Arch Linux)
+      community.general.pacman:
+        update_cache: true
+      become: true
+      when: ansible_facts["os_family"] == "Archlinux"
+
+    - name: Runner CI SSH keypair bootstrap
+      when: inventory_hostname == 'runner'
+      become: true
+      block:
+        # CI jobs run as the gitlab-runner shell-executor user (not root), so
+        # the keypair used to reach other hosts must live in its home, not
+        # root's. This must exist before the runner role's package install
+        # normally creates it, since base tasks (which authorize this key on
+        # every other host) run before the runner role in this playbook.
+        - name: runner | ssh | ensure gitlab-runner system user exists
+          ansible.builtin.user:
+            name: gitlab-runner
+            system: true
+            shell: /bin/bash
+            home: /home/gitlab-runner
+            create_home: true
+            state: present
+
+        - name: runner | ssh | ensure gitlab-runner's .ssh directory exists
+          ansible.builtin.file:
+            path: /home/gitlab-runner/.ssh
+            state: directory
+            owner: gitlab-runner
+            group: gitlab-runner
+            mode: "0700"
+
+        - name: runner | ssh | ensure CI keypair exists for gitlab-runner
+          community.crypto.openssh_keypair:
+            path: /home/gitlab-runner/.ssh/id_ed25519
+            type: ed25519
+            owner: gitlab-runner
+            group: gitlab-runner
+            mode: "0600"
+          register: gitlab_runner_ssh_keypair
+
+        - name: runner | ssh | expose gitlab-runner's public key to later plays
+          ansible.builtin.set_fact:
+            gitlab_runner_ssh_public_key: "{{ gitlab_runner_ssh_keypair.public_key }}"
+            cacheable: true
+
+        # With strict host key checking (the default, left in place for
+        # interactive/manual runs) gitlab-runner would otherwise refuse to
+        # connect to any host it hasn't seen before, regardless of whether its
+        # key is authorized there. Scan from the runner host itself so this
+        # works no matter where ansible-playbook is invoked from.
+        - name: runner | ssh | determine managed hosts to trust
+          ansible.builtin.set_fact:
+            gitlab_runner_known_hosts_targets: >-
+              {{ (groups['server'] + groups['nodes'] + groups['kubernetes'])
+                 | map('extract', hostvars, 'ansible_host') | unique | list }}
+
+        - name: runner | ssh | scan managed hosts' SSH keys
+          ansible.builtin.command:
+            argv:
+              - ssh-keyscan
+              - -T
+              - "5"
+              - "{{ item }}"
+          loop: "{{ gitlab_runner_known_hosts_targets }}"
+          register: gitlab_runner_keyscan
+          changed_when: false
+          failed_when: false
+
+        - name: runner | ssh | trust scanned host keys for gitlab-runner
+          ansible.builtin.known_hosts:
+            path: /home/gitlab-runner/.ssh/known_hosts
+            name: "{{ item.item }}"
+            key: "{{ item.stdout }}"
+            state: present
+          become: true
+          become_user: gitlab-runner
+          loop: "{{ gitlab_runner_keyscan.results }}"
+          loop_control:
+            label: "{{ item.item }}"
+          when: item.stdout | length > 0
