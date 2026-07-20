@@ -48,22 +48,40 @@
       when: inventory_hostname == 'runner'
       become: true
       block:
-        - name: runner | ssh | ensure /root/.ssh exists
+        # CI jobs run as the gitlab-runner shell-executor user (not root), so
+        # the keypair used to reach other hosts must live in its home, not
+        # root's. This must exist before the runner role's package install
+        # normally creates it, since base tasks (which authorize this key on
+        # every other host) run before the runner role in this playbook.
+        - name: runner | ssh | ensure gitlab-runner system user exists
+          ansible.builtin.user:
+            name: gitlab-runner
+            system: true
+            shell: /bin/bash
+            home: /home/gitlab-runner
+            create_home: true
+            state: present
+
+        - name: runner | ssh | ensure gitlab-runner's .ssh directory exists
           ansible.builtin.file:
-            path: /root/.ssh
+            path: /home/gitlab-runner/.ssh
             state: directory
+            owner: gitlab-runner
+            group: gitlab-runner
             mode: "0700"
 
-        - name: runner | ssh | ensure CI keypair exists
+        - name: runner | ssh | ensure CI keypair exists for gitlab-runner
           community.crypto.openssh_keypair:
-            path: /root/.ssh/id_ed25519
+            path: /home/gitlab-runner/.ssh/id_ed25519
             type: ed25519
+            owner: gitlab-runner
+            group: gitlab-runner
             mode: "0600"
-          register: runner_ssh_keypair
+          register: gitlab_runner_ssh_keypair
 
-        - name: runner | ssh | expose runner public key to later plays
+        - name: runner | ssh | expose gitlab-runner's public key to later plays
           ansible.builtin.set_fact:
-            runner_ssh_public_key: "{{ runner_ssh_keypair.public_key }}"
+            gitlab_runner_ssh_public_key: "{{ gitlab_runner_ssh_keypair.public_key }}"
             cacheable: true
 
 # Must patch proxmox instance before running base tasks on them.
