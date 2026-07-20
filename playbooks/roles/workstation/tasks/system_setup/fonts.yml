@@ -13,6 +13,15 @@
       - fontconfig
       - unzip
 
+# unarchive from a URL has no idempotence guard — it re-downloads and re-extracts.
+#  Skip it once the font is already installed.
+- name: system_setup | fonts | Check whether the 3270 Nerd Font is installed
+  ansible.builtin.find:
+    paths: /home/christoffer/.fonts
+    patterns: "*3270*"
+    recurse: true
+  register: nerdfont_installed
+
 - name: system_setup | fonts | Download and unarchive nerdfonts
   ansible.builtin.unarchive:
     src: https://github.com/ryanoasis/nerd-fonts/releases/download/v3.0.1/3270.zip
@@ -24,9 +33,12 @@
   delay: 3
   register: result
   until: result is succeeded
+  when: nerdfont_installed.matched == 0
 
+# Only refresh the cache when fonts were actually (re)installed; the previous
+# `changed_when: rc != 0` both ran fc-cache every time and mis-reported changed.
 - name: system_setup | fonts | Update font cache
   ansible.builtin.command:
-    cmd: fc-cache -fv /home/christoffer/.fonts
-  register: output
-  changed_when: output.rc != 0
+    cmd: fc-cache -f /home/christoffer/.fonts
+  when: nerdfont_installed.matched == 0
+  changed_when: true
