@@ -1,11 +1,11 @@
 ---
-- name: users | root | authorize the CI runner's SSH key
+- name: users | root | authorize the gitlab-runner CI user's SSH key
   ansible.posix.authorized_key:
     user: root
-    key: "{{ hostvars['runner'].runner_ssh_public_key }}"
+    key: "{{ hostvars['runner'].gitlab_runner_ssh_public_key }}"
     state: present
   when:
     - "'runner' in hostvars"
-    - hostvars['runner'].runner_ssh_public_key is defined
+    - hostvars['runner'].gitlab_runner_ssh_public_key is defined
     - inventory_hostname in (groups.get('server', []) + groups.get('nodes', []) + groups.get('kubernetes', []))
   tags: dotfiles
