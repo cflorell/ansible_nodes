@@ -1,0 +1,72 @@
+---
+# Molecule scenario for the `workstation` role.
+#
+# This is the faithful replacement for the legacy run_vagrant_* CI jobs: like
+# them it boots the arch/fedora/ubuntu Packer boxes and applies the full
+# workstation-host stack (base + workstation), but it adds an idempotence gate
+# and post-condition assertions the old jobs lacked. The test boxes are placed
+# in the `workstation` group so the repo's group_vars/workstation applies.
+# Collections are installed out-of-band (see the README / CI before_script:
+# `ansible-galaxy collection install -r requirements.yml`), so the galaxy
+# dependency step is intentionally omitted from the test sequence below.
+driver:
+  name: vagrant
+  provider:
+    name: libvirt
+platforms:
+  - name: arch-test
+    box: archlinux
+    memory: 2048
+    cpus: 4
+    groups:
+      - workstation
+  - name: fedora-test
+    box: fedora44
+    memory: 2048
+    cpus: 4
+    groups:
+      - workstation
+  - name: ubuntu-test
+    box: ubuntu2604
+    memory: 2048
+    cpus: 4
+    groups:
+      - workstation
+provisioner:
+  name: ansible
+  env:
+    ANSIBLE_ROLES_PATH: ${MOLECULE_PROJECT_DIRECTORY}/playbooks/roles
+  inventory:
+    host_vars:
+      localhost:
+        # create/destroy run on localhost and import python-vagrant, which
+        # lives in the molecule venv. Pin localhost's interpreter there rather
+        # than let discovery pick system python. scripts/molecule.sh exports
+        # MOLECULE_DRIVER_PYTHON; the default keeps direct invocation working.
+        ansible_python_interpreter: ${MOLECULE_DRIVER_PYTHON:-/usr/bin/python3}
+  config_options:
+    defaults:
+      interpreter_python: auto_silent
+verifier:
+  name: ansible
+scenario:
+  # Sequences trimmed to drop the unused `dependency`/`cleanup` steps
+  # (collections are installed out-of-band), which otherwise emit noisy
+  # "missing" warnings.
+  create_sequence:
+    - create
+    - prepare
+  converge_sequence:
+    - create
+    - prepare
+    - converge
+  destroy_sequence:
+    - destroy
+  test_sequence:
+    - destroy
+    - create
+    - prepare
+    - converge
+    - idempotence
+    - verify
+    - destroy

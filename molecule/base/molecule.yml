@@ -1,0 +1,68 @@
+---
+# Molecule scenario for the `base` role.
+#
+# Uses the vagrant/libvirt driver so the role is exercised in a real
+# systemd VM (systemd-timesyncd, journald, cron, locale, ...), booted from
+# the same Packer base boxes as the legacy Vagrantfile: archlinux / fedora44
+# / ubuntu2604 (built by ../../vagrant_boxes). This deliberately mirrors
+# production fidelity rather than using containers, which cannot faithfully
+# run this role's systemd/microcode/earlyoom tasks.
+# Collections are installed out-of-band (see the README / CI before_script:
+# `ansible-galaxy collection install -r requirements.yml`), so the galaxy
+# dependency step is intentionally omitted from the test sequence below.
+driver:
+  name: vagrant
+  provider:
+    name: libvirt
+platforms:
+  - name: arch-test
+    box: archlinux
+    memory: 2048
+    cpus: 4
+  - name: fedora-test
+    box: fedora44
+    memory: 2048
+    cpus: 4
+  - name: ubuntu-test
+    box: ubuntu2604
+    memory: 2048
+    cpus: 4
+provisioner:
+  name: ansible
+  env:
+    # Resolve `- role: base` against the repo's non-standard roles location.
+    ANSIBLE_ROLES_PATH: ${MOLECULE_PROJECT_DIRECTORY}/playbooks/roles
+  inventory:
+    host_vars:
+      localhost:
+        # create/destroy run on localhost and import python-vagrant, which
+        # lives in the molecule venv. Pin localhost's interpreter there rather
+        # than let discovery pick system python. scripts/molecule.sh exports
+        # MOLECULE_DRIVER_PYTHON; the default keeps direct invocation working.
+        ansible_python_interpreter: ${MOLECULE_DRIVER_PYTHON:-/usr/bin/python3}
+  config_options:
+    defaults:
+      interpreter_python: auto_silent
+verifier:
+  name: ansible
+scenario:
+  # Sequences trimmed to drop the unused `dependency`/`cleanup` steps
+  # (collections are installed out-of-band), which otherwise emit noisy
+  # "missing" warnings.
+  create_sequence:
+    - create
+    - prepare
+  converge_sequence:
+    - create
+    - prepare
+    - converge
+  destroy_sequence:
+    - destroy
+  test_sequence:
+    - destroy
+    - create
+    - prepare
+    - converge
+    - idempotence
+    - verify
+    - destroy

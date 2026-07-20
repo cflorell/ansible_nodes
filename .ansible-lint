@@ -8,3 +8,8 @@ skip_list:
 
 exclude_paths:
   - playbooks/group_vars/all/secrets.sops.yaml
+
+# Molecule scenario vars files are variables, not playbooks — otherwise
+# ansible-lint tries to parse them as a list of plays.
+kinds:
+  - vars: "molecule/*/vars.yml"

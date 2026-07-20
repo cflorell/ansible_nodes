@@ -1,0 +1,5 @@
+# Molecule test harness (see molecule/ and the "Molecule testing" README section).
+# Renovate keeps these bumped; loosened lower bounds avoid pinning to a yanked release.
+ansible-core>=2.17
+molecule>=25.6
+molecule-plugins[vagrant]>=23.7
