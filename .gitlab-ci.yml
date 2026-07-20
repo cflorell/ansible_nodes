@@ -125,8 +125,6 @@ molecule:
     - .venv-molecule/bin/pip install --quiet -r requirements-test.txt
     - .venv-molecule/bin/ansible-galaxy collection install -r requirements.yml
   script:
-    # scripts/molecule.sh exports ANSIBLE_LIBRARY for the vagrant driver, then
-    # runs the venv's molecule (see the script header for the why).
     - ./scripts/molecule.sh test -s "$MOLECULE_SCENARIO"
   after_script:
     - ./scripts/molecule.sh destroy -s "$MOLECULE_SCENARIO" || true
