@@ -289,9 +289,13 @@ the script header for details). It forwards all arguments to the venv's
 `molecule` and honours `MOLECULE_BIN` / `MOLECULE_PYTHON` overrides.
 
 ```bash
-# Full lifecycle for a scenario (all three distros)
+# Full lifecycle for a scenario (all three distros at once)
 ./scripts/molecule.sh test -s base
 ./scripts/molecule.sh test -s workstation
+
+# One distro at a time (what CI does — boots a single VM per run)
+./scripts/molecule.sh test -s base --platform-name arch-test
+./scripts/molecule.sh test -s workstation --platform-name ubuntu-test
 
 # Iterating: keep the VMs up between runs
 ./scripts/molecule.sh converge -s base   # (re-)apply
