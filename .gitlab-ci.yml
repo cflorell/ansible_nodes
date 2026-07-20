@@ -141,6 +141,11 @@ molecule:
 .ansible_cd:
   tags:
     - ansible
+  variables:
+    # Cut CI log noise down to what changed (or failed) plus the final PLAY
+    # RECAP summary, instead of a line per task per host regardless of result.
+    ANSIBLE_DISPLAY_OK_HOSTS: "false"
+    ANSIBLE_DISPLAY_SKIPPED_HOSTS: "false"
   before_script:
     - git clone https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.com/cf_homelab/secrets.git
     - ./scripts/link-private-files.sh --secrets-dir secrets
