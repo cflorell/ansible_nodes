@@ -59,6 +59,12 @@
   retries: 3
   delay: 3
 
+- name: runner | create group for box storage access
+  ansible.builtin.group:
+    name: "{{ gitlab_runner_storage_group }}"
+    gid: "{{ gitlab_runner_storage_gid }}"
+    state: present
+
 - name: runner | add GitLab Runner user to Vagrant groups
   ansible.builtin.user:
     name: gitlab-runner

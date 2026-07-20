@@ -42,6 +42,7 @@ gitlab_runner_vagrant_plugins:
 gitlab_runner_groups:
   - kvm
   - libvirt
+  - "{{ gitlab_runner_storage_group }}"
 
 # Molecule's CI job boots these Vagrant base boxes by name. They are built and
 # published by the vagrant_boxes repo into gitlab_runner_box_storage_dir; this

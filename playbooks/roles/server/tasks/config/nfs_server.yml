@@ -44,3 +44,20 @@
 
       {% endfor %}
   notify: reexport nfs shares
+
+- name: server | nfs-server | Flush handlers so disk mounts are active
+  ansible.builtin.meta: flush_handlers
+
+- name: server | nfs-server | Create group for gitlab-runner box storage access
+  ansible.builtin.group:
+    name: "{{ gitlab_runner_storage_group }}"
+    gid: "{{ gitlab_runner_storage_gid }}"
+    state: present
+
+- name: server | nfs-server | Create gitlab-runner box storage directory
+  ansible.builtin.file:
+    path: "{{ gitlab_runner_box_storage_dir }}"
+    state: directory
+    owner: root
+    group: "{{ gitlab_runner_storage_group }}"
+    mode: '2775'
