@@ -4,12 +4,7 @@
 # Uses the vagrant/libvirt driver so the role is exercised in a real
 # systemd VM (systemd-timesyncd, journald, cron, locale, ...), booted from
 # the same Packer base boxes as the legacy Vagrantfile: archlinux / fedora44
-# / ubuntu2604 (built by ../../vagrant_boxes). This deliberately mirrors
-# production fidelity rather than using containers, which cannot faithfully
-# run this role's systemd/microcode/earlyoom tasks.
-# Collections are installed out-of-band (see the README / CI before_script:
-# `ansible-galaxy collection install -r requirements.yml`), so the galaxy
-# dependency step is intentionally omitted from the test sequence below.
+# / ubuntu2604 (built by ../../vagrant_boxes).
 driver:
   name: vagrant
   provider:
@@ -47,8 +42,7 @@ provisioner:
       # Feed modules to the remote interpreter over stdin instead of writing a
       # temp script and running it through a shell. That shell would otherwise
       # source profile scripts / emit login noise that lands after the module's
-      # JSON ("Module invocation had junk after the JSON data"). Also faster.
-      # Vagrant boxes have passwordless sudo without requiretty, so this is safe.
+      # JSON ("Module invocation had junk after the JSON data").
       pipelining: true
 verifier:
   name: ansible

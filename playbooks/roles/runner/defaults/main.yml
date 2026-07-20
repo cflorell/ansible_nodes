@@ -42,3 +42,16 @@ gitlab_runner_vagrant_plugins:
 gitlab_runner_groups:
   - kvm
   - libvirt
+
+# Molecule's CI job boots these Vagrant base boxes by name. They are built and
+# published by the vagrant_boxes repo into gitlab_runner_box_storage_dir; this
+# role registers any found there for the gitlab-runner user so `vagrant up`
+# resolves them locally instead of trying to fetch a box by that name.
+gitlab_runner_box_storage_dir: /mnt/Storage3/boxes
+gitlab_runner_vagrant_boxes:
+  - name: archlinux
+    file: archlinux.vagrant.box
+  - name: fedora44
+    file: fedora44.vagrant.box
+  - name: ubuntu2604
+    file: ubuntu2604.vagrant.box

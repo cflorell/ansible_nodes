@@ -1,14 +1,6 @@
 ---
 # Molecule scenario for the `workstation` role.
-#
-# This is the faithful replacement for the legacy run_vagrant_* CI jobs: like
-# them it boots the arch/fedora/ubuntu Packer boxes and applies the full
-# workstation-host stack (base + workstation), but it adds an idempotence gate
-# and post-condition assertions the old jobs lacked. The test boxes are placed
-# in the `workstation` group so the repo's group_vars/workstation applies.
-# Collections are installed out-of-band (see the README / CI before_script:
-# `ansible-galaxy collection install -r requirements.yml`), so the galaxy
-# dependency step is intentionally omitted from the test sequence below.
+
 driver:
   name: vagrant
   provider:
