@@ -84,6 +84,42 @@
             gitlab_runner_ssh_public_key: "{{ gitlab_runner_ssh_keypair.public_key }}"
             cacheable: true
 
+        # With strict host key checking (the default, left in place for
+        # interactive/manual runs) gitlab-runner would otherwise refuse to
+        # connect to any host it hasn't seen before, regardless of whether its
+        # key is authorized there. Scan from the runner host itself so this
+        # works no matter where ansible-playbook is invoked from.
+        - name: runner | ssh | determine managed hosts to trust
+          ansible.builtin.set_fact:
+            gitlab_runner_known_hosts_targets: >-
+              {{ (groups['server'] + groups['nodes'] + groups['kubernetes'])
+                 | map('extract', hostvars, 'ansible_host') | unique | list }}
+
+        - name: runner | ssh | scan managed hosts' SSH keys
+          ansible.builtin.command:
+            argv:
+              - ssh-keyscan
+              - -T
+              - "5"
+              - "{{ item }}"
+          loop: "{{ gitlab_runner_known_hosts_targets }}"
+          register: gitlab_runner_keyscan
+          changed_when: false
+          failed_when: false
+
+        - name: runner | ssh | trust scanned host keys for gitlab-runner
+          ansible.builtin.known_hosts:
+            path: /home/gitlab-runner/.ssh/known_hosts
+            name: "{{ item.item }}"
+            key: "{{ item.stdout }}"
+            state: present
+          become: true
+          become_user: gitlab-runner
+          loop: "{{ gitlab_runner_keyscan.results }}"
+          loop_control:
+            label: "{{ item.item }}"
+          when: item.stdout | length > 0
+
 # Must patch proxmox instance before running base tasks on them.
 # Otherwise it will fail dues to missing enterprise repo.
 - name: Run server tasks
