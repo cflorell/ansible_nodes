@@ -1,0 +1,28 @@
+---
+# Post-conditions the legacy Vagrant test never asserted: it only checked that
+# the playbook exited 0. These check that the base role actually converged the
+# system state it is responsible for.
+- name: Verify base role
+  hosts: all
+  become: true
+  gather_facts: true
+  vars:
+    timesync_service: "{{ 'chronyd' if ansible_facts['distribution'] == 'Fedora' else 'systemd-timesyncd' }}"
+  tasks:
+    - name: Journald retention was configured
+      ansible.builtin.command: grep -q '^MaxFileSec=5day' /etc/systemd/journald.conf
+      changed_when: false
+
+    - name: Swappiness was configured
+      ansible.builtin.command: grep -q '^vm.swappiness = 5' /etc/sysctl.conf
+      changed_when: false
+
+    - name: Time-sync service is enabled
+      ansible.builtin.command: "systemctl is-enabled {{ timesync_service }}"
+      changed_when: false
+
+    - name: Time zone is Europe/Stockholm
+      ansible.builtin.command: timedatectl show -p Timezone --value
+      register: tz
+      changed_when: false
+      failed_when: tz.stdout != "Europe/Stockholm"

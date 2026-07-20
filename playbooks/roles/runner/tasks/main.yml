@@ -113,20 +113,95 @@
   register: output
   changed_when: output.rc != 0
 
-# - name: runner | install Vagrant plugins
-#   become: true
-#   become_user: gitlab-runner
-#   ansible.builtin.command:
-#     argv:
-#       - vagrant
-#       - plugin
-#       - install
-#       - "{{ item }}"
-#   environment:
-#     HOME: /home/gitlab-runner
-#     USER: root
-#     VAGRANT_DEFAULT_PROVIDER: libvirt
-#     VAGRANT_DISABLE_STRICT_DEPENDENCY_ENFORCEMENT: "1"
-#   loop: "{{ gitlab_runner_vagrant_plugins }}"
-#   register: output
-#   changed_when: output.rc != 0
+- name: runner | list installed Vagrant plugins
+  become: true
+  become_user: gitlab-runner
+  ansible.builtin.command:
+    argv:
+      - vagrant
+      - plugin
+      - list
+  environment:
+    HOME: /home/gitlab-runner
+  register: gitlab_runner_vagrant_plugin_list
+  changed_when: false
+
+- name: runner | install Vagrant plugins
+  become: true
+  become_user: gitlab-runner
+  ansible.builtin.command:
+    argv:
+      - vagrant
+      - plugin
+      - install
+      - "{{ item }}"
+  environment:
+    HOME: /home/gitlab-runner
+    VAGRANT_DEFAULT_PROVIDER: libvirt
+    VAGRANT_DISABLE_STRICT_DEPENDENCY_ENFORCEMENT: "1"
+  loop: "{{ gitlab_runner_vagrant_plugins }}"
+  when: item not in gitlab_runner_vagrant_plugin_list.stdout
+  register: gitlab_runner_vagrant_plugin_install
+  changed_when: "'Installed the plugin' in gitlab_runner_vagrant_plugin_install.stdout"
+
+# molecule's platforms reference these boxes by name; without a locally
+# registered box, `vagrant up` treats the name as a path and fails with
+# "Couldn't open file .../<box>". Register whichever boxes vagrant_boxes has
+# published to shared storage for the gitlab-runner user.
+- name: runner | list registered Vagrant boxes
+  become: true
+  become_user: gitlab-runner
+  ansible.builtin.command:
+    argv:
+      - vagrant
+      - box
+      - list
+  environment:
+    HOME: /home/gitlab-runner
+  register: gitlab_runner_box_list
+  changed_when: false
+
+- name: runner | stat molecule base boxes in shared storage
+  ansible.builtin.stat:
+    path: "{{ gitlab_runner_box_storage_dir }}/{{ item.file }}"
+  loop: "{{ gitlab_runner_vagrant_boxes }}"
+  loop_control:
+    label: "{{ item.name }}"
+  register: gitlab_runner_box_files
+
+- name: runner | register molecule base boxes for the gitlab-runner user
+  become: true
+  become_user: gitlab-runner
+  ansible.builtin.command:
+    argv:
+      - vagrant
+      - box
+      - add
+      - --name
+      - "{{ item.item.name }}"
+      - --provider
+      - libvirt
+      - --force
+      - "{{ item.stat.path }}"
+  environment:
+    HOME: /home/gitlab-runner
+  loop: "{{ gitlab_runner_box_files.results }}"
+  loop_control:
+    label: "{{ item.item.name }}"
+  when:
+    - item.stat.exists
+    - item.item.name not in gitlab_runner_box_list.stdout
+  changed_when: true
+
+- name: runner | warn about unavailable molecule base boxes
+  ansible.builtin.debug:
+    msg: >-
+      Vagrant box '{{ item.item.name }}' is neither registered for gitlab-runner
+      nor present at {{ gitlab_runner_box_storage_dir }}/{{ item.item.file }}.
+      The molecule CI job cannot boot it until vagrant_boxes publishes it there.
+  loop: "{{ gitlab_runner_box_files.results }}"
+  loop_control:
+    label: "{{ item.item.name }}"
+  when:
+    - not item.stat.exists
+    - item.item.name not in gitlab_runner_box_list.stdout

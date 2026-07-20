@@ -6,11 +6,20 @@
     dest: /usr/share/i18n/locales/en_SE
     mode: '0644'
 
+- name: system setup | locale | Check whether the custom en_SE.UTF-8 locale exists
+  ansible.builtin.command: locale -a
+  register: locale_available
+  changed_when: false
+  check_mode: false
+
 - name: system setup | locale | Generate locale
   become: true
   ansible.builtin.command: localedef -i en_SE -f UTF-8 en_SE.UTF-8
-  args:
-    creates: /usr/lib/locale/en_SE.UTF-8
+  register: localedef_result
+  # localedef exits 1 on non-fatal charmap warnings while still generating.
+  changed_when: localedef_result.rc in [0, 1]
+  failed_when: localedef_result.rc not in [0, 1]
+  when: "'en_se.utf8' not in (locale_available.stdout | lower | replace('-', ''))"
 
 - name: system setup | locale | Ensure localisation files for '{{ config_system_locale }}' are available
   community.general.locale_gen:

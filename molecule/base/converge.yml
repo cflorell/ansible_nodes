@@ -1,0 +1,16 @@
+---
+# Applies the `base` role in isolation. Loads the repo's shared (non-secret)
+# vars so tasks like locale generation have config_system_locale/language, and
+# imports the same runtime_check pre-tasks the real playbook runs. No SOPS
+# secrets are needed here, so this runs without the private secrets repo.
+- name: Converge base role
+  hosts: all
+  become: true
+  gather_facts: true
+  vars_files:
+    - ../../playbooks/group_vars/all/vars.yml
+  pre_tasks:
+    - name: Runtime check
+      ansible.builtin.import_tasks: ../../playbooks/pre_tasks/runtime_check.yml
+  roles:
+    - role: base

@@ -95,97 +95,48 @@ parse-sast-results:
         echo "gl-sast-report.json not found."
       fi
 
-.vagrant_rules:
+.molecule_rules:
   rules:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
-      changes:
+      changes: &molecule_changes
         - playbooks/roles/workstation/**
         - playbooks/roles/base/**
+        - playbooks/pre_tasks/**
+        - molecule/**
+        - requirements.yml
+        - requirements-test.txt
     - if: $CI_COMMIT_BRANCH == "main"
-      changes:
-        - playbooks/roles/workstation/**
-        - playbooks/roles/base/**
+      changes: *molecule_changes
 
-run_vagrant_arch:
-  extends: .vagrant_rules
+# One job per (scenario, distro) pair — six in total. `--platform-name` scopes
+# the whole test run to a single platform, so each job boots exactly one VM,
+# and `resource_group: vagrant` serialises the jobs so only one VM is ever
+# running on the runner. That stops the nested-virt host being starved by three
+# parallel guests (which caused the SSH/become handshake timeouts), at the cost
+# of a longer, sequential pipeline.
+molecule:
+  extends: .molecule_rules
   stage: test
   resource_group: vagrant
   interruptible: true
   variables:
     VAGRANT_DEFAULT_PROVIDER: libvirt
-    ANSIBLE_VAULT_PASSWORD_FILE: .vault_pass
   tags:
     - ansible
+  parallel:
+    matrix:
+      # base role is tested as part of the workstation scenario.
+      - MOLECULE_SCENARIO: [workstation]
+        MOLECULE_PLATFORM: [arch-test, fedora-test, ubuntu-test]
   before_script:
-    - echo "$ANSIBLE_VAULT_PASSWORD" > .vault_pass
-    - git clone https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.com/cf_homelab/secrets.git
-    - ./scripts/link-private-files.sh --secrets-dir secrets
+    - python3 -m venv .venv-molecule
+    - .venv-molecule/bin/pip install --quiet -r requirements-test.txt
+    - .venv-molecule/bin/ansible-galaxy collection install -r requirements.yml
   script:
-    - virsh destroy ansible_nodes_arch-test || true
-    - virsh undefine ansible_nodes_arch-test --remove-all-storage || true
-    - |
-      for pool in $(virsh pool-list --all --name | grep ansible_nodes); do
-        virsh pool-destroy "$pool" || true
-        virsh pool-undefine "$pool" || true
-      done
-    - vagrant up arch-test
+    - ./scripts/molecule.sh test -s "$MOLECULE_SCENARIO" --platform-name "$MOLECULE_PLATFORM"
   after_script:
-    - rm -f .vault_pass
-    - vagrant destroy -f arch-test
-
-run_vagrant_fedora:
-  extends: .vagrant_rules
-  stage: test
-  resource_group: vagrant
-  interruptible: true
-  variables:
-    VAGRANT_DEFAULT_PROVIDER: libvirt
-    ANSIBLE_VAULT_PASSWORD_FILE: .vault_pass
-  tags:
-    - ansible
-  before_script:
-    - echo "$ANSIBLE_VAULT_PASSWORD" > .vault_pass
-    - git clone https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.com/cf_homelab/secrets.git
-    - ./scripts/link-private-files.sh --secrets-dir secrets
-  script:
-    - virsh destroy ansible_nodes_fedora-test || true
-    - virsh undefine ansible_nodes_fedora-test --remove-all-storage || true
-    - |
-      for pool in $(virsh pool-list --all --name | grep ansible_nodes); do
-        virsh pool-destroy "$pool" || true
-        virsh pool-undefine "$pool" || true
-      done
-    - vagrant up fedora-test
-  after_script:
-    - rm -f .vault_pass
-    - vagrant destroy -f fedora-test
-
-run_vagrant_ubuntu:
-  extends: .vagrant_rules
-  stage: test
-  resource_group: vagrant
-  interruptible: true
-  variables:
-    VAGRANT_DEFAULT_PROVIDER: libvirt
-    ANSIBLE_VAULT_PASSWORD_FILE: .vault_pass
-  tags:
-    - ansible
-  before_script:
-    - echo "$ANSIBLE_VAULT_PASSWORD" > .vault_pass
-    - git clone https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.com/cf_homelab/secrets.git
-    - ./scripts/link-private-files.sh --secrets-dir secrets
-  script:
-    - virsh destroy ansible_nodes_ubuntu-test || true
-    - virsh undefine ansible_nodes_ubuntu-test --remove-all-storage || true
-    - |
-      for pool in $(virsh pool-list --all --name | grep ansible_nodes); do
-        virsh pool-destroy "$pool" || true
-        virsh pool-undefine "$pool" || true
-      done
-    - vagrant up ubuntu-test
-  after_script:
-    - rm -f .vault_pass
-    - vagrant destroy -f ubuntu-test
+    - ./scripts/molecule.sh destroy -s "$MOLECULE_SCENARIO" || true
+    - rm -rf .venv-molecule
 
 # .ansible_cd:
 #   tags:

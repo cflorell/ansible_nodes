@@ -62,11 +62,6 @@
   register: pkg_install_result
   until: pkg_install_result is succeeded
 
-- name: software | utilities | install parcelite
-  ansible.builtin.package:
-    name: parcellite
-  when: ansible_facts['distribution'] in ['Ubuntu', 'Debian']
-
 - name: software | utilities | Download and install broot
   ansible.builtin.get_url:
     url: https://dystroy.org/broot/download/x86_64-linux/broot

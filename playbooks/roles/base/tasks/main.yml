@@ -6,7 +6,9 @@
 
 - name: Run base tasks
   block:
-    - name: Root config
+    # Root's dotfiles moved to the server role; this now only authorizes the CI
+    # runner's SSH key, which also needs to cover the kubernetes group.
+    - name: Root SSH access
       tags: root_config
       ansible.builtin.import_tasks: users/root.yml
 

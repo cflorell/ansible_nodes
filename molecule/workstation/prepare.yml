@@ -1,0 +1,39 @@
+---
+# Bootstrap step, run once before converge. Mirrors the essential parts of
+# playbook.yml's "Pre tasks" play (Arch has no python out of the box, and the
+# package caches need priming) so converge starts from the same baseline a
+# real run would. Kept in `prepare` rather than `converge` so it does not
+# perturb the idempotence check.
+- name: Prepare
+  hosts: all
+  gather_facts: false
+  become: true
+  tasks:
+    - name: Detect Arch Linux
+      ansible.builtin.raw: test -f /etc/arch-release
+      register: is_arch
+      failed_when: false
+      changed_when: false
+
+    - name: Bootstrap python on Arch Linux
+      ansible.builtin.raw: pacman -Sy --noconfirm python
+      when: is_arch.rc == 0
+      changed_when: false
+
+    - name: Gather facts
+      ansible.builtin.setup:
+
+    - name: Update apt cache (Debian/Ubuntu)
+      ansible.builtin.apt:
+        update_cache: true
+      when: ansible_facts['os_family'] == "Debian"
+
+    - name: Update dnf cache (Fedora/RHEL)
+      ansible.builtin.dnf:
+        update_cache: true
+      when: ansible_facts['os_family'] == "RedHat"
+
+    - name: Update pacman cache (Arch)
+      community.general.pacman:
+        update_cache: true
+      when: ansible_facts['os_family'] == "Archlinux"

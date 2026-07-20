@@ -11,21 +11,21 @@
     dest: /usr/share/i18n/locales/en_SE
     mode: '0644'
 
-- name: system setup | fedora locale | Check if locale exists
-  ansible.builtin.command: locale -a | grep -q "^{{ config_system_locale }}$"
-  register: locale_exists
+- name: system setup | fedora locale | List available locales
+  ansible.builtin.command: locale -a
+  register: locale_available
   changed_when: false
-  failed_when: false
   check_mode: false
 
 - name: system setup | fedora locale | Generate locale
   ansible.builtin.command: localedef -c -i {{ config_system_locale.split('.')[0] }} -f {{ config_system_locale.split('.')[-1] }} {{ config_system_locale }}
   register: output
-  changed_when: output.rc != 0
-  when: not locale_exists.rc == 0
+  changed_when: output.rc in [0, 1]
+  failed_when: output.rc not in [0, 1]
+  when: "config_system_locale | lower | replace('-', '') not in (locale_available.stdout | lower | replace('-', ''))"
 
 - name: system setup | fedora locale | Set locale
   ansible.builtin.command: localectl set-locale LANG={{ config_system_locale }}
-  register: output
-  changed_when: output.rc != 0
-  when: not locale_exists.rc == 0
+  register: setlocale
+  changed_when: setlocale.rc == 0
+  when: config_system_locale | lower | replace('-', '') not in (locale_available.stdout | lower | replace('-', ''))

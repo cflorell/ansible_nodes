@@ -1,8 +1,9 @@
 ---
 - name: system setup | logging | Ensure journald.conf exists
-  ansible.builtin.file:
-    path: /etc/systemd/journald.conf
-    state: touch
+  ansible.builtin.copy:
+    content: ""
+    dest: /etc/systemd/journald.conf
+    force: false
     mode: '0644'
 
 - name: system setup | logging | adjust retention period

@@ -1,0 +1,17 @@
+---
+# Applies the full workstation-host stack (base + workstation), mirroring what
+# playbook.yml does for hosts in the `workstation` group. Loads shared
+# non-secret vars plus the scenario's test-only stand-ins (see vars.yml).
+- name: Converge workstation host
+  hosts: all
+  become: true
+  gather_facts: true
+  vars_files:
+    - ../../playbooks/group_vars/all/vars.yml
+    - vars.yml
+  pre_tasks:
+    - name: Runtime check
+      ansible.builtin.import_tasks: ../../playbooks/pre_tasks/runtime_check.yml
+  roles:
+    - role: base
+    - role: workstation

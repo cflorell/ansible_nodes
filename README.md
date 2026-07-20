@@ -253,3 +253,53 @@ vagrant up
 vagrant provision
 vagrant destroy
 ```
+
+## Molecule testing
+
+Molecule wraps the same arch/fedora/ubuntu Packer boxes used above, but adds a
+full test lifecycle per role — `create -> prepare -> converge -> idempotence ->
+verify -> destroy` — so it also catches non-idempotent tasks and asserts
+post-conditions (things `vagrant up` alone never checked). It uses the
+vagrant/libvirt driver (not containers) so systemd/journald/locale/microcode
+tasks run with production fidelity.
+
+Scenarios live under `molecule/`:
+
+- `molecule/base/` — applies the `base` role in isolation.
+- `molecule/workstation/` — applies the full workstation-host stack
+  (`base` + `workstation`), the faithful successor to the old `run_vagrant_*`
+  CI jobs.
+
+The scenarios run **without** the private secrets repo: shared non-secret vars
+are loaded from `playbooks/group_vars/all/vars.yml`, and the workstation
+scenario supplies throwaway stand-ins in `molecule/workstation/vars.yml`
+(a dummy `christoffer_password` and a non-existent `homelab_secrets_dir`), so
+every secret-dependent task skips via its existing guards.
+
+```bash
+python3 -m venv .venv-molecule
+.venv-molecule/bin/pip install -r requirements-test.txt
+.venv-molecule/bin/ansible-galaxy collection install -r requirements.yml
+```
+
+Drive Molecule through `scripts/molecule.sh` rather than calling `molecule`
+directly. The wrapper exports `ANSIBLE_LIBRARY` so the vagrant driver's bundled
+`vagrant` module resolves — molecule 26 no longer injects it automatically (see
+the script header for details). It forwards all arguments to the venv's
+`molecule` and honours `MOLECULE_BIN` / `MOLECULE_PYTHON` overrides.
+
+```bash
+# Full lifecycle for a scenario (all three distros at once)
+./scripts/molecule.sh test -s base
+./scripts/molecule.sh test -s workstation
+
+# One distro at a time (what CI does — boots a single VM per run)
+./scripts/molecule.sh test -s base --platform-name arch-test
+./scripts/molecule.sh test -s workstation --platform-name ubuntu-test
+
+# Iterating: keep the VMs up between runs
+./scripts/molecule.sh converge -s base   # (re-)apply
+./scripts/molecule.sh verify   -s base   # run assertions only
+./scripts/molecule.sh login    -s base --host ubuntu-test
+./scripts/molecule.sh destroy  -s base
+```

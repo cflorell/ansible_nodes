@@ -1,0 +1,38 @@
+---
+# Post-conditions for the workstation role. Focuses on state the role owns and
+# that does not require the real private secrets (which are intentionally
+# absent under Molecule).
+- name: Verify workstation role
+  hosts: all
+  become: true
+  gather_facts: true
+  tasks:
+    - name: The christoffer user exists
+      ansible.builtin.getent:
+        database: passwd
+        key: christoffer
+
+    - name: The christoffer user is in the admin group
+      ansible.builtin.command: id -nG christoffer
+      register: christoffer_groups
+      changed_when: false
+      failed_when: >-
+        ('sudo' not in christoffer_groups.stdout.split())
+        and ('wheel' not in christoffer_groups.stdout.split())
+
+    - name: SOPS binary was installed
+      ansible.builtin.stat:
+        path: /usr/local/bin/sops
+      register: sops_bin
+
+    - name: The age config directory exists
+      ansible.builtin.stat:
+        path: /home/christoffer/.config/sops/age
+      register: age_dir
+
+    - name: Assert collected results
+      ansible.builtin.assert:
+        that:
+          - sops_bin.stat.exists
+          - age_dir.stat.exists and age_dir.stat.isdir
+        fail_msg: "workstation role did not install sops / create the age config dir"
