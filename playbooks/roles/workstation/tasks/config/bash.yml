@@ -1,7 +1,7 @@
 ---
 - name: "Bash | Copy .bashrc"
   ansible.builtin.copy:
-    src: "files/users/christoffer/bash/.bashrc"
+    src: "files/users/christoffer/bash/bashrc"
     dest: "/home/christoffer/.bashrc"
     owner: christoffer
     group: christoffer

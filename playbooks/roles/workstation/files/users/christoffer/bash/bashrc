@@ -10,12 +10,14 @@ for file in $HOME/.config/bash/*.sh; do
 done
 
 # Fuzzy completion
-eval <(fzf --bash)
+source <(fzf --bash)
 
 # history
 HISTFILE=~/.bash_history
+HISTCONTROL=ignoreboth
+HISTTIMEFORMAT="%Y-%m-%d %T "
 HISTSIZE=10000
-SAVEHIST=10000
-setopt appendhistory
+HISTFILESIZE=10000
+shopt -s histappend
 
 export PATH="$HOME/bin:$PATH"

@@ -8,6 +8,10 @@ HISTCONTROL=ignoreboth
 # Set history format to include timestamps
 HISTTIMEFORMAT="%Y-%m-%d %T "
 
+HISTSIZE=10000
+HISTFILESIZE=10000
+shopt -s histappend
+
 # Command aliases
 alias back='cd $OLDPWD'
 alias c='clear'
@@ -56,6 +60,7 @@ extract () {
     case $1 in
       *.tar.bz2)   tar xjvf $1    ;;
       *.tar.gz)    tar xzvf $1    ;;
+      *.tar.xz)    tar xvf $1    ;;
       *.bz2)       bzip2 -d $1    ;;
       *.rar)       unrar2dir $1    ;;
       *.gz)        gunzip $1    ;;

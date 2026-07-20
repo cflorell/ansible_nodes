@@ -51,7 +51,7 @@
 
 - name: "config | ZSH | Copy .zshrc"
   ansible.builtin.copy:
-    src: "files/users/christoffer/zsh/.zshrc"
+    src: "files/users/christoffer/zsh/zshrc"
     dest: "/home/christoffer/.zshrc"
     owner: christoffer
     group: christoffer
