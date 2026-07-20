@@ -47,6 +47,13 @@ provisioner:
   config_options:
     defaults:
       interpreter_python: auto_silent
+    ssh_connection:
+      # Feed modules to the remote interpreter over stdin instead of writing a
+      # temp script and running it through a shell. That shell would otherwise
+      # source profile scripts / emit login noise that lands after the module's
+      # JSON ("Module invocation had junk after the JSON data"). Also faster.
+      # Vagrant boxes have passwordless sudo without requiretty, so this is safe.
+      pipelining: true
 verifier:
   name: ansible
 scenario:

@@ -10,7 +10,12 @@
 # Throwaway SHA-512 crypt hash of the string "vagrant" — NOT a real credential.
 christoffer_password: "$6$HpREUTRzZfVPu.V3$7/TuLwfJEEMMrR01ma8WtxaHnvbUuF5nez0lyrheLHkr9TgQCj9zH.YMZ8g7T2Czg7CuwFbOHg.f.6SkNgEmP/"
 
-# Point the private-secrets lookups at a path that does not exist so every
-# secrets-dependent block (gpg.yml, users/christoffer.yml ssh keys, sops.yml
-# age key) evaluates its stat guard to "absent" and no-ops.
-homelab_secrets_dir: /nonexistent/molecule-secrets
+# Point the private-secrets lookups at a writable throwaway dir under
+# molecule's ephemeral directory (auto-cleaned on destroy). Secret material we
+# don't have (gpg key, sops age key) is simply absent there, so those stat
+# guards no-op. The ssh keypair block, however, *generates and persists* a key
+# when none exists, so its target must be writable rather than a bogus path.
+# On the idempotence re-run the key is already persisted here, so generation
+# is skipped and the run stays clean.
+homelab_secrets_dir: >-
+  {{ (lookup('env', 'MOLECULE_EPHEMERAL_DIRECTORY') | default('/tmp/molecule', true)) }}/fake-secrets
