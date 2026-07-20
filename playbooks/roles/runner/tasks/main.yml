@@ -113,20 +113,33 @@
   register: output
   changed_when: output.rc != 0
 
-# - name: runner | install Vagrant plugins
-#   become: true
-#   become_user: gitlab-runner
-#   ansible.builtin.command:
-#     argv:
-#       - vagrant
-#       - plugin
-#       - install
-#       - "{{ item }}"
-#   environment:
-#     HOME: /home/gitlab-runner
-#     USER: root
-#     VAGRANT_DEFAULT_PROVIDER: libvirt
-#     VAGRANT_DISABLE_STRICT_DEPENDENCY_ENFORCEMENT: "1"
-#   loop: "{{ gitlab_runner_vagrant_plugins }}"
-#   register: output
-#   changed_when: output.rc != 0
+- name: runner | list installed Vagrant plugins
+  become: true
+  become_user: gitlab-runner
+  ansible.builtin.command:
+    argv:
+      - vagrant
+      - plugin
+      - list
+  environment:
+    HOME: /home/gitlab-runner
+  register: gitlab_runner_vagrant_plugin_list
+  changed_when: false
+
+- name: runner | install Vagrant plugins
+  become: true
+  become_user: gitlab-runner
+  ansible.builtin.command:
+    argv:
+      - vagrant
+      - plugin
+      - install
+      - "{{ item }}"
+  environment:
+    HOME: /home/gitlab-runner
+    VAGRANT_DEFAULT_PROVIDER: libvirt
+    VAGRANT_DISABLE_STRICT_DEPENDENCY_ENFORCEMENT: "1"
+  loop: "{{ gitlab_runner_vagrant_plugins }}"
+  when: item not in gitlab_runner_vagrant_plugin_list.stdout
+  register: gitlab_runner_vagrant_plugin_install
+  changed_when: "'Installed the plugin' in gitlab_runner_vagrant_plugin_install.stdout"

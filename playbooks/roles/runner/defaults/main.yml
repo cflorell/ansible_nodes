@@ -6,10 +6,11 @@ gitlab_runner_description: "{{ inventory_hostname }}"
 
 # Tools required by CI jobs that run on this runner, e.g. the
 # terraform_nodes plan/apply jobs, ansible_nodes check/apply jobs, and
-# the ansible_nodes ansible_lint job (python3 -m venv .venv-lint).
-# Terraform installs from the HashiCorp apt repository configured by
-# this role. sops isn't packaged for apt, so it's installed separately
-# below as a release binary.
+# the venv-based jobs that `python3 -m venv` their own tooling: ansible_lint
+# (.venv-lint) and molecule (.venv-molecule, which pip-installs
+# requirements-test.txt). Terraform installs from the HashiCorp apt repository
+# configured by this role. sops isn't packaged for apt, so it's installed
+# separately below as a release binary.
 gitlab_runner_ci_packages:
   - age
   - jq
