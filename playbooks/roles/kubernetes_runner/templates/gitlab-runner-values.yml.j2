@@ -1,0 +1,45 @@
+---
+rbac:
+  create: false
+
+serviceAccount:
+  create: false
+  name: gitlab-runner
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: 300m
+    memory: 256Mi
+
+runners:
+  # A complete config.toml, so the manager pod skips `gitlab-runner register`
+  # (and its own gitlabUrl/runnerToken/tags/executor values) entirely in favor
+  # of `gitlab-runner verify` on boot - an invalid token fails loudly instead
+  # of producing a runner that silently never picks up jobs.
+  configOverride: |
+    concurrent = {{ kubernetes_runner_concurrent }}
+    check_interval = 30
+    log_level = "info"
+
+    [[runners]]
+      name = "kubernetes"
+      url = "{{ kubernetes_runner_gitlab_url }}"
+      token = "{{ kubernetes_runner_gitlab_token }}"
+      executor = "kubernetes"
+      tag_list = "{{ kubernetes_runner_tag_list }}"
+      run_untagged = false
+      [runners.kubernetes]
+        namespace = "{{ kubernetes_runner_namespace }}"
+        image = "alpine"
+        cpu_request = "{{ kubernetes_runner_pod_cpu_request }}"
+        memory_request = "{{ kubernetes_runner_pod_memory_request }}"
+        cpu_limit = "{{ kubernetes_runner_pod_cpu_limit }}"
+        memory_limit = "{{ kubernetes_runner_pod_memory_limit }}"
+        helper_cpu_request = "{{ kubernetes_runner_helper_cpu_request }}"
+        helper_memory_request = "{{ kubernetes_runner_helper_memory_request }}"
+        helper_cpu_limit = "{{ kubernetes_runner_helper_cpu_limit }}"
+        helper_memory_limit = "{{ kubernetes_runner_helper_memory_limit }}"
+        poll_timeout = 180

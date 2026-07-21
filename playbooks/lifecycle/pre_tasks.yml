@@ -110,3 +110,37 @@
           loop_control:
             label: "{{ item.item }}"
           when: item.stdout | length > 0
+
+    - name: Kubernetes-hosted CI runner SSH keypair bootstrap
+      when: inventory_hostname == 'kube-control'
+      become: true
+      block:
+        # A separate keypair from the shell runner's above: CI jobs on the
+        # Kubernetes executor run in ephemeral pods with no persistent
+        # identity of their own to generate/keep a key, unlike the runner
+        # VM. This one is only generated here, not used to connect from
+        # kube-control itself - the private key is meant to be extracted and
+        # set as a masked/protected GitLab CI/CD file variable for
+        # ansible_check/apply job pods to write into their own ~/.ssh and use
+        # directly.
+        - name: kubernetes runner | ssh | ensure keypair directory exists
+          ansible.builtin.file:
+            path: /etc/kubernetes/gitlab-runner-k8s-ssh
+            state: directory
+            owner: root
+            group: root
+            mode: "0700"
+
+        - name: kubernetes runner | ssh | ensure CI keypair exists
+          community.crypto.openssh_keypair:
+            path: /etc/kubernetes/gitlab-runner-k8s-ssh/id_ed25519
+            type: ed25519
+            owner: root
+            group: root
+            mode: "0600"
+          register: kubernetes_runner_ssh_keypair
+
+        - name: kubernetes runner | ssh | expose public key to later plays
+          ansible.builtin.set_fact:
+            kubernetes_runner_ssh_public_key: "{{ kubernetes_runner_ssh_keypair.public_key }}"
+            cacheable: true
