@@ -39,11 +39,6 @@
       ansible.builtin.import_tasks: system_setup/fedora_packages.yml
       when: ansible_facts['distribution'] == "Fedora"
 
-    - name: Arch AUR
-      tags: arch-aur
-      ansible.builtin.import_tasks: system_setup/arch_aur.yml
-      when: ansible_facts['distribution'] == "Archlinux"
-
     - name: Python
       tags: python
       ansible.builtin.import_tasks: software/python.yml
