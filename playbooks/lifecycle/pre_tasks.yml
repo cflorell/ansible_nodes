@@ -26,23 +26,14 @@
       tags:
         - always
 
-    - name: Update apt cache explicitly (for Debian/Ubuntu)
-      ansible.builtin.apt:
+    - name: Update package cache explicitly
+      ansible.builtin.package:
         update_cache: true
       become: true
-      when: ansible_facts["os_family"] == "Debian"
-
-    - name: Update dnf cache explicitly (for RHEL/CentOS/Fedora)
-      ansible.builtin.dnf:
-        update_cache: true
-      become: true
-      when: ansible_facts["os_family"] == "RedHat"
-
-    - name: Update pacman cache explicitly (Arch Linux)
-      community.general.pacman:
-        update_cache: true
-      become: true
-      when: ansible_facts["os_family"] == "Archlinux"
+      # A pure cache refresh (no name/upgrade) reports changed based on
+      # whether the mirror's metadata moved since last sync — not a
+      # meaningful state change for any backend, so never counts as changed.
+      changed_when: false
 
     - name: Runner CI SSH keypair bootstrap
       when: inventory_hostname == 'runner'

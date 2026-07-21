@@ -56,7 +56,6 @@
       - whois
       - "{{ wpasupplicant_package }}"
       - "{{ xfonts_terminus_package }}"
-    update_cache: true
   retries: 5
   delay: 15
   register: pkg_install_result

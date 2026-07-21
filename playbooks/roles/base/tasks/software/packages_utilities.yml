@@ -1,4 +1,7 @@
 ---
+# No update_cache here: playbooks/lifecycle/pre_tasks.yml refreshes the
+# package cache once upfront for the whole run (molecule's converge.yml does
+# the same locally, since it doesn't import pre_tasks.yml).
 - name: system setup | utilities | install utility packages
   tags: packages,system,settings
   ansible.builtin.package:
@@ -22,4 +25,3 @@
       - traceroute
       - wget
       - whois
-    update_cache: true

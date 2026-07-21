@@ -2,12 +2,10 @@
 - name: software | lazyvim | install neovim
   ansible.builtin.package:
     name: neovim
-    update_cache: true
 
 - name: software | lazyvim | install fd
   ansible.builtin.package:
     name: "{{ fd_package }}"
-    update_cache: true
 
 - name: software | lazyvim | symlink fdfind to fd
   ansible.builtin.file:

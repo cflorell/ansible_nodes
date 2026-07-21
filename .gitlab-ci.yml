@@ -108,32 +108,23 @@ parse-sast-results:
     - if: $CI_COMMIT_BRANCH == "main"
       changes: *molecule_changes
 
-# One job per (scenario, distro) pair — six in total. `--platform-name` scopes
-# the whole test run to a single platform, so each job boots exactly one VM,
-# and `resource_group: vagrant` serialises the jobs so only one VM is ever
-# running on the runner. That stops the nested-virt host being starved by three
-# parallel guests (which caused the SSH/become handshake timeouts), at the cost
-# of a longer, sequential pipeline.
 molecule:
   extends: .molecule_rules
   stage: test
-  resource_group: vagrant
   interruptible: true
   variables:
     VAGRANT_DEFAULT_PROVIDER: libvirt
+    MOLECULE_SCENARIO: workstation
   tags:
     - ansible
-  parallel:
-    matrix:
-      # base role is tested as part of the workstation scenario.
-      - MOLECULE_SCENARIO: [workstation]
-        MOLECULE_PLATFORM: [arch-test, fedora-test, ubuntu-test]
   before_script:
     - python3 -m venv .venv-molecule
     - .venv-molecule/bin/pip install --quiet -r requirements-test.txt
     - .venv-molecule/bin/ansible-galaxy collection install -r requirements.yml
   script:
-    - ./scripts/molecule.sh test -s "$MOLECULE_SCENARIO" --platform-name "$MOLECULE_PLATFORM"
+    # scripts/molecule.sh exports ANSIBLE_LIBRARY for the vagrant driver, then
+    # runs the venv's molecule (see the script header for the why).
+    - ./scripts/molecule.sh test -s "$MOLECULE_SCENARIO"
   after_script:
     - ./scripts/molecule.sh destroy -s "$MOLECULE_SCENARIO" || true
     - rm -rf .venv-molecule
