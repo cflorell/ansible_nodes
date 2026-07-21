@@ -93,7 +93,7 @@ groups:
           severity: warning
         annotations:
           summary: "High memory usage detected"
-          description: "Memory usage on {{ $labels.instance }} is above 80% for more than 5 minutes."
+          description: "Memory usage on {{ $labels.instance }} is above 85% for more than 5 minutes."
 
       - alert: CriticalMemoryUsage
         expr: (node_memory_MemTotal_bytes - node_memory_MemAvailable_bytes) / node_memory_MemTotal_bytes * 100 > 90
