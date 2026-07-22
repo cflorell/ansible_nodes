@@ -168,7 +168,34 @@ Use `--skip-tags monitoring-sync` to deploy a node without touching the hub.
 The `runner` role registers a GitLab shell runner. Set `gitlab_runner_url` and
 `gitlab_runner_token` in `secrets.sops.yaml` before the first runner provision.
 The Proxmox host also needs nested virtualization enabled; Terraform configures
-the runner VM with host CPU passthrough.
+the runner VM with host CPU passthrough. This runner stays dedicated to CI jobs
+that need nested KVM (molecule, the `vagrant_boxes` Packer builds).
+
+The `kubernetes_control` role initializes the kubeadm control plane and
+installs cluster addons via `kubectl apply`: the flannel CNI, and
+metrics-server (patched to add `--kubelet-insecure-tls`, since kubeadm's
+self-signed kubelet certs aren't verifiable the way managed cloud Kubernetes'
+are — without it every scrape fails with `x509: certificate signed by unknown
+authority`).
+
+The `kubernetes_runner` role (`kubernetes_control` only) installs Helm, applies
+a `gitlab-runner` namespace with RBAC scoped to it, and deploys the
+`gitlab-runner` Helm chart with the Kubernetes executor for the CI jobs that
+don't need nested KVM (everything except molecule and the `vagrant_boxes`
+Packer builds, which stay on the `runner` host). Set
+`kubernetes_runner_gitlab_token` in `secrets.sops.yaml` before the first
+deploy — create it as a group runner under `cf_homelab`, tagged `k8s`
+(`kubernetes_runner_tag_list`), so all three CI repos can share it.
+`kubernetes_runner_concurrent` and the per-job pod resource requests/limits
+default conservatively since proxmox3 (which hosts this cluster) is already
+tight on RAM; tune them from observed usage. This role is deliberately
+excluded from `ansible_check`/`ansible_apply` (`--skip-tags kubernetes-runner`,
+see below) since it manages the CI infrastructure those jobs may themselves be
+running on — apply changes to it manually:
+
+```bash
+ansible-playbook playbooks/playbook.yml --limit kube-control --tags kubernetes-runner
+```
 
 Update Debian and Ubuntu server packages:
 
@@ -178,11 +205,35 @@ ansible-playbook playbooks/update_servers.yml --ask-become-pass
 
 ## CI (merge request check, manual apply)
 
+CI runs on two separate runners. Jobs needing nested KVM (`molecule`, and the
+`vagrant_boxes` Packer builds) stay on the `runner` host's shell executor
+(`tags: [ansible]`). Everything else — `ansible_lint`, `ansible_check`,
+`ansible_apply`, and `terraform_nodes`' `terraform_plan`/`terraform_apply` —
+runs on the `kubernetes_runner`-deployed Kubernetes-executor runner
+(`tags: [k8s]`), in ephemeral job pods rather than a persistent VM.
+
 Required setup in GitLab (**Settings → CI/CD → Variables**):
 
 - `SOPS_AGE_KEY` — type **Variable**, masked, the private half of an age
   keypair whose public half is a recipient in `private/secrets/.sops.yaml`.
   Do not mark it protected, or MR pipelines will not receive it.
+- `KUBERNETES_RUNNER_SSH_PRIVATE_KEY` — type **Variable**, masked,
+  base64-encoded. The private half of
+  the keypair `pre_tasks.yml` generates on `kube-control` and
+  `base/tasks/users/root.yml` authorizes on every managed host — the identity
+  `ansible_check`/`ansible_apply` job pods connect with, since Kubernetes
+  executor pods have no persistent identity of their own the way the `runner`
+  VM does.
+
+  ```bash
+  ansible-playbook playbooks/playbook.yml --limit server,nodes,kubernetes
+  ```
+
+  Then fetch and encode the generated key:
+
+  ```bash
+  ssh root@kube-control base64 -w0 /etc/kubernetes/gitlab-runner-k8s-ssh/id_ed25519
+  ```
 
 ## Useful checks
 

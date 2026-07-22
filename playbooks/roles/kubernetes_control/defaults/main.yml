@@ -3,3 +3,8 @@ kubernetes_cni_manifest_url: "https://github.com/flannel-io/flannel/releases/lat
 kubernetes_cri_socket: "unix:///run/containerd/containerd.sock"
 kubernetes_kubeadm_init_extra_args: []
 kubernetes_pod_network_cidr: "10.244.0.0/16"
+
+# Pinned rather than resolved at run time - bump deliberately to upgrade.
+kubernetes_metrics_server_version: "v0.9.0"
+kubernetes_metrics_server_manifest_url: >-
+  https://github.com/kubernetes-sigs/metrics-server/releases/download/{{ kubernetes_metrics_server_version }}/components.yaml

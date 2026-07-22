@@ -53,6 +53,14 @@
   roles:
     - kubernetes_worker
 
+# Runs after kubernetes_control since it needs admin.conf.
+- name: Run Kubernetes GitLab Runner platform prep
+  hosts: kubernetes_control
+  tags: kubernetes, kubernetes-runner
+  become: true
+  roles:
+    - kubernetes_runner
+
 - name: Run node exporter role
   hosts: server
   tags: node-exporter
@@ -111,7 +119,6 @@
   gather_facts: false
   tags: always
   tasks:
-    # Playbook runs with the default linear strategy, so run_once here is safe.
     - name: Warn that gatus/homepage/homelable/whats-up-docker were not re-rendered  # noqa: run-once[task]
       ansible.builtin.debug:
         msg: >-
@@ -122,7 +129,6 @@
       run_once: true
       when: hostvars['docker'].monitoring_hub_synced is not defined
 
-    # Playbook runs with the default linear strategy, so run_once here is safe.
     - name: Note that prometheus scrape targets were not re-rendered  # noqa: run-once[task]
       ansible.builtin.debug:
         msg: >-

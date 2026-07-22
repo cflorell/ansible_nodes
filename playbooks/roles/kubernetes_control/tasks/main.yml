@@ -62,3 +62,44 @@
   changed_when: >
     'created' in kubernetes_cni_apply.stdout or
     'configured' in kubernetes_cni_apply.stdout
+
+- name: kubernetes control | fetch metrics-server manifest
+  ansible.builtin.uri:
+    url: "{{ kubernetes_metrics_server_manifest_url }}"
+    return_content: true
+  register: kubernetes_metrics_server_manifest
+  retries: 3
+  delay: 3
+  until: kubernetes_metrics_server_manifest is succeeded
+  # ansible.builtin.uri declares no check_mode support, so --check skips it
+  # unconditionally by default, leaving the manifest content unavailable for
+  # the write task below. This is a read-only GET with nothing to dry-run.
+  check_mode: false
+
+- name: kubernetes control | write metrics-server manifest
+  ansible.builtin.copy:
+    dest: /etc/kubernetes/metrics-server.yml
+    owner: root
+    group: root
+    mode: "0644"
+    # kubeadm clusters use self-signed kubelet certs that metrics-server
+    # doesn't trust by default (unlike managed cloud Kubernetes), so it fails
+    # every scrape with "x509: certificate signed by unknown authority"
+    # unless told to skip verification.
+    content: |
+      {{ kubernetes_metrics_server_manifest.content
+         | regex_replace('- --metric-resolution=15s', '- --metric-resolution=15s\n        - --kubelet-insecure-tls') }}
+
+- name: kubernetes control | install metrics-server
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - apply
+      - -f
+      - /etc/kubernetes/metrics-server.yml
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+  register: kubernetes_metrics_server_apply
+  changed_when: >
+    'created' in kubernetes_metrics_server_apply.stdout or
+    'configured' in kubernetes_metrics_server_apply.stdout

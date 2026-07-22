@@ -127,7 +127,8 @@
     content: |
       {{ kubernetes_containerd_default_config.stdout
          | regex_replace('SystemdCgroup = false', 'SystemdCgroup = true')
-         | regex_replace('disabled_plugins = \["cri"\]', 'disabled_plugins = []') }}
+         | regex_replace('disabled_plugins = \["cri"\]', 'disabled_plugins = []')
+         | regex_replace('bin_dir = "/usr/lib/cni"', 'bin_dir = "/opt/cni/bin"') }}
   notify: restart containerd
 
 - name: kubernetes common | configure crictl

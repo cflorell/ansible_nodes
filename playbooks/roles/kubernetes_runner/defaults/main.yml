@@ -1,0 +1,18 @@
+---
+kubernetes_runner_namespace: gitlab-runner
+kubernetes_runner_helm_version: v4.2.3
+kubernetes_runner_helm_chart_version: "0.91.0"
+kubernetes_runner_gitlab_url: "https://gitlab.com"
+# A glrt-... runner authentication token (create a group runner under the
+# homelab group). Set the real value in secrets.sops.yaml.
+kubernetes_runner_gitlab_token: ""
+kubernetes_runner_tag_list: "k8s"
+kubernetes_runner_concurrent: 4
+kubernetes_runner_pod_cpu_request: "250m"
+kubernetes_runner_pod_memory_request: "256Mi"
+kubernetes_runner_pod_cpu_limit: "1"
+kubernetes_runner_pod_memory_limit: "1Gi"
+kubernetes_runner_helper_cpu_request: "50m"
+kubernetes_runner_helper_memory_request: "64Mi"
+kubernetes_runner_helper_cpu_limit: "200m"
+kubernetes_runner_helper_memory_limit: "256Mi"

@@ -9,3 +9,14 @@
     - hostvars['runner'].gitlab_runner_ssh_public_key is defined
     - inventory_hostname in (groups.get('server', []) + groups.get('nodes', []) + groups.get('kubernetes', []))
   tags: dotfiles
+
+- name: users | root | authorize the kubernetes-hosted CI runner's SSH key
+  ansible.posix.authorized_key:
+    user: root
+    key: "{{ hostvars['kube-control'].kubernetes_runner_ssh_public_key }}"
+    state: present
+  when:
+    - "'kube-control' in hostvars"
+    - hostvars['kube-control'].kubernetes_runner_ssh_public_key is defined
+    - inventory_hostname in (groups.get('server', []) + groups.get('nodes', []) + groups.get('kubernetes', []))
+  tags: dotfiles

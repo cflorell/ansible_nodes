@@ -1,0 +1,91 @@
+---
+- name: kubernetes runner | download and install Helm
+  ansible.builtin.unarchive:
+    src: "https://get.helm.sh/helm-{{ kubernetes_runner_helm_version }}-linux-amd64.tar.gz"
+    dest: /usr/local/bin
+    remote_src: true
+    extra_opts:
+      - --strip-components=1
+      - linux-amd64/helm
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: kubernetes runner | template namespace and RBAC manifest
+  ansible.builtin.template:
+    src: rbac.yml.j2
+    dest: /etc/kubernetes/gitlab-runner-rbac.yml
+    owner: root
+    group: root
+    mode: "0600"
+  register: kubernetes_runner_rbac_manifest
+
+- name: kubernetes runner | apply namespace and RBAC
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - apply
+      - -f
+      - /etc/kubernetes/gitlab-runner-rbac.yml
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+  register: kubernetes_runner_rbac_apply
+  changed_when: >
+    'created' in kubernetes_runner_rbac_apply.stdout or
+    'configured' in kubernetes_runner_rbac_apply.stdout
+
+- name: kubernetes runner | add GitLab Helm repository
+  ansible.builtin.command:
+    argv:
+      - helm
+      - repo
+      - add
+      - gitlab
+      - https://charts.gitlab.io
+      - --force-update
+  changed_when: false
+
+- name: kubernetes runner | update Helm repositories
+  ansible.builtin.command:
+    argv:
+      - helm
+      - repo
+      - update
+      - gitlab
+  changed_when: false
+
+- name: kubernetes runner | assert GitLab runner token is set
+  ansible.builtin.assert:
+    that:
+      - kubernetes_runner_gitlab_token | length > 0
+    fail_msg: "Set kubernetes_runner_gitlab_token in secrets.vault before deploying the gitlab-runner chart."
+
+- name: kubernetes runner | template gitlab-runner Helm values
+  ansible.builtin.template:
+    src: gitlab-runner-values.yml.j2
+    dest: /etc/kubernetes/gitlab-runner-values.yml
+    owner: root
+    group: root
+    mode: "0600"
+
+- name: kubernetes runner | deploy gitlab-runner Helm chart
+  ansible.builtin.command:
+    argv:
+      - helm
+      - upgrade
+      - --install
+      - gitlab-runner
+      - gitlab/gitlab-runner
+      - --namespace
+      - "{{ kubernetes_runner_namespace }}"
+      - --version
+      - "{{ kubernetes_runner_helm_chart_version }}"
+      - --values
+      - /etc/kubernetes/gitlab-runner-values.yml
+      - --wait
+      - --timeout
+      - 5m
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+  register: kubernetes_runner_helm_deploy
+  changed_when: true

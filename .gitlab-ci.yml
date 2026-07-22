@@ -1,7 +1,7 @@
 stages:
   - secret-detection
-  - lint
   - post-sast
+  - lint
   - fetch
   - test
   - check
@@ -49,20 +49,6 @@ trufflehog:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
     - if: $CI_COMMIT_BRANCH == "main"
 
-ansible_lint:
-  stage: lint
-  tags:
-    - ansible
-  rules:
-    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
-    - if: $CI_COMMIT_BRANCH == "main"
-  script:
-    - python3 -m venv .venv-lint
-    - .venv-lint/bin/pip install --quiet -r requirements-lint.txt
-    - .venv-lint/bin/ansible-lint
-  after_script:
-    - rm -rf .venv-lint
-
 parse-sast-results:
   stage: post-sast
   image: alpine:latest
@@ -94,6 +80,29 @@ parse-sast-results:
       else
         echo "gl-sast-report.json not found."
       fi
+
+ansible_lint:
+  stage: lint
+  image: python:3-slim
+  tags:
+    - k8s
+  variables:
+    # The Kubernetes executor's build dir is world-writable (shared between
+    # the helper container's git clone and the job's build container, which
+    # may run as a different UID depending on the image), so Ansible refuses
+    # to auto-load ansible.cfg from it - silently dropping roles_path along
+    # with everything else in the file. Point at it explicitly instead: an
+    # explicit path bypasses the cwd-auto-discovery safety check entirely.
+    ANSIBLE_CONFIG: ${CI_PROJECT_DIR}/ansible.cfg
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH == "main"
+  script:
+    - python3 -m venv .venv-lint
+    - .venv-lint/bin/pip install --quiet -r requirements-lint.txt
+    - .venv-lint/bin/ansible-lint
+  after_script:
+    - rm -rf .venv-lint
 
 .molecule_rules:
   rules:
@@ -130,14 +139,38 @@ molecule:
     - rm -rf .venv-molecule
 
 .ansible_cd:
+  image: python:3-slim
   tags:
-    - ansible
+    - k8s
   variables:
+    # The Kubernetes executor's build dir is world-writable, so Ansible
+    # refuses to auto-load ansible.cfg from it - silently dropping not just
+    # roles_path but inventory and vars_plugins_enabled (community.sops.sops)
+    # too. Point at it explicitly instead: an explicit path bypasses the
+    # cwd-auto-discovery safety check entirely, picking up the whole file
+    # rather than needing every individual setting mirrored as its own
+    # ANSIBLE_* env var.
+    ANSIBLE_CONFIG: ${CI_PROJECT_DIR}/ansible.cfg
     # Cut CI log noise down to what changed (or failed) plus the final PLAY
     # RECAP summary, instead of a line per task per host regardless of result.
     ANSIBLE_DISPLAY_OK_HOSTS: "false"
     ANSIBLE_DISPLAY_SKIPPED_HOSTS: "false"
+    # Job pods are ephemeral with no persistent known_hosts (unlike the shell
+    # runner, which pre_tasks.yml populates once via ssh-keyscan). This is a
+    # LAN-only homelab, so trust-on-first-use risk here is acceptable.
+    ANSIBLE_HOST_KEY_CHECKING: "false"
+    SOPS_VERSION: "v3.13.2"
   before_script:
+    - apt-get update -qq && apt-get install -qq -y --no-install-recommends git openssh-client curl > /dev/null
+    - curl -fsSL "https://github.com/getsops/sops/releases/download/${SOPS_VERSION}/sops-${SOPS_VERSION}.linux.amd64" -o /usr/local/bin/sops
+    - chmod 755 /usr/local/bin/sops
+    - pip install --quiet ansible-core
+    # KUBERNETES_RUNNER_SSH_PRIVATE_KEY: masked+protected CI/CD variable
+    # holding the dedicated keypair pre_tasks.yml generates on kube-control
+    # (authorized on every managed host by base/users/root.yml), base64-encoded
+    - mkdir -p ~/.ssh
+    - echo "$KUBERNETES_RUNNER_SSH_PRIVATE_KEY" | base64 -d > ~/.ssh/id_ed25519
+    - chmod 600 ~/.ssh/id_ed25519
     - git clone https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.com/cf_homelab/secrets.git
     - ./scripts/link-private-files.sh --secrets-dir secrets
     - ansible-galaxy collection install -r requirements.yml
@@ -151,7 +184,13 @@ ansible_check:
     - if: $CI_COMMIT_BRANCH == "main"
       allow_failure: true
   script:
-    - ansible-playbook playbooks/playbook.yml --check --limit "$HOMELAB_ANSIBLE_CD_LIMIT"
+    # kubernetes-runner is skipped here: it manages the
+    # gitlab-runner Helm release that CI itself depends on (the k8s tag runs
+    # on it already; ansible_check/apply may too one day), so routine CD
+    # should not redeploy it as an incidental side effect of the broad
+    # kubernetes limit.
+    # This is handled from local machine when updates are needed.
+    - ansible-playbook playbooks/playbook.yml --check --limit "$HOMELAB_ANSIBLE_CD_LIMIT" --skip-tags kubernetes-runner
 
 ansible_apply:
   extends: .ansible_cd
@@ -160,6 +199,6 @@ ansible_apply:
     - if: $CI_COMMIT_BRANCH == "main"
       when: manual
   script:
-    - ansible-playbook playbooks/playbook.yml --limit "$HOMELAB_ANSIBLE_CD_LIMIT"
+    - ansible-playbook playbooks/playbook.yml --limit "$HOMELAB_ANSIBLE_CD_LIMIT" --skip-tags kubernetes-runner
   environment:
     name: homelab
