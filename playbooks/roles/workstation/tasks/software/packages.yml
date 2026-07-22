@@ -12,6 +12,7 @@
       - curl
       - dconf-editor
       - direnv
+      - gcc
       - gnupg
       - dnsutils
       - filezilla
@@ -31,6 +32,7 @@
       - libreoffice
       - lsb-release
       - lsof
+      - make
       - mc
       - nano
       - neovim
