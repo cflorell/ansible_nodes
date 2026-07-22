@@ -34,9 +34,28 @@
     mode: "0600"
 
 - name: server | node-media | deploy Docker Compose stack
-  community.docker.docker_compose_v2:
-    project_src: "/{{ ansible_facts['user_id'] }}/"
-    remove_orphans: true
-    files:
-      - docker-compose.yml
-    recreate: always
+  block:
+    - name: server | node-media | deploy Docker Compose stack
+      community.docker.docker_compose_v2:
+        project_src: "/{{ ansible_facts['user_id'] }}/"
+        remove_orphans: true
+        files:
+          - docker-compose.yml
+        recreate: always
+  rescue:
+    # Docker's DOCKER/nat iptables chains can go missing on this host between
+    # deploys (LXC + host-level netfilter drift), which breaks port publishing
+    # ("iptables: No chain/target/match by that name") for any service with
+    # published ports (e.g. grimmory). Restarting Docker reprograms them.
+    - name: server | node-media | Restart Docker to restore iptables NAT chains
+      ansible.builtin.systemd:
+        name: docker
+        state: restarted
+
+    - name: server | node-media | Retry deploy Docker Compose stack
+      community.docker.docker_compose_v2:
+        project_src: "/{{ ansible_facts['user_id'] }}/"
+        remove_orphans: true
+        files:
+          - docker-compose.yml
+        recreate: always
