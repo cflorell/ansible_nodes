@@ -11,6 +11,26 @@ docker: true
 homelable_web_port: 3003
 homelable_api_url: "http://127.0.0.1:{{ homelable_web_port }}/api/v1"
 
+# Caddy reverse-proxy targets
+# Each entry becomes a matcher + reverse_proxy block under the
+# *.{{ porkbun_domain }} wildcard site in roles/server/templates/docker/caddy/Caddyfile.j2.
+# Real IPs live in secrets.sops.yaml (caddy_upstream_*)
+caddy_reverse_proxies:
+  - host: "auth"
+    upstream: "{{ caddy_upstream_auth }}"
+    insecure_skip_verify: true
+  - host: "homeassistant"
+    upstream: "{{ caddy_upstream_homeassistant }}"
+  - host: "immich"
+    upstream: "{{ caddy_upstream_immich }}"
+  - host: "jellyfin"
+    upstream: "{{ caddy_upstream_jellyfin }}"
+
+# Legacy DuckDNS hostname, backup-only.
+# Same forward target as the homeassistant entry above, so it reuses that var
+# in Caddyfile.j2 rather than duplicating the IP under a second name.
+caddy_duckdns_host: "{{ duckdns_domain }}"
+
 # Service registry — one entry per container in this host's compose stack.
 # The gatus, homepage and homelable-canvas templates on the docker host are
 # generated from these lists, so declaring a service here is what puts it on
@@ -94,19 +114,19 @@ services:
         canvas. Publishes no host port; reachable only through the frontend's
         nginx.
 
-  - name: nginx-proxy-manager
-    port: 81
-    check: http
+  - name: caddy
+    check: tcp
+    port: 443
     interval: 2m
     canvas:
-      icon: brand:nginx-proxy-manager
+      icon: brand:caddy
       notes: >-
-        Reverse proxy and TLS termination. Admin UI on :81, serves :80 and
-        :443.
+        Reverse proxy and TLS termination (config-as-code Caddyfile, DNS-01
+        via Porkbun, wildcard cert). Serves :80/:443; no admin UI.
     homepage:
-      name: Nginx Proxy Manager
+      name: Caddy
       group: Tools
-      icon: nginx-proxy-manager.png
+      icon: caddy.png
       description: Reverse proxy
 
   - name: speedtest-tracker

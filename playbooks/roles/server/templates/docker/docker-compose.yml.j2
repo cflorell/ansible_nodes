@@ -67,19 +67,18 @@ services:
           - ./alertmanager-signal/config.yaml:/config.yaml
       restart: unless-stopped
 
-  nginx-proxy-manager:
-      image: jc21/nginx-proxy-manager:2.15.1
+  caddy:
+      build: ./caddy
+      container_name: caddy
       restart: unless-stopped
-      container_name: nginx-proxy-manager
-      user: root
       ports:
           - '80:80'
-          - '81:81'
           - '443:443'
+          - '443:443/udp'
       volumes:
-          - ./nginx-proxy-manager/data:/data
-          - ./nginx-proxy-manager/letsencrypt:/etc/letsencrypt
-          - ./nginx-proxy-manager/log:/tmp/letsencrypt-log
+          - ./caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+          - ./caddy/data:/data
+          - ./caddy/config:/config
 
   porkbun-ddns:
       image: "mietzen/porkbun-ddns:1.1.27"

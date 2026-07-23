@@ -153,7 +153,7 @@ endpoints:
 {% endfor %}
 
   # --- Public DNS / TLS for the porkbun-ddns domain (roles/server porkbun-ddns,
-  #     nginx-proxy-manager). Checked against public resolvers, not our own, so
+  #     caddy). Checked against public resolvers, not our own, so
   #     a broken porkbun-ddns update (expired API key, deleted record, etc.)
   #     shows up here. Note this only proves the domain still resolves — it
   #     can't assert the *current* WAN IP, since detecting drift there is
@@ -169,9 +169,9 @@ endpoints:
       - "[DNS_RCODE] == NOERROR"
     alerts: *notify-all
 
-  # TLS cert expiration on whatever nginx-proxy-manager serves for this domain.
-  # Runs over the LAN path, but NPM presents the same cert internally, so this
-  # still catches a Let's Encrypt renewal failure before it visibly expires.
+  # TLS cert expiration on whatever Caddy serves for this domain. Runs over
+  # the LAN path, but Caddy presents the same cert internally, so this still
+  # catches a Let's Encrypt renewal failure before it visibly expires.
   - name: porkbun-ddns-cert
     group: docker
     url: "https://{{ gatus_cert_check_hostname | default(porkbun_domain) }}"
