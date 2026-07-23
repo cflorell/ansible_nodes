@@ -36,7 +36,7 @@
 
 - name: server | node-prometheus-grafana | Move alert.rules.yml
   ansible.builtin.copy:
-    src: files/{{ ansible_facts['hostname'] }}/alert.rules.yml
+    src: files/{{ inventory_hostname }}/alert.rules.yml
     dest: "/{{ ansible_facts['user_id'] }}/config/"
     owner: "{{ ansible_facts['user_id'] }}"
     group: "{{ ansible_facts['user_id'] }}"
@@ -44,7 +44,7 @@
 
 - name: server | node-prometheus-grafana | Move /etc/docker/daemon.json
   ansible.builtin.copy:
-    src: files/{{ ansible_facts['hostname'] }}/daemon.json
+    src: files/{{ inventory_hostname }}/daemon.json
     dest: "/etc/docker/"
     owner: "{{ ansible_facts['user_id'] }}"
     group: "{{ ansible_facts['user_id'] }}"
@@ -61,7 +61,7 @@
 
 - name: server | node-prometheus-grafana | Move loki-config.yml
   ansible.builtin.copy:
-    src: files/{{ ansible_facts['hostname'] }}/loki-config.yml
+    src: files/{{ inventory_hostname }}/loki-config.yml
     dest: "/{{ ansible_facts['user_id'] }}/loki/"
     owner: "{{ ansible_facts['user_id'] }}"
     group: "{{ ansible_facts['user_id'] }}"

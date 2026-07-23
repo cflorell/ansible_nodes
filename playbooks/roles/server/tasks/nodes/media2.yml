@@ -25,7 +25,7 @@
     group: "{{ ansible_facts['user_id'] }}"
     mode: "0600"
 
-- name: server | node-media | deploy Docker Compose stack
+- name: server | node-media2 | deploy Docker Compose stack
   community.docker.docker_compose_v2:
     project_src: "/{{ ansible_facts['user_id'] }}/"
     remove_orphans: true

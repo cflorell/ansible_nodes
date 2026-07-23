@@ -32,49 +32,49 @@
     - name: Node Docker
       tags: node-docker
       ansible.builtin.import_tasks: nodes/docker.yml
-      when: ansible_facts['hostname'] == "docker"
+      when: inventory_hostname == "docker"
 
     - name: Homelable canvas
       tags: homelable-canvas
       ansible.builtin.import_tasks: nodes/homelable_canvas.yml
-      when: ansible_facts['hostname'] == "docker"
+      when: inventory_hostname == "docker"
 
     - name: Node Authentik
       tags: node-authentik
       ansible.builtin.import_tasks: nodes/authentik.yml
-      when: ansible_facts['hostname'] == "authentik"
+      when: inventory_hostname == "authentik"
 
     - name: Node prometheus-grafana
       tags: node-prometheus-grafana
       ansible.builtin.import_tasks: nodes/prometheus-grafana.yml
-      when: ansible_facts['hostname']== "prometheus-grafana"
+      when: inventory_hostname == "prometheus-grafana"
 
     - name: Node media
       tags: node-media
       ansible.builtin.import_tasks: nodes/media.yml
-      when: ansible_facts['hostname'] == "media"
+      when: inventory_hostname == "media"
 
     - name: Node media2
       tags: node-media2
       ansible.builtin.import_tasks: nodes/media2.yml
-      when: ansible_facts['hostname'] == "media2"
+      when: inventory_hostname == "media2"
 
     - name: Node torrent
       tags: node-torrent
       ansible.builtin.import_tasks: nodes/torrent.yml
-      when: ansible_facts['hostname'] == "torrent"
+      when: inventory_hostname == "torrent"
 
     - name: Node proxmox1
       tags: node-proxmox1
       ansible.builtin.import_tasks: nodes/proxmox1.yml
-      when: ansible_facts['hostname'] == "proxmox"
+      when: inventory_hostname == "proxmox1"
 
     - name: Node proxmox2
       tags: node-proxmox2
       ansible.builtin.import_tasks: nodes/proxmox2.yml
-      when: ansible_facts['hostname'] == "proxmox2"
+      when: inventory_hostname == "proxmox2"
 
     - name: Node immich
       tags: node-immich
       ansible.builtin.import_tasks: nodes/immich.yml
-      when: ansible_facts['hostname'] == "immich"
+      when: inventory_hostname == "immich"
