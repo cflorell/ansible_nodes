@@ -10,6 +10,13 @@
       ansible.builtin.import_tasks: config/proxmox.yml
       when: proxmox is defined and proxmox
 
+    - name: Setup proxmox ACME (Let's Encrypt cert for pveproxy)
+      tags: proxmox-acme
+      ansible.builtin.import_tasks: config/proxmox_acme.yml
+      when:
+        - proxmox is defined and proxmox
+        - proxmox_acme_enabled | default(false)
+
     - name: Unattended upgrades
       tags: unattended_upgrades
       ansible.builtin.import_tasks: config/unattended_upgrades.yml

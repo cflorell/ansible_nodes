@@ -8,6 +8,8 @@ proxmox: true
 
 node_exporter: true
 
+proxmox_acme_enabled: true
+
 # Service registry — consumed by the gatus/homepage/homelable-canvas templates
 # on the docker host. Schema documented in host_vars/docker. These containers
 # run on the hypervisor itself, so the canvas hangs them off the proxmox1 node.

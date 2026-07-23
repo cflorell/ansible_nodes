@@ -4,6 +4,11 @@ nfs_server: false
 
 docker: true
 
+# Toggle true and deploy node-docker. This will trigger a alert after 90 seconds
+# that certifacte is about to expire.
+# See config.yaml.j2 in docker/gatus how to setup test.
+gatus_cert_selftest: false
+
 # Homelable canvas push — see roles/docker_host/tasks/nodes/homelable_canvas.yml.
 # The backend publishes no host port of its own; nginx in the frontend container
 # proxies /api/ to it, so the API is reached on the frontend's published port
@@ -43,6 +48,11 @@ caddy_duckdns_host: "{{ duckdns_domain }}"
 #   interval   optional gatus interval (default 5m)
 #   gatus      set false to keep a checkable service off the status page
 #   gatus_url  full URL override (e.g. container-DNS URLs on the docker host)
+#   cert_expiry set true on an https endpoint that terminates its own TLS to add
+#              a "[CERTIFICATE_EXPIRATION] > {{ gatus_cert_min_expiry|default 336h }}"
+#              condition (14-day renewal-failure tripwire; ADR 0001). No effect on
+#              plain-http checks or services fronted by Caddy (Caddy's own cert is
+#              watched by the porkbun-ddns-cert check).
 #   canvas     homelable node: label/icon/notes, check: false to draw without a
 #              check, method to override checkMethod; canvas: false = no node
 #   homepage   dashboard tile: name/group/icon/description, optional weight

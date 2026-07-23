@@ -13,3 +13,9 @@ nfs_server: false
 proxmox: false
 
 docker: false
+
+# node_exporter systemd collector — feeds node_systemd_unit_state, which the
+# CertRenewal alert (files/prometheus-grafana/alert.rules.yml) watches on
+# pve-daily-update.service. Additive; keeps the default collectors.
+node_exporter_enabled_collectors:
+  - systemd

@@ -124,6 +124,22 @@ groups:
           summary: "High Network Download Speed Detected"
           description: "The network download speed has been above 1 Mb/s for more than 1 hour."
 
+  # Early secondary to the Gatus expiry checks: fires the moment Proxmox's daily
+  # ACME renewal run fails, ~30 days before expiry.
+  - name: CertRenewal
+    rules:
+      - alert: ProxmoxCertRenewalFailed
+        expr: node_systemd_unit_state{name="pve-daily-update.service",state="failed"} == 1
+        for: 15m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Proxmox ACME cert renewal unit failed on {{ $labels.instance }}"
+          description: >-
+            pve-daily-update.service is failed on {{ $labels.instance }} — the
+            Let's Encrypt renewal for pveproxy may not have run. Check:
+            journalctl -u pve-daily-update.service and pvenode acme cert order.
+
   - name: MiscAlerts
     rules:
       - alert: NodeUnreachable

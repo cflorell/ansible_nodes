@@ -65,9 +65,9 @@ endpoints:
     alerts: *notify-all
 {% endfor %}
 
-  # --- Proxmox web UI/API (pveproxy) — ICMP above only proves the host is up;
-  #     this catches pveproxy/pvedaemon wedged while the host still pings.
-  #     Self-signed cert by default, hence client.insecure. ---
+  # --- Proxmox web UI/API (pveproxy) — ICMP only proves the host is up; this
+  #     catches pveproxy/pvedaemon wedged while it still pings. Connects by IP,
+  #     so client.insecure is required (the LE cert is for the FQDN).
 {% for host in groups['server'] %}
   - name: "{{ host }}-pveproxy"
     group: server
@@ -77,12 +77,11 @@ endpoints:
       insecure: true
     conditions:
       - "[STATUS] < 500"
+      - "[CERTIFICATE_EXPIRATION] > {{ gatus_cert_min_expiry | default('336h') }}"
     alerts: *notify-all
 {% endfor %}
 
   # --- Home Assistant OS VM (terraform_nodes/haosova.tf, not Ansible-managed) ---
-  # Same address fallback chain as the homelable canvas: inventory entry, then
-  # homelable_homeassistant_ip from the vault, then a DNS name OPNsense resolves.
   - name: home-assistant
     group: haosova
     url: "http://{{ hostvars['homeassistant'].ansible_host if 'homeassistant' in hostvars else homelable_homeassistant_ip | default('homeassistant') }}:8123"
@@ -92,8 +91,6 @@ endpoints:
 
   # --- OPNsense gateway — nothing else here checks the router itself, and
   #     it's the single point of failure for the whole LAN plus WAN/DDNS.
-  #     opnsense_gateway_ip is vault-backed with no group_vars default, same
-  #     pattern as homelable_homeassistant_ip above.
   - name: opnsense
     group: server
     url: "icmp://{{ opnsense_gateway_ip | default('192.168.2.1') }}"
@@ -118,9 +115,16 @@ endpoints:
     interval: {{ svc.interval | default('5m') }}
 {% if svc.check == 'tcp' %}
     conditions: *connected-conditions
-{% elif svc.status is defined %}
+{% elif svc.status is defined or svc.cert_expiry | default(false) %}
     conditions:
+{% if svc.status is defined %}
       - "[STATUS] == {{ svc.status }}"
+{% else %}
+      - "[STATUS] < 400"
+{% endif %}
+{% if svc.cert_expiry | default(false) %}
+      - "[CERTIFICATE_EXPIRATION] > {{ gatus_cert_min_expiry | default('336h') }}"
+{% endif %}
 {% else %}
     conditions: *http-conditions
 {% endif %}
@@ -155,9 +159,7 @@ endpoints:
   # --- Public DNS / TLS for the porkbun-ddns domain (roles/docker_host porkbun-ddns,
   #     caddy). Checked against public resolvers, not our own, so
   #     a broken porkbun-ddns update (expired API key, deleted record, etc.)
-  #     shows up here. Note this only proves the domain still resolves — it
-  #     can't assert the *current* WAN IP, since detecting drift there is
-  #     exactly what DDNS exists to fix. ---
+  #     shows up here.
   - name: porkbun-ddns-resolution
     group: docker
     url: "8.8.8.8:53"
@@ -178,7 +180,7 @@ endpoints:
     interval: 1h
     conditions:
       - "[STATUS] < 500"
-      - "[CERTIFICATE_EXPIRATION] > 240h"
+      - "[CERTIFICATE_EXPIRATION] > {{ gatus_cert_min_expiry | default('336h') }}"
     alerts: *notify-all
 
   # --- roles/kubernetes_control, roles/kubernetes_worker ---
@@ -213,3 +215,26 @@ endpoints:
   # GitLab Runner (shell executor) only polls gitlab.com outbound; it has no inbound
   # port to check. The "runner" node's ICMP ping in the [nodes] group above is the
   # only applicable check.
+{% if gatus_cert_selftest | default(false) %}
+
+  # --- ONE-OFF cert-expiry alert self-test ---
+  # Rendered only when gatus_cert_selftest: true; proves a sub-threshold
+  # CERTIFICATE_EXPIRATION reaches Signal. Does NOT create the endpoint — first
+  # stand up a short-dated cert, e.g. on the target host:
+  #   openssl req -x509 -newkey rsa:2048 -nodes -days 3 \
+  #     -keyout /tmp/certtest.key -out /tmp/certtest.crt -subj "/CN=certtest.local"
+  #   openssl s_server -cert /tmp/certtest.crt -key /tmp/certtest.key -www -accept 8443
+  # gatus_cert_selftest_url defaults to https://127.0.0.1:8443 (s_server on the
+  # docker host). The 3-day cert is < 336h, so it fires within ~90s. Afterwards:
+  # set the flag false, re-run Ansible, stop s_server, remove the temp certs.
+  - name: cert-expiry-selftest
+    group: _test
+    url: "{{ gatus_cert_selftest_url | default('https://127.0.0.1:8443') }}"
+    interval: 30s
+    client:
+      insecure: true            # self-signed; we assert expiry, not chain validity
+    conditions:
+      - "[CERTIFICATE_EXPIRATION] > {{ gatus_cert_min_expiry | default('336h') }}"
+    alerts:
+      - type: signal            # deliberately Signal-only to validate that path
+{% endif %}
