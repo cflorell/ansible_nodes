@@ -9,7 +9,9 @@
     - speedtest
     - signal-cli
     - alertmanager-signal
-    - nginx-proxy-manager
+    - caddy
+    - caddy/data
+    - caddy/config
     - promtail
     - WatchYourLAN
     - homelable
@@ -35,6 +37,22 @@
   ansible.builtin.template:
     src: "docker/alertmanager-signal/config.yaml.j2"
     dest: "/{{ ansible_facts['user_id'] }}/alertmanager-signal/config.yaml"
+    owner: "{{ ansible_facts['user_id'] }}"
+    group: "{{ ansible_facts['user_id'] }}"
+    mode: "0600"
+
+- name: server | node-docker | Move caddy Dockerfile
+  ansible.builtin.copy:
+    src: "docker/caddy/"
+    dest: "/{{ ansible_facts['user_id'] }}/caddy/"
+    owner: "{{ ansible_facts['user_id'] }}"
+    group: "{{ ansible_facts['user_id'] }}"
+    mode: "0600"
+
+- name: server | node-docker | Move caddy/Caddyfile
+  ansible.builtin.template:
+    src: "docker/caddy/Caddyfile.j2"
+    dest: "/{{ ansible_facts['user_id'] }}/caddy/Caddyfile"
     owner: "{{ ansible_facts['user_id'] }}"
     group: "{{ ansible_facts['user_id'] }}"
     mode: "0600"
