@@ -12,6 +12,11 @@ include:
   - template: Security/SAST-IaC.gitlab-ci.yml
   - template: Security/Secret-Detection.gitlab-ci.yml
 
+# Default to run on k8s runner instead of GitLab.com shared runners.
+default:
+  tags:
+    - k8s
+
 variables:
   SECRET_DETECTION_ENABLED: 'true'
   # workstation is deliberately excluded as ansible_connection=local is used,
@@ -84,8 +89,6 @@ parse-sast-results:
 ansible_lint:
   stage: lint
   image: python:3-slim
-  tags:
-    - k8s
   variables:
     # The Kubernetes executor's build dir is world-writable (shared between
     # the helper container's git clone and the job's build container, which
