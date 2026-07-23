@@ -8,6 +8,9 @@
     - jellyseerr
     - promtail
     - grimmory
+    - sonarr
+    - radarr
+    - bazarr
 
 - name: docker_host | node-media | Move promtail-config.yml
   ansible.builtin.template:

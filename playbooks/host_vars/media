@@ -23,6 +23,54 @@ services:
         type: jellyseerr
         key: "{{ jellyseerr_api_key | default('changeme') }}"
 
+  - name: sonarr
+    port: 8989
+    check: http
+    canvas:
+      icon: brand:sonarr
+      notes: >-
+        Sonarr — TV series library management and automated downloads.
+    homepage:
+      name: Sonarr
+      group: Multimedia
+      icon: sonarr.png
+      description: TV series management
+      widget:
+        type: sonarr
+        key: "{{ sonarr_api_key | default('changeme') }}"
+
+  - name: radarr
+    port: 7878
+    check: http
+    canvas:
+      icon: brand:radarr
+      notes: >-
+        Radarr — movie library management and automated downloads.
+    homepage:
+      name: Radarr
+      group: Multimedia
+      icon: radarr.png
+      description: Movie management
+      widget:
+        type: radarr
+        key: "{{ radarr_api_key | default('changeme') }}"
+
+  - name: bazarr
+    port: 6767
+    check: http
+    canvas:
+      icon: brand:bazarr
+      notes: >-
+        Bazarr — subtitle management for Sonarr/Radarr libraries.
+    homepage:
+      name: Bazarr
+      group: Multimedia
+      icon: bazarr.png
+      description: Subtitle management
+      widget:
+        type: bazarr
+        key: "{{ bazarr_api_key | default('changeme') }}"
+
   - name: tracearr
     port: 3000
     check: http
