@@ -28,7 +28,7 @@
     groups: docker
     state: present
 
-- name: server | docker | Move /etc/docker/daemon.json
+- name: docker_host | docker | Move /etc/docker/daemon.json
   ansible.builtin.template:
     src: common/daemon.json.j2
     dest: "/etc/docker/daemon.json"
@@ -37,13 +37,13 @@
     mode: "0644"
   notify: restart docker
 
-- name: server | docker | Install Loki Docker Driver plugin
+- name: docker_host | docker | Install Loki Docker Driver plugin
   community.docker.docker_plugin:
     plugin_name: grafana/loki-docker-driver:latest
     alias: loki
     state: present
 
-- name: server | docker | Enable Loki Docker Driver plugin
+- name: docker_host | docker | Enable Loki Docker Driver plugin
   community.docker.docker_plugin:
     plugin_name: grafana/loki-docker-driver:latest
     alias: loki

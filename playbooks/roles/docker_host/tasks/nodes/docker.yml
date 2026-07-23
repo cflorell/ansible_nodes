@@ -1,5 +1,5 @@
 ---
-- name: server | node-docker | Create service directories
+- name: docker_host | node-docker | Create service directories
   ansible.builtin.file:
     path: "/{{ ansible_facts['user_id'] }}/{{ item }}"
     state: directory
@@ -17,7 +17,7 @@
     - homelable
     - gatus
 
-- name: server | node-docker | Move promtail-config.yml
+- name: docker_host | node-docker | Move promtail-config.yml
   ansible.builtin.template:
     src: common/promtail-config.yml.j2
     dest: "/{{ ansible_facts['user_id'] }}/promtail/promtail-config.yml"
@@ -25,7 +25,7 @@
     group: "{{ ansible_facts['user_id'] }}"
     mode: "0600"
 
-- name: server | node-docker | move docker-compose.yml file to host
+- name: docker_host | node-docker | move docker-compose.yml file to host
   ansible.builtin.template:
     src: "docker/docker-compose.yml.j2"
     dest: "/{{ ansible_facts['user_id'] }}/docker-compose.yml"
@@ -33,7 +33,7 @@
     group: "{{ ansible_facts['user_id'] }}"
     mode: "0600"
 
-- name: server | node-docker | Move alertmanager-signal/config.yaml
+- name: docker_host | node-docker | Move alertmanager-signal/config.yaml
   ansible.builtin.template:
     src: "docker/alertmanager-signal/config.yaml.j2"
     dest: "/{{ ansible_facts['user_id'] }}/alertmanager-signal/config.yaml"
@@ -41,7 +41,7 @@
     group: "{{ ansible_facts['user_id'] }}"
     mode: "0600"
 
-- name: server | node-docker | Move caddy Dockerfile
+- name: docker_host | node-docker | Move caddy Dockerfile
   ansible.builtin.copy:
     src: "docker/caddy/"
     dest: "/{{ ansible_facts['user_id'] }}/caddy/"
@@ -49,7 +49,7 @@
     group: "{{ ansible_facts['user_id'] }}"
     mode: "0600"
 
-- name: server | node-docker | Move caddy/Caddyfile
+- name: docker_host | node-docker | Move caddy/Caddyfile
   ansible.builtin.template:
     src: "docker/caddy/Caddyfile.j2"
     dest: "/{{ ansible_facts['user_id'] }}/caddy/Caddyfile"
@@ -57,7 +57,7 @@
     group: "{{ ansible_facts['user_id'] }}"
     mode: "0600"
 
-- name: server | node-docker | Move homepage config files
+- name: docker_host | node-docker | Move homepage config files
   ansible.builtin.template:
     src: "{{ item }}"
     dest: "/{{ ansible_facts['user_id'] }}/homepage/{{ item | basename | regex_replace('\\.j2$', '') }}"
@@ -66,7 +66,7 @@
     mode: "0600"
   loop: "{{ lookup('ansible.builtin.fileglob', role_path ~ '/templates/docker/homepage/*.j2', wantlist=True) }}"
 
-- name: server | node-docker | Move homelable .env file
+- name: docker_host | node-docker | Move homelable .env file
   ansible.builtin.template:
     src: "docker/homelable/.env.j2"
     dest: "/{{ ansible_facts['user_id'] }}/homelable/.env"
@@ -74,7 +74,7 @@
     group: "{{ ansible_facts['user_id'] }}"
     mode: "0600"
 
-- name: server | node-docker | Move gatus/config.yaml
+- name: docker_host | node-docker | Move gatus/config.yaml
   ansible.builtin.template:
     src: "docker/gatus/config.yaml.j2"
     dest: "/{{ ansible_facts['user_id'] }}/gatus/config.yaml"
@@ -82,7 +82,7 @@
     group: "{{ ansible_facts['user_id'] }}"
     mode: "0600"
 
-- name: server | node-docker | deploy Docker Compose stack
+- name: docker_host | node-docker | deploy Docker Compose stack
   community.docker.docker_compose_v2:
     project_src: "/{{ ansible_facts['user_id'] }}/"
     remove_orphans: true
@@ -92,6 +92,6 @@
 
 # Marks the hub as refreshed for this run, so the "Sync monitoring hub" play in
 # playbook.yml knows it does not need to run these tasks a second time.
-- name: server | node-docker | mark monitoring hub as synced for this run
+- name: docker_host | node-docker | mark monitoring hub as synced for this run
   ansible.builtin.set_fact:
     monitoring_hub_synced: true

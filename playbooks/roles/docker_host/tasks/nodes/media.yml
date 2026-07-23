@@ -1,5 +1,5 @@
 ---
-- name: server | node-media | Create service directories
+- name: docker_host | node-media | Create service directories
   ansible.builtin.file:
     path: "/{{ ansible_facts['user_id'] }}/{{ item }}"
     state: directory
@@ -9,7 +9,7 @@
     - promtail
     - grimmory
 
-- name: server | node-media | Move promtail-config.yml
+- name: docker_host | node-media | Move promtail-config.yml
   ansible.builtin.template:
     src: common/promtail-config.yml.j2
     dest: "/{{ ansible_facts['user_id'] }}/promtail/promtail-config.yml"
@@ -17,7 +17,7 @@
     group: "{{ ansible_facts['user_id'] }}"
     mode: "0600"
 
-- name: server | node-media | move docker-compose.yml file to host
+- name: docker_host | node-media | move docker-compose.yml file to host
   ansible.builtin.template:
     src: "media/docker-compose.yml.j2"
     dest: "/{{ ansible_facts['user_id'] }}/docker-compose.yml"
@@ -25,7 +25,7 @@
     group: "{{ ansible_facts['user_id'] }}"
     mode: "0600"
 
-- name: server | node-media | move .env file to host
+- name: docker_host | node-media | move .env file to host
   ansible.builtin.template:
     src: "media/env.j2"
     dest: "/{{ ansible_facts['user_id'] }}/.env"
@@ -33,9 +33,9 @@
     group: "{{ ansible_facts['user_id'] }}"
     mode: "0600"
 
-- name: server | node-media | deploy Docker Compose stack
+- name: docker_host | node-media | deploy Docker Compose stack
   block:
-    - name: server | node-media | deploy Docker Compose stack
+    - name: docker_host | node-media | deploy Docker Compose stack
       community.docker.docker_compose_v2:
         project_src: "/{{ ansible_facts['user_id'] }}/"
         remove_orphans: true
@@ -47,12 +47,12 @@
     # deploys (LXC + host-level netfilter drift), which breaks port publishing
     # ("iptables: No chain/target/match by that name") for any service with
     # published ports (e.g. grimmory). Restarting Docker reprograms them.
-    - name: server | node-media | Restart Docker to restore iptables NAT chains
+    - name: docker_host | node-media | Restart Docker to restore iptables NAT chains
       ansible.builtin.systemd:
         name: docker
         state: restarted
 
-    - name: server | node-media | Retry deploy Docker Compose stack
+    - name: docker_host | node-media | Retry deploy Docker Compose stack
       community.docker.docker_compose_v2:
         project_src: "/{{ ansible_facts['user_id'] }}/"
         remove_orphans: true

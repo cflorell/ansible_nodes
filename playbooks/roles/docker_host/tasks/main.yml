@@ -64,14 +64,14 @@
       ansible.builtin.import_tasks: nodes/torrent.yml
       when: inventory_hostname == "torrent"
 
-    - name: Node proxmox1
-      tags: node-proxmox1
-      ansible.builtin.import_tasks: nodes/proxmox1.yml
+    - name: Server proxmox1
+      tags: server-proxmox1
+      ansible.builtin.import_tasks: server/proxmox1.yml
       when: inventory_hostname == "proxmox1"
 
-    - name: Node proxmox2
-      tags: node-proxmox2
-      ansible.builtin.import_tasks: nodes/proxmox2.yml
+    - name: Server proxmox2
+      tags: server-proxmox2
+      ansible.builtin.import_tasks: server/proxmox2.yml
       when: inventory_hostname == "proxmox2"
 
     - name: Node immich

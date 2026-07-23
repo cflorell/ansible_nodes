@@ -1,5 +1,5 @@
 ---
-- name: server | node-prometheus-grafana | Create service directories
+- name: docker_host | node-prometheus-grafana | Create service directories
   ansible.builtin.file:
     path: "/{{ ansible_facts['user_id'] }}/{{ item }}"
     state: directory
@@ -10,7 +10,7 @@
     - loki
     - promtail
 
-- name: server | node-prometheus-grafana | move docker-compose.yml file to host
+- name: docker_host | node-prometheus-grafana | move docker-compose.yml file to host
   ansible.builtin.template:
     src: "prometheus-grafana/docker-compose.yml.j2"
     dest: "/{{ ansible_facts['user_id'] }}/docker-compose.yml"
@@ -18,7 +18,7 @@
     group: "{{ ansible_facts['user_id'] }}"
     mode: "0600"
 
-- name: server | node-prometheus-grafana | Move prometheus.yml
+- name: docker_host | node-prometheus-grafana | Move prometheus.yml
   ansible.builtin.template:
     src: prometheus-grafana/prometheus.yml.j2
     dest: "/{{ ansible_facts['user_id'] }}/config/prometheus.yml"
@@ -26,7 +26,7 @@
     group: "{{ ansible_facts['user_id'] }}"
     mode: "0600"
 
-- name: server | node-prometheus-grafana | Move alertmanager.yml
+- name: docker_host | node-prometheus-grafana | Move alertmanager.yml
   ansible.builtin.template:
     src: prometheus-grafana/alertmanager.yml.j2
     dest: "/{{ ansible_facts['user_id'] }}/config/alertmanager.yml"
@@ -34,7 +34,7 @@
     group: "{{ ansible_facts['user_id'] }}"
     mode: "0600"
 
-- name: server | node-prometheus-grafana | Move alert.rules.yml
+- name: docker_host | node-prometheus-grafana | Move alert.rules.yml
   ansible.builtin.copy:
     src: files/{{ inventory_hostname }}/alert.rules.yml
     dest: "/{{ ansible_facts['user_id'] }}/config/"
@@ -42,7 +42,7 @@
     group: "{{ ansible_facts['user_id'] }}"
     mode: "0600"
 
-- name: server | node-prometheus-grafana | Move /etc/docker/daemon.json
+- name: docker_host | node-prometheus-grafana | Move /etc/docker/daemon.json
   ansible.builtin.copy:
     src: files/{{ inventory_hostname }}/daemon.json
     dest: "/etc/docker/"
@@ -51,7 +51,7 @@
     mode: "0644"
   register: daemon_json
 
-- name: server | node-prometheus-grafana | Move promtail-config.yml
+- name: docker_host | node-prometheus-grafana | Move promtail-config.yml
   ansible.builtin.template:
     src: prometheus-grafana/promtail-config.yml.j2
     dest: "/{{ ansible_facts['user_id'] }}/promtail/promtail-config.yml"
@@ -59,7 +59,7 @@
     group: "{{ ansible_facts['user_id'] }}"
     mode: "0600"
 
-- name: server | node-prometheus-grafana | Move loki-config.yml
+- name: docker_host | node-prometheus-grafana | Move loki-config.yml
   ansible.builtin.copy:
     src: files/{{ inventory_hostname }}/loki-config.yml
     dest: "/{{ ansible_facts['user_id'] }}/loki/"
@@ -67,7 +67,7 @@
     group: "{{ ansible_facts['user_id'] }}"
     mode: "0600"
 
-- name: server | node-prometheus-grafana | Deploy Docker Compose stack
+- name: docker_host | node-prometheus-grafana | Deploy Docker Compose stack
   community.docker.docker_compose_v2:
     project_src: "/{{ ansible_facts['user_id'] }}/"
     remove_orphans: true
@@ -77,6 +77,6 @@
 
 # Marks the stack as refreshed for this run, so the "Sync monitoring hub" play
 # in playbook.yml knows it does not need to run these tasks a second time.
-- name: server | node-prometheus-grafana | mark stack as synced for this run
+- name: docker_host | node-prometheus-grafana | mark stack as synced for this run
   ansible.builtin.set_fact:
     prometheus_stack_synced: true

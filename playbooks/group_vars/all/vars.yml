@@ -4,10 +4,10 @@ config_system_language: 'en_US.UTF-8'
 
 # Read-only docker-socket-proxy port exposed by the other docker nodes, so
 # whats-up-docker on the `docker` host can watch their containers remotely
-# (see roles/server/templates/common/docker-socket-proxy.yml.j2).
+# (see roles/docker_host/templates/common/docker-socket-proxy.yml.j2).
 docker_socket_proxy_port: 2375
 
-# Directory on the Storage3 NFS share (server: roles/server/tasks/config/nfs_server.yml,
+# Directory on the Storage3 NFS share (server: roles/docker_host/tasks/config/nfs_server.yml,
 # client: roles/runner) that the unprivileged gitlab-runner CI user publishes
 # built Vagrant boxes into (see vagrant_boxes/publish_box.sh). Access is
 # granted via gitlab_runner_storage_group rather than loosening the share

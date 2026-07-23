@@ -1,5 +1,5 @@
 ---
-- name: server | node-torrent | Create service directories
+- name: docker_host | node-torrent | Create service directories
   ansible.builtin.file:
     path: "/{{ ansible_facts['user_id'] }}/{{ item }}"
     state: directory
@@ -10,7 +10,7 @@
     - qbittorrent-data
     - torrent-natpmp-keeper
 
-- name: server | node-torrent | Move promtail-config.yml
+- name: docker_host | node-torrent | Move promtail-config.yml
   ansible.builtin.template:
     src: common/promtail-config.yml.j2
     dest: "/{{ ansible_facts['user_id'] }}/promtail/promtail-config.yml"
@@ -18,7 +18,7 @@
     group: "{{ ansible_facts['user_id'] }}"
     mode: "0600"
 
-- name: server | node-torrent | move docker-compose.yml file to host
+- name: docker_host | node-torrent | move docker-compose.yml file to host
   ansible.builtin.template:
     src: "torrent/docker-compose.yml.j2"
     dest: "/{{ ansible_facts['user_id'] }}/docker-compose.yml"
@@ -26,7 +26,7 @@
     group: "{{ ansible_facts['user_id'] }}"
     mode: "0600"
 
-- name: server | node-torrent | move torrent-natpmp-keeper.env file to host
+- name: docker_host | node-torrent | move torrent-natpmp-keeper.env file to host
   ansible.builtin.template:
     src: "torrent/torrent-natpmp-keeper.env.j2"
     dest: "/{{ ansible_facts['user_id'] }}/torrent-natpmp-keeper.env"
@@ -34,7 +34,7 @@
     group: "{{ ansible_facts['user_id'] }}"
     mode: "0600"
 
-- name: server | node-torrent | move se.protonvpn.udp.ovpn file to qbittorrent-config
+- name: docker_host | node-torrent | move se.protonvpn.udp.ovpn file to qbittorrent-config
   ansible.builtin.copy:
     src: "torrent/se.protonvpn.udp.ovpn"
     dest: "/{{ ansible_facts['user_id'] }}/qbittorrent-config/openvpn/se.protonvpn.udp.ovpn"
@@ -42,7 +42,7 @@
     group: "{{ ansible_facts['user_id'] }}"
     mode: "0600"
 
-- name: server | node-torrent | move torrent-natpmp-keeper files
+- name: docker_host | node-torrent | move torrent-natpmp-keeper files
   ansible.builtin.copy:
     src: "torrent/torrent-natpmp-keeper/"
     dest: "/{{ ansible_facts['user_id'] }}/torrent-natpmp-keeper/"
@@ -50,7 +50,7 @@
     group: "{{ ansible_facts['user_id'] }}"
     mode: "0600"
 
-- name: server | node-torrent | deploy Docker Compose stack
+- name: docker_host | node-torrent | deploy Docker Compose stack
   community.docker.docker_compose_v2:
     project_src: "/{{ ansible_facts['user_id'] }}/"
     remove_orphans: true

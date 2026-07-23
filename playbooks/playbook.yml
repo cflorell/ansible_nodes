@@ -4,12 +4,12 @@
 
 # Must patch proxmox instance before running base tasks on them.
 # Otherwise it will fail dues to missing enterprise repo.
-- name: Run server tasks
+- name: Run docker_host tasks
   hosts: server, nodes
   tags: server, nodes
   become: true
   roles:
-    - server
+    - docker_host
 
 - name: Run base tasks
   hosts: all
@@ -92,26 +92,26 @@
 
     - name: Refresh the docker node stack (gatus, homepage, whats-up-docker)
       ansible.builtin.include_role:
-        name: server
+        name: docker_host
         tasks_from: nodes/docker.yml
       when:
-        - ansible_facts['hostname'] == "docker"
+        - inventory_hostname == "docker"
         - hub_needs_sync
 
     - name: Push the homelable canvas
       ansible.builtin.include_role:
-        name: server
+        name: docker_host
         tasks_from: nodes/homelable_canvas.yml
       when:
-        - ansible_facts['hostname'] == "docker"
+        - inventory_hostname == "docker"
         - hub_needs_sync
 
     - name: Refresh the prometheus-grafana stack (scrape targets)
       ansible.builtin.include_role:
-        name: server
+        name: docker_host
         tasks_from: nodes/prometheus-grafana.yml
       when:
-        - ansible_facts['hostname'] == "prometheus-grafana"
+        - inventory_hostname == "prometheus-grafana"
         - prom_needs_sync
 
 - name: Warn when the monitoring hub was outside this run

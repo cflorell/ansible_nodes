@@ -140,7 +140,7 @@ private_files=(
   "playbooks/group_vars/all/secrets.sops.yaml"
   "inventory/hosts"
   "inventory/proxmox.yml"
-  "playbooks/roles/server/files/torrent/se.protonvpn.udp.ovpn"
+  "playbooks/roles/docker_host/files/torrent/se.protonvpn.udp.ovpn"
 )
 
 run() {
