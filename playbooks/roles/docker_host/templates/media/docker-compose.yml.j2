@@ -145,9 +145,9 @@ services:
       - "8989:8989"
     volumes:
       - ./sonarr:/config
-      - /mnt/Storage2/Series:/tv/storage2
-      - /mnt/Storage3/Series:/tv/storage3
-      - /mnt/Storage3/A/Series:/tv/anime
+      - /mnt/merged/Storage2/Series:/tv/storage2
+      - /mnt/merged/Storage3/Series:/tv/storage3
+      - /mnt/merged/Storage3/A/Series:/tv/anime
       - /mnt/Storage3/Download:/downloads
     restart: unless-stopped
 
@@ -162,9 +162,9 @@ services:
       - "7878:7878"
     volumes:
       - ./radarr:/config
-      - /mnt/Storage1/UHD:/movies/uhd
-      - /mnt/Storage4/HD:/movies/hd
-      - /mnt/Storage3/A/Movies:/movies/anime
+      - /mnt/merged/Storage1/UHD:/movies/uhd
+      - /mnt/merged/Storage4/HD:/movies/hd
+      - /mnt/merged/Storage3/A/Movies:/movies/anime
       - /mnt/Storage3/Download:/downloads
     restart: unless-stopped
 
@@ -179,12 +179,12 @@ services:
       - "6767:6767"
     volumes:
       - ./bazarr:/config
-      - /mnt/Storage2/Series:/tv/storage2
-      - /mnt/Storage3/Series:/tv/storage3
-      - /mnt/Storage3/A/Series:/tv/anime
-      - /mnt/Storage1/UHD:/movies/uhd
-      - /mnt/Storage4/HD:/movies/hd
-      - /mnt/Storage3/A/Movies:/movies/anime
+      - /mnt/merged/Storage2/Series:/tv/storage2
+      - /mnt/merged/Storage3/Series:/tv/storage3
+      - /mnt/merged/Storage3/A/Series:/tv/anime
+      - /mnt/merged/Storage1/UHD:/movies/uhd
+      - /mnt/merged/Storage4/HD:/movies/hd
+      - /mnt/merged/Storage3/A/Movies:/movies/anime
     restart: unless-stopped
 
 {% include "common/docker-socket-proxy.yml.j2" %}
