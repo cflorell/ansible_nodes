@@ -1,5 +1,5 @@
 ---
-- name: server | nfs-server | Create directories for disk mounts
+- name: docker_host | nfs-server | Create directories for disk mounts
   ansible.builtin.file:
     path: "{{ item }}"
     state: directory
@@ -12,7 +12,7 @@
     - /mnt/Storage3
     - /mnt/Storage4
 
-- name: server | nfs-server | Update fstab with disks
+- name: docker_host | nfs-server | Update fstab with disks
   ansible.builtin.blockinfile:
     path: /etc/fstab
     block: |
@@ -29,11 +29,11 @@
     - reload systemd daemon
     - mount nfs filesystems
 
-- name: server | nfs-server | install nfs
+- name: docker_host | nfs-server | install nfs
   ansible.builtin.apt:
     name: nfs-kernel-server
 
-- name: server | nfs-server | Add NFS exports
+- name: docker_host | nfs-server | Add NFS exports
   ansible.builtin.blockinfile:
     path: /etc/exports
     block: |
@@ -45,16 +45,16 @@
       {% endfor %}
   notify: reexport nfs shares
 
-- name: server | nfs-server | Flush handlers so disk mounts are active
+- name: docker_host | nfs-server | Flush handlers so disk mounts are active
   ansible.builtin.meta: flush_handlers
 
-- name: server | nfs-server | Create group for gitlab-runner box storage access
+- name: docker_host | nfs-server | Create group for gitlab-runner box storage access
   ansible.builtin.group:
     name: "{{ gitlab_runner_storage_group }}"
     gid: "{{ gitlab_runner_storage_gid }}"
     state: present
 
-- name: server | nfs-server | Create gitlab-runner box storage directory
+- name: docker_host | nfs-server | Create gitlab-runner box storage directory
   ansible.builtin.file:
     path: "{{ gitlab_runner_box_storage_dir }}"
     state: directory

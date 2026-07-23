@@ -11,13 +11,13 @@
 # canvas-payload.json.j2, re-running converges the canvas instead of duplicating
 # it — including removing the auto-discovered scan nodes this replaces.
 
-- name: server | homelable | Wait for the Homelable web endpoint
+- name: docker_host | homelable | Wait for the Homelable web endpoint
   ansible.builtin.wait_for:
     host: 127.0.0.1
     port: "{{ homelable_web_port }}"
     timeout: 90
 
-- name: server | homelable | Log in to the Homelable API
+- name: docker_host | homelable | Log in to the Homelable API
   ansible.builtin.uri:
     url: "{{ homelable_api_url }}/auth/login"
     method: POST
@@ -38,7 +38,7 @@
   # it. This login has no side effects worth dry-running around.
   check_mode: false
 
-- name: server | homelable | Read the current canvas
+- name: docker_host | homelable | Read the current canvas
   ansible.builtin.uri:
     url: "{{ homelable_api_url }}/canvas{{ '?design_id=' ~ homelable_design_id if homelable_design_id is defined else '' }}"
     method: GET
@@ -53,15 +53,15 @@
   # fallback in canvas-payload.json.j2) instead of a meaningful dry-run.
   check_mode: false
 
-- name: server | homelable | Render the desired canvas
+- name: docker_host | homelable | Render the desired canvas
   ansible.builtin.set_fact:
     _homelable_canvas: "{{ lookup('ansible.builtin.template', 'docker/homelable/canvas.yaml.j2') | from_yaml }}"
 
-- name: server | homelable | Build the canvas payload
+- name: docker_host | homelable | Build the canvas payload
   ansible.builtin.set_fact:
     _homelable_plan: "{{ lookup('ansible.builtin.template', 'docker/homelable/canvas-payload.json.j2') | from_json }}"
 
-- name: server | homelable | Apply the canvas
+- name: docker_host | homelable | Apply the canvas
   ansible.builtin.uri:
     url: "{{ homelable_api_url }}/canvas/save"
     method: POST

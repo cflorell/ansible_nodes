@@ -16,7 +16,12 @@ stored in a separate private repository.
 
 The main playbook configures three broad host types:
 
-- `server` and `nodes`: Proxmox hosts and server VMs/LXCs.
+- `server` and `nodes`: Proxmox physical hosts and their VM/LXC guests,
+  respectively. Both run through the same `docker_host` role (Docker install +
+  per-host compose stack deployment), but are tagged distinctly —
+  `server-<host>` for the physical hosts (`proxmox1`, `proxmox2`, which also
+  run their own compose stack directly on the hypervisor), `node-<host>` for
+  everything in `nodes` (`docker`, `authentik`, `media`, etc.).
 - `kubernetes`: kubeadm-managed control plane and worker VMs.
 - `workstation`: desktop or laptop machines.
 - `all`: common base system configuration shared across hosts.
@@ -108,9 +113,10 @@ Run the full configuration for one host:
 ansible-playbook playbooks/playbook.yml --limit docker
 ```
 
-Run all server nodes:
+Run every host in one group — physical Proxmox hosts, or their VM/LXC guests:
 
 ```bash
+ansible-playbook playbooks/playbook.yml --limit server
 ansible-playbook playbooks/playbook.yml --limit nodes
 ```
 
@@ -119,6 +125,7 @@ Run only one tagged area:
 ```bash
 ansible-playbook playbooks/playbook.yml --limit torrent --tags node-torrent
 ansible-playbook playbooks/playbook.yml --limit docker --tags docker,node-docker
+ansible-playbook playbooks/playbook.yml --limit proxmox1 --tags server-proxmox1
 ansible-playbook playbooks/playbook.yml --limit runner --tags runner
 ansible-playbook playbooks/playbook.yml --limit kubernetes --tags kubernetes
 ansible-playbook playbooks/playbook.yml --limit vivobook --tags workstation

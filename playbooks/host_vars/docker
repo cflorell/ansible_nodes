@@ -4,16 +4,16 @@ nfs_server: false
 
 docker: true
 
-# Homelable canvas push — see roles/server/tasks/nodes/homelable_canvas.yml.
+# Homelable canvas push — see roles/docker_host/tasks/nodes/homelable_canvas.yml.
 # The backend publishes no host port of its own; nginx in the frontend container
 # proxies /api/ to it, so the API is reached on the frontend's published port
-# (the 3003:80 mapping in roles/server/templates/docker/docker-compose.yml.j2).
+# (the 3003:80 mapping in roles/docker_host/templates/docker/docker-compose.yml.j2).
 homelable_web_port: 3003
 homelable_api_url: "http://127.0.0.1:{{ homelable_web_port }}/api/v1"
 
 # Caddy reverse-proxy targets
 # Each entry becomes a matcher + reverse_proxy block under the
-# *.{{ porkbun_domain }} wildcard site in roles/server/templates/docker/caddy/Caddyfile.j2.
+# *.{{ porkbun_domain }} wildcard site in roles/docker_host/templates/docker/caddy/Caddyfile.j2.
 # Real IPs live in secrets.sops.yaml (caddy_upstream_*)
 caddy_reverse_proxies:
   - host: "auth"

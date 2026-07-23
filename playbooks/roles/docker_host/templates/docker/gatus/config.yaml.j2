@@ -152,7 +152,7 @@ endpoints:
     alerts: *notify-all
 {% endfor %}
 
-  # --- Public DNS / TLS for the porkbun-ddns domain (roles/server porkbun-ddns,
+  # --- Public DNS / TLS for the porkbun-ddns domain (roles/docker_host porkbun-ddns,
   #     caddy). Checked against public resolvers, not our own, so
   #     a broken porkbun-ddns update (expired API key, deleted record, etc.)
   #     shows up here. Note this only proves the domain still resolves — it
