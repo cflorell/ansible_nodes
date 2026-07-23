@@ -22,6 +22,7 @@ services:
       - '9093:9093'
     command:
       - '--config.file=/etc/alertmanager/alertmanager.yml'
+    restart: unless-stopped
 
   grafana:
     image: grafana/grafana:13.1.1

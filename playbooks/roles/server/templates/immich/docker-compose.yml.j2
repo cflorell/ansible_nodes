@@ -14,7 +14,7 @@ services:
     depends_on:
       - redis
       - database
-    restart: always
+    restart: unless-stopped
     healthcheck:
       disable: false
 
@@ -25,7 +25,7 @@ services:
       - ./model_cache:/cache
     env_file:
       - .env
-    restart: always
+    restart: unless-stopped
     healthcheck:
       disable: false
 
@@ -34,7 +34,7 @@ services:
     image: docker.io/redis:8.8-alpine
     healthcheck:
       test: redis-cli ping || exit 1
-    restart: always
+    restart: unless-stopped
 
   database:
     container_name: immich_postgres
@@ -48,6 +48,6 @@ services:
     volumes:
       - ${DB_DATA_LOCATION}:/var/lib/postgresql/data
     shm_size: 128mb
-    restart: always
+    restart: unless-stopped
 
 {% include "common/docker-socket-proxy.yml.j2" %}
