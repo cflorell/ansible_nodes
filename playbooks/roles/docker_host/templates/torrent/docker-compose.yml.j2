@@ -19,10 +19,9 @@ services:
       - 58946:58946/udp
     volumes:
       - /root/qbittorrent-data:/data
-      - /mnt/Storage1/:/mnt/Storage1
-      - /mnt/Storage2/:/mnt/Storage2
-      - /mnt/Storage3/:/mnt/Storage3
-      - /mnt/Storage4/:/mnt/Storage4
+{% for disk in storage_disks.values() %}
+      - {{ disk.path }}/:{{ disk.path }}
+{% endfor %}
       - /root/qbittorrent-config:/config
       - /etc/localtime:/etc/localtime:ro
     devices:

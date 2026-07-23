@@ -104,7 +104,7 @@ services:
       - "6060:6060"
     volumes:
       - ./grimmory/data:/app/data
-      - /mnt/Storage3/samba/Ebooks:/books
+      - {{ storage_disks.disk3.path }}/samba/Ebooks:/books
       - ./grimmory/bookdrop:/bookdrop
     healthcheck:
       test: wget -q -O - http://localhost:6060/api/v1/healthcheck
@@ -145,10 +145,10 @@ services:
       - "8989:8989"
     volumes:
       - ./sonarr:/config
-      - /mnt/merged/Storage2/Series:/tv/storage2
-      - /mnt/merged/Storage3/Series:/tv/storage3
-      - /mnt/merged/Storage3/A/Series:/tv/anime
-      - /mnt/Storage3/Download:/downloads
+      - /mnt/merged/{{ storage_disks.disk2.path | basename }}/Series:/tv/storage2
+      - /mnt/merged/{{ storage_disks.disk3.path | basename }}/Series:/tv/storage3
+      - /mnt/merged/{{ storage_disks.disk3.path | basename }}/A/Series:/tv/anime
+      - {{ storage_disks.disk3.path }}/Download:/downloads
     restart: unless-stopped
 
   radarr:
@@ -162,10 +162,10 @@ services:
       - "7878:7878"
     volumes:
       - ./radarr:/config
-      - /mnt/merged/Storage1/UHD:/movies/uhd
-      - /mnt/merged/Storage4/HD:/movies/hd
-      - /mnt/merged/Storage3/A/Movies:/movies/anime
-      - /mnt/Storage3/Download:/downloads
+      - /mnt/merged/{{ storage_disks.disk1.path | basename }}/UHD:/movies/uhd
+      - /mnt/merged/{{ storage_disks.disk4.path | basename }}/HD:/movies/hd
+      - /mnt/merged/{{ storage_disks.disk3.path | basename }}/A/Movies:/movies/anime
+      - {{ storage_disks.disk3.path }}/Download:/downloads
     restart: unless-stopped
 
   bazarr:
@@ -179,12 +179,12 @@ services:
       - "6767:6767"
     volumes:
       - ./bazarr:/config
-      - /mnt/merged/Storage2/Series:/tv/storage2
-      - /mnt/merged/Storage3/Series:/tv/storage3
-      - /mnt/merged/Storage3/A/Series:/tv/anime
-      - /mnt/merged/Storage1/UHD:/movies/uhd
-      - /mnt/merged/Storage4/HD:/movies/hd
-      - /mnt/merged/Storage3/A/Movies:/movies/anime
+      - /mnt/merged/{{ storage_disks.disk2.path | basename }}/Series:/tv/storage2
+      - /mnt/merged/{{ storage_disks.disk3.path | basename }}/Series:/tv/storage3
+      - /mnt/merged/{{ storage_disks.disk3.path | basename }}/A/Series:/tv/anime
+      - /mnt/merged/{{ storage_disks.disk1.path | basename }}/UHD:/movies/uhd
+      - /mnt/merged/{{ storage_disks.disk4.path | basename }}/HD:/movies/hd
+      - /mnt/merged/{{ storage_disks.disk3.path | basename }}/A/Movies:/movies/anime
     restart: unless-stopped
 
 {% include "common/docker-socket-proxy.yml.j2" %}

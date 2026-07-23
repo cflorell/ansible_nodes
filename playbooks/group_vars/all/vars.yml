@@ -7,12 +7,12 @@ config_system_language: 'en_US.UTF-8'
 # (see roles/docker_host/templates/common/docker-socket-proxy.yml.j2).
 docker_socket_proxy_port: 2375
 
-# Directory on the Storage3 NFS share (server: roles/docker_host/tasks/config/nfs_server.yml,
+# Directory on the storage_disks.disk3 NFS share (server: roles/docker_host/tasks/config/nfs_server.yml,
 # client: roles/runner) that the unprivileged gitlab-runner CI user publishes
 # built Vagrant boxes into (see vagrant_boxes/publish_box.sh). Access is
 # granted via gitlab_runner_storage_group rather than loosening the share
 # itself. The GID must be fixed and identical on proxmox1 (NFS server) and
 # runner (NFS client): NFS authorizes by numeric UID/GID, not by name.
-gitlab_runner_box_storage_dir: /mnt/Storage3/boxes
+gitlab_runner_box_storage_dir: "{{ storage_disks.disk3.path }}/boxes"
 gitlab_runner_storage_group: gitlab-runner-storage
 gitlab_runner_storage_gid: 30050

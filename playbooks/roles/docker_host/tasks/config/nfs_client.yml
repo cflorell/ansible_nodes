@@ -77,29 +77,21 @@
 
     - name: docker_host | nfs-client | Create directories for regular NFS mounts
       ansible.builtin.file:
-        path: "{{ item }}"
+        path: "{{ item.path }}"
         state: directory
         owner: root
         group: root
         mode: '0755'
-      loop:
-        - /mnt/Storage1
-        - /mnt/Storage2
-        - /mnt/Storage3
-        - /mnt/Storage4
+      loop: "{{ storage_disks.values() | list }}"
 
     - name: docker_host | nfs-client | Create directories for rar NFS mounts
       ansible.builtin.file:
-        path: "{{ item }}"
+        path: "{{ item.path }}Rar"
         state: directory
         owner: root
         group: root
         mode: '0555'
-      loop:
-        - /mnt/Storage4Rar
-        - /mnt/Storage3Rar
-        - /mnt/Storage2Rar
-        - /mnt/Storage1Rar
+      loop: "{{ storage_disks.values() | list }}"
 
     - name: docker_host | nfs-client | Add NFS mounts to /etc/fstab
       ansible.builtin.blockinfile:
@@ -117,13 +109,13 @@
         - mount nfs filesystems
 
     - name: docker_host | nfs-client | Check which mergerfs mounts are already active
-      ansible.builtin.command: "mountpoint -q /mnt/merged/Storage{{ item }}"
+      ansible.builtin.command: "mountpoint -q /mnt/merged/{{ item.path | basename }}"
       register: mergerfs_mountpoint_check
       failed_when: false
       changed_when: false
-      loop: ["1", "2", "3", "4"]
+      loop: "{{ storage_disks.values() | list }}"
 
-    # /mnt/merged/StorageN only ever holds an empty stub dir tree left behind
+    # /mnt/merged/<disk> only ever holds an empty stub dir tree left behind
     # by Docker auto-creating bind-mount sources before the merge existed
     # (see docker_host/templates/media/docker-compose.yml.j2) — safe to wipe.
     # FUSE refuses to mount onto a non-empty dir, which is what breaks
@@ -131,30 +123,31 @@
     # touch it while mounted.
     - name: docker_host | nfs-client | Remove stub content from unmounted mergerfs mountpoints
       ansible.builtin.file:
-        path: "/mnt/merged/Storage{{ item.item }}"
+        path: "/mnt/merged/{{ item.item.path | basename }}"
         state: absent
       loop: "{{ mergerfs_mountpoint_check.results }}"
       when: item.rc != 0
 
     - name: docker_host | nfs-client | Create directories for mergerfs mounts
       ansible.builtin.file:
-        path: "/mnt/merged/Storage{{ item }}"
+        path: "/mnt/merged/{{ item.path | basename }}"
         state: directory
         owner: root
         group: root
         mode: '0755'
-      loop: ["1", "2", "3", "4"]
+      loop: "{{ storage_disks.values() | list }}"
 
     - name: docker_host | nfs-client | Add mergerfs mounts to /etc/fstab
       ansible.builtin.blockinfile:
         path: /etc/fstab
         marker: "# {mark} MERGERFS MOUNTS"
         block: |
-          {% for n in ['1', '2', '3', '4'] %}
-          {% set branches = '/mnt/Storage' ~ n ~ ':/mnt/Storage' ~ n ~ 'Rar=RO' %}
-          {% set requires = 'x-systemd.requires=mnt-Storage' ~ n ~ '.mount,x-systemd.requires=mnt-Storage' ~ n ~ 'Rar.mount' %}
+          {% for disk in storage_disks.values() %}
+          {% set name = disk.path | basename %}
+          {% set branches = disk.path ~ ':' ~ disk.path ~ 'Rar=RO' %}
+          {% set requires = 'x-systemd.requires=mnt-' ~ name ~ '.mount,x-systemd.requires=mnt-' ~ name ~ 'Rar.mount' %}
           {% set opts = 'allow_other,nonempty,category.create=ff,dropcacheonclose=true,use_ino,_netdev,nofail,' ~ requires %}
-          {{ branches }} /mnt/merged/Storage{{ n }} fuse.mergerfs {{ opts }} 0 0
+          {{ branches }} /mnt/merged/{{ name }} fuse.mergerfs {{ opts }} 0 0
           {% endfor %}
       notify:
         - reload systemd daemon

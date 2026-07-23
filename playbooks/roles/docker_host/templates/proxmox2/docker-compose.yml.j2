@@ -12,10 +12,9 @@ services:
     volumes:
       - ./jellyfin/config:/config
       - ./jellyfin/cache:/cache
-      - /mnt/Storage1Rar/:/mnt/Storage1Rar
-      - /mnt/Storage2Rar/:/mnt/Storage2Rar
-      - /mnt/Storage3Rar/:/mnt/Storage3Rar
-      - /mnt/Storage4Rar/:/mnt/Storage4Rar
+{% for disk in storage_disks.values() %}
+      - {{ disk.path }}Rar/:{{ disk.path }}Rar
+{% endfor %}
     restart: 'unless-stopped'
     extra_hosts:
       - 'host.docker.internal:host-gateway'

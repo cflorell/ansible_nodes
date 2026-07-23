@@ -1,30 +1,22 @@
 ---
 - name: docker_host | nfs-server | Create directories for disk mounts
   ansible.builtin.file:
-    path: "{{ item }}"
+    path: "{{ item.path }}"
     state: directory
     owner: root
     group: root
     mode: '0755'
-  loop:
-    - /mnt/Storage1
-    - /mnt/Storage2
-    - /mnt/Storage3
-    - /mnt/Storage4
+  loop: "{{ storage_disks.values() | list }}"
 
 - name: docker_host | nfs-server | Update fstab with disks
   ansible.builtin.blockinfile:
     path: /etc/fstab
     block: |
       # DISK SECTION
-      #LABEL="16TBWD"
-      UUID="39923594-9fd4-410d-980e-8622b34ca9ed" /mnt/Storage1 ext4 errors=remount-ro 0 1
-      #LABEL="20TBToshiba"
-      UUID="822b8214-2b43-4965-a2f3-b682ac6b8011" /mnt/Storage2 ext4 errors=remount-ro 0 1
-      #LABEL="20TBToshiba"
-      UUID="fbcba08d-6ec3-4643-82af-dfa3908b90ec" /mnt/Storage3 ext4 errors=remount-ro 0 1
-      #LABEL="18TBToshiba"
-      UUID="54db6770-5058-4382-83d9-b8fd73f2e238" /mnt/Storage4 ext4 errors=remount-ro 0 1
+      {% for disk in storage_disks.values() %}
+      #LABEL="{{ disk.label }}"
+      UUID="{{ disk.uuid }}" {{ disk.path }} ext4 errors=remount-ro 0 1
+      {% endfor %}
   notify:
     - reload systemd daemon
     - mount nfs filesystems

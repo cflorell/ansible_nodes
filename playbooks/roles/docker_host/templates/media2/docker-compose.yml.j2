@@ -62,7 +62,7 @@ services:
     volumes:
       - ./romm/romm_resources:/romm/resources # Resources fetched from IGDB (covers, screenshots, etc.)
       - ./romm/romm_redis_data:/redis-data # Cached data for background tasks
-      - /mnt/Storage3/RomM/:/romm/library # Your game library. Check https://docs.romm.app/latest/Getting-Started/Folder-Structure/ for more details.
+      - {{ storage_disks.disk3.path }}/RomM/:/romm/library # Your game library. Check https://docs.romm.app/latest/Getting-Started/Folder-Structure/ for more details.
       - ./romm/assets:/romm/assets # Uploaded saves, states, etc.
       - ./romm/config:/romm/config # (Optional) Path where config.yml is stored
     ports:
