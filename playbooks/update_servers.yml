@@ -1,6 +1,6 @@
 ---
 - name: Upgrade apt
-  hosts: server
+  hosts: server, nodes
   become: true
 
   tasks:

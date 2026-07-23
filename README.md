@@ -44,11 +44,10 @@ https://developer.hashicorp.com/vagrant/install?product_intent=vagrant
 ## Private files
 
 Secrets are encrypted with [SOPS](https://github.com/getsops/sops) using an
-[age](https://github.com/FiloSottile/age) key pair rather than Ansible Vault.
+[age](https://github.com/FiloSottile/age) key pair.
 `community.sops`'s vars plugin auto-decrypts
 `playbooks/group_vars/all/secrets.sops.yaml` in memory at run time (see
-`ansible.cfg`'s `vars_plugins_enabled`), so no `--ask-vault-pass` step is
-needed. The personal age private key needs to be at
+`ansible.cfg`'s `vars_plugins_enabled`). The personal age private key needs to be at
 `~/.config/sops/age/keys.txt` (the `workstation` role's `sops` tasks place it
 there automatically from the private secrets repo, if present).
 
@@ -83,13 +82,6 @@ scripts/link-private-files.sh --secrets-dir ../private/secrets
 scripts/link-private-files.sh --secrets-dir ../private/secrets --check
 ```
 
-For use across multiple PCs, set a stable environment variable instead:
-
-```bash
-export HOMELAB_SECRETS_DIR="$HOME/git_private/homelab-secrets"
-scripts/link-private-files.sh --check
-```
-
 Use `--adopt` only when the current local files are the source of truth and need
 to be copied into the private repository:
 
@@ -105,7 +97,7 @@ configured `$EDITOR`, then re-encrypts on save, the same round trip
 sops playbooks/group_vars/all/secrets.sops.yaml
 ```
 
-This requires `sops`/`age` installed and the personal age private key at
+This requires `sops` and `age` installed and the personal age private key at
 `~/.config/sops/age/keys.txt`.
 
 ## Running playbooks
@@ -129,7 +121,7 @@ ansible-playbook playbooks/playbook.yml --limit torrent --tags node-torrent
 ansible-playbook playbooks/playbook.yml --limit docker --tags docker,node-docker
 ansible-playbook playbooks/playbook.yml --limit runner --tags runner
 ansible-playbook playbooks/playbook.yml --limit kubernetes --tags kubernetes
-ansible-playbook playbooks/playbook.yml --limit workstation-test --tags workstation
+ansible-playbook playbooks/playbook.yml --limit vivobook --tags workstation
 ```
 
 ### Service registry and monitoring sync
@@ -156,7 +148,7 @@ the node with the hub included in the limit:
 ansible-playbook playbooks/playbook.yml --limit media,docker --tags node-media
 ```
 
-No extra tag is needed: the "Sync monitoring hub" play is tagged `always` and
+The "Sync monitoring hub" play is tagged `always` and
 re-renders gatus/homepage/homelable/whats-up-docker on the `docker` host on
 every run that includes it, skipping itself when the server play already did
 the work (so full runs don't deploy the hub twice). Ansible cannot reach hosts
@@ -188,10 +180,7 @@ deploy — create it as a group runner under `cf_homelab`, tagged `k8s`
 (`kubernetes_runner_tag_list`), so all three CI repos can share it.
 `kubernetes_runner_concurrent` and the per-job pod resource requests/limits
 default conservatively since proxmox3 (which hosts this cluster) is already
-tight on RAM; tune them from observed usage. This role is deliberately
-excluded from `ansible_check`/`ansible_apply` (`--skip-tags kubernetes-runner`,
-see below) since it manages the CI infrastructure those jobs may themselves be
-running on — apply changes to it manually:
+tight on RAM.
 
 ```bash
 ansible-playbook playbooks/playbook.yml --limit kube-control --tags kubernetes-runner
@@ -332,12 +321,6 @@ python3 -m venv .venv-molecule
 .venv-molecule/bin/pip install -r requirements-test.txt
 .venv-molecule/bin/ansible-galaxy collection install -r requirements.yml
 ```
-
-Drive Molecule through `scripts/molecule.sh` rather than calling `molecule`
-directly. The wrapper exports `ANSIBLE_LIBRARY` so the vagrant driver's bundled
-`vagrant` module resolves — molecule 26 no longer injects it automatically (see
-the script header for details). It forwards all arguments to the venv's
-`molecule` and honours `MOLECULE_BIN` / `MOLECULE_PYTHON` overrides.
 
 ```bash
 # Full lifecycle for a scenario (all three distros at once)
