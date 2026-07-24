@@ -16,3 +16,8 @@ kubernetes_runner_helper_cpu_request: "50m"
 kubernetes_runner_helper_memory_request: "64Mi"
 kubernetes_runner_helper_cpu_limit: "200m"
 kubernetes_runner_helper_memory_limit: "256Mi"
+kubernetes_runner_quota_pods: 10
+kubernetes_runner_quota_requests_cpu: "1500m"
+kubernetes_runner_quota_requests_memory: "2Gi"
+kubernetes_runner_quota_limits_cpu: "6"
+kubernetes_runner_quota_limits_memory: "6Gi"

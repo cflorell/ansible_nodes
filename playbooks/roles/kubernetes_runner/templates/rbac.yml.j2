@@ -42,3 +42,17 @@ roleRef:
   kind: Role
   name: gitlab-runner
   apiGroup: rbac.authorization.k8s.io
+
+---
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: gitlab-runner
+  namespace: {{ kubernetes_runner_namespace }}
+spec:
+  hard:
+    pods: "{{ kubernetes_runner_quota_pods }}"
+    requests.cpu: "{{ kubernetes_runner_quota_requests_cpu }}"
+    requests.memory: "{{ kubernetes_runner_quota_requests_memory }}"
+    limits.cpu: "{{ kubernetes_runner_quota_limits_cpu }}"
+    limits.memory: "{{ kubernetes_runner_quota_limits_memory }}"
