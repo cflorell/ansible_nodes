@@ -18,7 +18,7 @@ The main playbook configures three broad host types:
 
 - `server` and `nodes`: Proxmox physical hosts and their VM/LXC guests,
   respectively. Both run through the same `docker_host` role (Docker install +
-  per-host compose stack deployment), but are tagged distinctly —
+  per-host compose stack deployment), but are tagged distinctly
   `server-<host>` for the physical hosts (`proxmox1`, `proxmox2`, which also
   run their own compose stack directly on the hypervisor), `node-<host>` for
   everything in `nodes` (`docker`, `authentik`, `media`, etc.).
@@ -113,7 +113,7 @@ Run the full configuration for one host:
 ansible-playbook playbooks/playbook.yml --limit docker
 ```
 
-Run every host in one group — physical Proxmox hosts, or their VM/LXC guests:
+Run every host in one group, physical Proxmox hosts, or their VM/LXC guests:
 
 ```bash
 ansible-playbook playbooks/playbook.yml --limit server
@@ -138,7 +138,7 @@ whats-up-docker's watcher list and Prometheus' node_exporter targets are all
 generated from per-host declarations instead of being maintained by hand
 inside each monitoring service's GUI:
 
-- `services:` in `playbooks/host_vars/<host>` — one entry per container in
+- `services:` in `playbooks/host_vars/<host>`, one entry per container in
   that host's compose stack (schema documented in `playbooks/host_vars/docker`).
   Declaring a service there is what puts it on the status page, the dashboard
   and the network map.
@@ -174,7 +174,7 @@ The `kubernetes_control` role initializes the kubeadm control plane and
 installs cluster addons via `kubectl apply`: the flannel CNI, and
 metrics-server (patched to add `--kubelet-insecure-tls`, since kubeadm's
 self-signed kubelet certs aren't verifiable the way managed cloud Kubernetes'
-are — without it every scrape fails with `x509: certificate signed by unknown
+are, without it every scrape fails with `x509: certificate signed by unknown
 authority`).
 
 The `kubernetes_runner` role (`kubernetes_control` only) installs Helm, applies
@@ -183,7 +183,7 @@ a `gitlab-runner` namespace with RBAC scoped to it, and deploys the
 don't need nested KVM (everything except molecule and the `vagrant_boxes`
 Packer builds, which stay on the `runner` host). Set
 `kubernetes_runner_gitlab_token` in `secrets.sops.yaml` before the first
-deploy — create it as a group runner under `cf_homelab`, tagged `k8s`
+deploy; create it as a group runner under `cf_homelab`, tagged `k8s`
 (`kubernetes_runner_tag_list`), so all three CI repos can share it.
 `kubernetes_runner_concurrent` and the per-job pod resource requests/limits
 default conservatively since proxmox3 (which hosts this cluster) is already
@@ -199,24 +199,98 @@ Update Debian and Ubuntu server packages:
 ansible-playbook playbooks/update_servers.yml --ask-become-pass
 ```
 
+## PKI / TLS certificates
+
+The homelab's TLS standard is **wildcard Let's Encrypt issued over the Porkbun.
+There are two paths, both using the same Porkbun API credentials
+(`porkbun_api_key` / `porkbun_secret_api_key` in `secrets.sops.yaml`):
+
+1. **Reverse-proxied services** - Caddy on the `docker` host serves
+   `*.<porkbun_domain>` and renews it unattended
+   (`roles/docker_host/templates/docker/caddy/Caddyfile.j2`). Nothing per-service
+   to configure; a new hostname under the wildcard is just a new
+   `caddy_reverse_proxies` entry.
+2. **Proxmox API (`:8006`)** - each hypervisor gets its own cert via
+   **Proxmox-native ACME**, configured by
+   `roles/docker_host/tasks/config/proxmox_acme.yml` with variable
+   `proxmox_acme_enabled`. The role registers a `default` ACME account,
+   configures a Porkbun DNS plugin, sets the node's cert domain to
+   `<host>.<porkbun_domain>` (override with `proxmox_acme_domain`), and orders
+   the cert once. Proxmox then renews it itself on its `pve-daily-update` timer.
+   No cert material is stored as a secret, only the Porkbun creds and
+   `proxmox_acme_email` (used only when registering a *new* account).
+
+For Terraform to verify the Proxmox cert (rather than `insecure = true`), the
+`<host>.<porkbun_domain>` names must resolve to each host's LAN IP. This is done
+with **OPNsense Unbound host overrides** , which also lets the in-cluster CI runner
+resolve them. The `insecure = false` flip and FQDN endpoints live in
+`terraform_nodes` (`providers.tf` + `terraform.tfvars`).
+
+Certificate health is monitored two ways:
+
+- **Gatus** asserts `[CERTIFICATE_EXPIRATION] > 336h` (14 days) on the Proxmox
+  `:8006` endpoints and Caddy, a renewal that silently stops is caught
+  before the cert actually expires. Set `cert_expiry: true` on a service registry
+  entry to extend this to any other self-terminating HTTPS endpoint.
+- **Prometheus** (`CertRenewal` in
+  `roles/docker_host/files/prometheus-grafana/alert.rules.yml`) fires the moment
+  `pve-daily-update.service` fails,  ~30 days before expiry, earlier than Gatus.
+
+### Enabling ACME on a new Proxmox host
+
+1. Ensure `proxmox_acme_email` is set in `secrets.sops.yaml` (once, shared).
+2. In the host's `host_vars`, set `proxmox_acme_enabled: true` (and
+   `proxmox_acme_domain` if its LAN name isn't `<inventory_hostname>.<porkbun_domain>`).
+3. Add an OPNsense Unbound host override: `<host>.<porkbun_domain>` → its LAN IP.
+4. Deploy: `ansible-playbook playbooks/playbook.yml --limit <host>,docker --tags proxmox-acme,proxmox`
+5. Verify on the host:
+   `openssl x509 -in /etc/pve/local/pveproxy-ssl.pem -noout -issuer -enddate`
+   (issuer should be Let's Encrypt).
+6. In `terraform_nodes`: set that host's `*_endpoint` to
+   `https://<host>.<porkbun_domain>:8006/` and its `providers.tf` block to
+   `insecure = false`, then `terraform plan` (expect a no-op).
+
+### Disabling PKI (reverting a Proxmox host to self-signed)
+
+Work from the repos outward, then clean up on the host:
+
+1. **Terraform** - set `insecure = true` on the host's `providers.tf` block, 
+   revert its `*_endpoint` in `terraform.tfvars` to the IP. Run
+   `terraform plan`/`apply`.
+2. **Ansible** - set `proxmox_acme_enabled: false` in the host's `host_vars` so
+   future runs stop re-configuring ACME.
+3. **On the Proxmox host** - stop ACME and drop back to the built-in self-signed
+   cert:
+
+   ```bash
+   pvenode config set --delete acmedomain0   # stop ACME managing this node
+   pvenode cert delete                        # remove the custom (LE) pveproxy cert;
+                                              # pveproxy falls back to self-signed pve-ssl
+   systemctl restart pveproxy                 # if not restarted automatically
+   ```
+
+4. **Monitoring** - the Gatus `[CERTIFICATE_EXPIRATION]` checks keep working on
+   the self-signed cert (long validity), and `CertRenewal` simply never fires
+   without ACME.
+
 ## CI (merge request check, manual apply)
 
 CI runs on two separate runners. Jobs needing nested KVM (`molecule`, and the
 `vagrant_boxes` Packer builds) stay on the `runner` host's shell executor
-(`tags: [ansible]`). Everything else — `ansible_lint`, `ansible_check`,
-`ansible_apply`, and `terraform_nodes`' `terraform_plan`/`terraform_apply` —
-runs on the `kubernetes_runner`-deployed Kubernetes-executor runner
+(`tags: [ansible]`). Everything else, `ansible_lint`, `ansible_check`,
+`ansible_apply`, and `terraform_nodes`' `terraform_plan`/`terraform_apply`.
+Runs on the `kubernetes_runner`-deployed Kubernetes-executor runner
 (`tags: [k8s]`), in ephemeral job pods rather than a persistent VM.
 
 Required setup in GitLab (**Settings → CI/CD → Variables**):
 
-- `SOPS_AGE_KEY` — type **Variable**, masked, the private half of an age
+- `SOPS_AGE_KEY` - type **Variable**, masked, the private half of an age
   keypair whose public half is a recipient in `private/secrets/.sops.yaml`.
   Do not mark it protected, or MR pipelines will not receive it.
-- `KUBERNETES_RUNNER_SSH_PRIVATE_KEY` — type **Variable**, masked,
+- `KUBERNETES_RUNNER_SSH_PRIVATE_KEY` - type **Variable**, masked,
   base64-encoded. The private half of
   the keypair `pre_tasks.yml` generates on `kube-control` and
-  `base/tasks/users/root.yml` authorizes on every managed host — the identity
+  `base/tasks/users/root.yml` authorizes on every managed host. The identity
   `ansible_check`/`ansible_apply` job pods connect with, since Kubernetes
   executor pods have no persistent identity of their own the way the `runner`
   VM does.
@@ -274,7 +348,7 @@ SOPS-encrypted secrets, VPN configs, SSH keys, certificates, and `.env` files.
 - Verifies private files are linked from the private secrets repository.
 
 The `pre-push` hook is noninteractive and only checks that private files are
-linked correctly — it doesn't need to decrypt anything.
+linked correctly.
 
 If the private secrets repository is not at `../private/secrets`, set:
 
@@ -304,16 +378,16 @@ vagrant destroy
 ## Molecule testing
 
 Molecule wraps the same arch/fedora/ubuntu Packer boxes used above, but adds a
-full test lifecycle per role — `create -> prepare -> converge -> idempotence ->
-verify -> destroy` — so it also catches non-idempotent tasks and asserts
+full test lifecycle per role: `create -> prepare -> converge -> idempotence ->
+verify -> destroy`, so it also catches non-idempotent tasks and asserts
 post-conditions (things `vagrant up` alone never checked). It uses the
 vagrant/libvirt driver (not containers) so systemd/journald/locale/microcode
 tasks run with production fidelity.
 
 Scenarios live under `molecule/`:
 
-- `molecule/base/` — applies the `base` role in isolation.
-- `molecule/workstation/` — applies the full workstation-host stack
+- `molecule/base/` - applies the `base` role in isolation.
+- `molecule/workstation/` - applies the full workstation-host stack
   (`base` + `workstation`), the faithful successor to the old `run_vagrant_*`
   CI jobs.
 
@@ -334,7 +408,7 @@ python3 -m venv .venv-molecule
 ./scripts/molecule.sh test -s base
 ./scripts/molecule.sh test -s workstation
 
-# One distro at a time (what CI does — boots a single VM per run)
+# One distro at a time
 ./scripts/molecule.sh test -s base --platform-name arch-test
 ./scripts/molecule.sh test -s workstation --platform-name ubuntu-test
 

@@ -7,3 +7,5 @@ docker: false
 proxmox: true
 
 node_exporter: true
+
+proxmox_acme_enabled: true

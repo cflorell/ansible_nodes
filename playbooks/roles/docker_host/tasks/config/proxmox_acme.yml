@@ -1,0 +1,112 @@
+---
+# PVE-native ACME: Let's Encrypt cert for pveproxy (:8006) via Porkbun DNS-01.
+#
+# Prerequisites on a new host:
+# - Porkbun plugin present: /usr/share/proxmox-acme/dnsapi/dns_porkbun.sh
+#   (libproxmox-acme-plugins). Reads PORKBUN_API_KEY / PORKBUN_SECRET_API_KEY.
+# - <host>.<porkbun_domain> resolves to the host on the LAN (OPNsense override),
+#   so Terraform/Gatus reach it by FQDN once insecure is dropped.
+
+- name: proxmox-acme | Compute this host's ACME certificate domain (FQDN)
+  ansible.builtin.set_fact:
+    proxmox_acme_fqdn: "{{ proxmox_acme_domain | default(inventory_hostname + '.' + porkbun_domain) }}"
+
+- name: proxmox-acme | List existing ACME accounts
+  ansible.builtin.command: pvenode acme account list
+  register: pve_acme_accounts
+  changed_when: false
+  check_mode: false
+
+- name: proxmox-acme | Register the 'default' ACME account (Let's Encrypt prod)
+  # One-time; the account key is stored under default dir /etc/pve/priv/acme.
+  ansible.builtin.command: >-
+    pvenode acme account register default {{ proxmox_acme_email | quote }}
+    --directory {{ proxmox_acme_directory | default('https://acme-v02.api.letsencrypt.org/directory') }}
+  when: "'default' not in pve_acme_accounts.stdout"
+  register: pve_acme_register
+  changed_when: pve_acme_register.rc == 0
+
+- name: proxmox-acme | Check whether the Porkbun DNS plugin already exists
+  ansible.builtin.command: pvenode acme plugin config porkbun
+  register: pve_acme_porkbun_plugin_check
+  changed_when: false
+  failed_when: false
+  check_mode: false
+
+- name: proxmox-acme | Configure the Porkbun DNS-01 plugin
+  # pvenode's --data expects a FILE PATH containing newline-separated KEY=VALUE
+  # (the acme.sh env vars), not inline data. Write it to a transient 0600 file,
+  # run add/set, then always remove it.
+  block:
+    - name: proxmox-acme | Create a transient file for the Porkbun plugin data
+      ansible.builtin.tempfile:
+        state: file
+        prefix: porkbun-acme-
+      register: pve_porkbun_data_file
+      changed_when: false
+      # Run under --check too: otherwise tempfile returns no `.path` and the
+      # tasks below fail templating `dest`/`argv` in the CI ansible_check job.
+      check_mode: false
+
+    - name: proxmox-acme | Write the Porkbun API credentials to it
+      ansible.builtin.copy:
+        dest: "{{ pve_porkbun_data_file.path }}"
+        content: "PORKBUN_API_KEY={{ porkbun_api_key }}\nPORKBUN_SECRET_API_KEY={{ porkbun_secret_api_key }}\n"
+        mode: "0600"
+      changed_when: false
+      no_log: true  # content is the Porkbun API key/secret
+
+    - name: proxmox-acme | Add or update the Porkbun DNS-01 plugin
+      ansible.builtin.command:
+        argv: >-
+          {{ (['pvenode', 'acme', 'plugin', 'add', 'dns', 'porkbun']
+              if pve_acme_porkbun_plugin_check.rc != 0
+              else ['pvenode', 'acme', 'plugin', 'set', 'porkbun'])
+             + ['--api', 'porkbun', '--data', pve_porkbun_data_file.path] }}
+      register: pve_acme_plugin_set
+      changed_when: pve_acme_porkbun_plugin_check.rc != 0
+  always:
+    - name: proxmox-acme | Remove the transient Porkbun data file
+      ansible.builtin.file:
+        path: "{{ pve_porkbun_data_file.path }}"
+        state: absent
+      changed_when: false
+      # Also run under --check so the file created above is actually removed.
+      check_mode: false
+      when: pve_porkbun_data_file.path is defined
+
+- name: proxmox-acme | Read this node's current cert config
+  ansible.builtin.command: pvenode config get
+  register: pve_node_config
+  changed_when: false
+  failed_when: false
+  check_mode: false
+
+- name: proxmox-acme | Point this node's cert config at the FQDN via the porkbun plugin
+  # Only write acmedomain0 if it isn't already set to this FQDN+plugin.
+  ansible.builtin.command: >-
+    pvenode config set --acmedomain0 domain={{ proxmox_acme_fqdn }},plugin=porkbun
+  register: pve_acme_domain_set
+  changed_when: pve_acme_domain_set.rc == 0
+  when: >-
+    ('domain=' + proxmox_acme_fqdn) not in (pve_node_config.stdout | default(''))
+    or 'plugin=porkbun' not in (pve_node_config.stdout | default(''))
+
+- name: proxmox-acme | Read the currently served pveproxy certificate issuer (if any)
+  ansible.builtin.command: >-
+    openssl x509 -in /etc/pve/local/pveproxy-ssl.pem -noout -issuer
+  register: pve_pveproxy_issuer
+  changed_when: false
+  failed_when: false
+  check_mode: false
+
+- name: proxmox-acme | Order the certificate (first issuance only)
+  # PVE renews automatically thereafter, so we deliberately DON'T re-order every
+  # run (Let's Encrypt rate limits). Ordering is triggered only when pveproxy is
+  # not yet serving a Let's Encrypt cert. Watch the first run's output/journal.
+  ansible.builtin.command: pvenode acme cert order
+  register: pve_acme_order
+  changed_when: pve_acme_order.rc == 0
+  when: >-
+    pve_pveproxy_issuer.rc != 0
+    or "Let's Encrypt" not in pve_pveproxy_issuer.stdout
