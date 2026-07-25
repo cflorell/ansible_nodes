@@ -42,7 +42,7 @@ trufflehog:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
     - if: $CI_COMMIT_BRANCH == "main"
   script:
-    - trufflehog git file://. --fail --json > trufflehog-report.json
+    - trufflehog git file://. --fail --exclude-paths=.trufflehog-exclude-paths.txt --json > trufflehog-report.json
   artifacts:
     when: always
     paths:
