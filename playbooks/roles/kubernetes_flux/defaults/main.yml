@@ -1,0 +1,15 @@
+---
+kubernetes_flux_cli_version: "2.6.4"
+kubernetes_flux_namespace: flux-system
+kubernetes_flux_gitlab_hostname: gitlab.com
+kubernetes_flux_gitlab_owner: cf_homelab
+kubernetes_flux_gitlab_repository: k8s_gitops
+kubernetes_flux_gitlab_branch: main
+kubernetes_flux_path: clusters/homelab
+# A GitLab access token with `api` scope, used ONLY during bootstrap to create
+# the project and its deploy key. Set the real value in secrets.sops.yaml.
+kubernetes_flux_gitlab_token: ""
+# The cluster's age PRIVATE key
+# add its public recipient to private/secrets/.sops.yaml, and set the private
+# half here in secrets.sops.yaml.
+kubernetes_flux_age_key: ""

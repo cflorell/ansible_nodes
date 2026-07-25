@@ -1,0 +1,64 @@
+---
+- name: kubernetes flux | download and install the flux CLI
+  ansible.builtin.unarchive:
+    src: >-
+      https://github.com/fluxcd/flux2/releases/download/v{{ kubernetes_flux_cli_version }}/flux_{{ kubernetes_flux_cli_version }}_linux_amd64.tar.gz
+    dest: /usr/local/bin
+    remote_src: true
+    include:
+      - flux
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: kubernetes flux | assert bootstrap credentials are set
+  ansible.builtin.assert:
+    that:
+      - kubernetes_flux_gitlab_token | length > 0
+      - kubernetes_flux_age_key | length > 0
+    fail_msg: >-
+      Set kubernetes_flux_gitlab_token (GitLab api-scoped token) and
+      kubernetes_flux_age_key (cluster age private key) in secrets.sops.yaml
+      before bootstrapping Flux.
+
+- name: kubernetes flux | bootstrap Flux against the GitOps repository
+  ansible.builtin.command:
+    argv:
+      - flux
+      - bootstrap
+      - gitlab
+      - "--hostname={{ kubernetes_flux_gitlab_hostname }}"
+      - "--owner={{ kubernetes_flux_gitlab_owner }}"
+      - "--repository={{ kubernetes_flux_gitlab_repository }}"
+      - "--branch={{ kubernetes_flux_gitlab_branch }}"
+      - "--path={{ kubernetes_flux_path }}"
+      - "--namespace={{ kubernetes_flux_namespace }}"
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+    GITLAB_TOKEN: "{{ kubernetes_flux_gitlab_token }}"
+  register: kubernetes_flux_bootstrap
+  changed_when: true
+  no_log: true # renders Gitlab token
+
+- name: kubernetes flux | template the SOPS age decryption secret
+  ansible.builtin.template:
+    src: sops-age-secret.yml.j2
+    dest: /etc/kubernetes/flux-sops-age.yml
+    owner: root
+    group: root
+    mode: "0600"
+  no_log: true  # renders the cluster age private key
+
+- name: kubernetes flux | apply the SOPS age decryption secret
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - apply
+      - -f
+      - /etc/kubernetes/flux-sops-age.yml
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+  register: kubernetes_flux_sops_apply
+  changed_when: >
+    'created' in kubernetes_flux_sops_apply.stdout or
+    'configured' in kubernetes_flux_sops_apply.stdout

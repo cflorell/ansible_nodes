@@ -61,6 +61,13 @@
   roles:
     - kubernetes_runner
 
+- name: Bootstrap Flux GitOps controller
+  hosts: kubernetes_control
+  tags: kubernetes, kubernetes-flux
+  become: true
+  roles:
+    - kubernetes_flux
+
 - name: Run node exporter role
   hosts: server
   tags: node-exporter
