@@ -142,8 +142,11 @@ groups:
 
   - name: MiscAlerts
     rules:
+      # proxmox3 is excluded while the host is down and unrecoverable (since
+      # 2026-07-25); it would otherwise re-notify every repeat_interval. Drop
+      # the `hostname!="proxmox3"` matcher once the host is back.
       - alert: NodeUnreachable
-        expr: up{job="node_exporter"} == 0
+        expr: up{job="node_exporter", hostname!="proxmox3"} == 0
         for: 5m
         labels:
           severity: critical
