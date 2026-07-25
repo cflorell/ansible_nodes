@@ -1,2 +1,3 @@
 # False positive: empty placeholders here:
 playbooks/roles/kubernetes_flux/defaults/main\.yml
+playbooks/roles/kubernetes_flux/tasks/main\.yml
