@@ -273,6 +273,50 @@ Work from the repos outward, then clean up on the host:
    the self-signed cert (long validity), and `CertRenewal` simply never fires
    without ACME.
 
+## Authentication / SSO (Authentik)
+
+Authentik on the `authentik` node is the identity provider for WAN-facing
+services. Two integration styles are used, chosen per application:
+
+- **Forward auth** - Caddy asks Authentik whether a request is authenticated
+  before it reaches the upstream. Suits browser-only applications, especially
+  ones with no login of their own.
+- **Native OIDC** - the application authenticates against Authentik itself.
+  Required for anything with native clients, because a mobile app, TV client
+  or share link cannot complete an interactive browser login.
+
+Configuration is split by layer. The deployment (image tag, compose, env vars)
+is Ansible, in `roles/docker_host/{tasks/nodes,templates}/authentik`. The
+objects (groups, providers, applications, policy bindings) are Terraform, in
+`terraform_nodes`' `authentik/` project. Neither manages the other's concerns.
+
+`AUTHENTIK_COOKIE_DOMAIN` is deliberately unset. Scoping the session cookie to
+the apex domain makes Authentik unreachable by LAN IP, because a browser
+discards a domain-scoped cookie when the request host is a bare address, and
+direct IP access is the escape hatch for when Caddy or DNS is broken. Proxy
+providers use forward auth in "single" mode, where each protected host carries
+its own outpost cookie, so no cookie domain is needed.
+
+### Putting a service behind forward auth
+
+1. Add a proxy provider and application in `terraform_nodes`' `authentik/`
+   project, with external host `https://<service>.<porkbun_domain>`, then
+   apply.
+2. Set `forward_auth: true` on the service's `caddy_reverse_proxies` entry in
+   `host_vars/docker`.
+3. Ensure the subdomain is in `porkbun_subdomains` so DDNS creates the record.
+4. Deploy: `ansible-playbook playbooks/playbook.yml --limit docker --tags node-docker`
+
+Each entry renders as a `handle` block scoped to one hostname. Forward-auth
+entries additionally proxy `/outpost.goauthentik.io/*` straight to the outpost,
+which is how the login callback returns. The templating task validates the
+rendered Caddyfile against the running Caddy container before the compose
+deploy recreates anything, so a syntax error stops the play with the sites
+still up.
+
+Never set `forward_auth` on the `auth` host itself: it would place Authentik
+behind itself, and it is the escape hatch when a binding is misconfigured.
+
 ## CI (merge request check, manual apply)
 
 CI runs on two separate runners. Jobs needing nested KVM (`molecule`, and the

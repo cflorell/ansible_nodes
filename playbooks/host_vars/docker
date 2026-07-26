@@ -17,9 +17,23 @@ homelable_web_port: 3003
 homelable_api_url: "http://127.0.0.1:{{ homelable_web_port }}/api/v1"
 
 # Caddy reverse-proxy targets
-# Each entry becomes a matcher + reverse_proxy block under the
-# *.{{ porkbun_domain }} wildcard site in roles/docker_host/templates/docker/caddy/Caddyfile.j2.
-# Real IPs live in secrets.sops.yaml (caddy_upstream_*)
+# Each entry becomes a matcher + handle block under the *.{{ porkbun_domain }}
+# wildcard site in roles/docker_host/templates/docker/caddy/Caddyfile.j2.
+# Real IPs live in secrets.sops.yaml (caddy_upstream_*). Keys:
+#   host                  subdomain under porkbun_domain; also the matcher name
+#   upstream              where Caddy forwards, usually a caddy_upstream_* var
+#   insecure_skip_verify  set true when the upstream serves a self-signed cert
+#   forward_auth          set true to require an Authentik login before the
+#                         request reaches the upstream, via the embedded
+#                         outpost at caddy_upstream_authentik_outpost. Needs a
+#                         matching proxy provider and application in
+#                         terraform_nodes' authentik project, whose external
+#                         host is https://<host>.<porkbun_domain>.
+#
+# Do not set forward_auth on an application with native (non-browser) clients:
+# mobile apps, TV clients and share links cannot complete an interactive login
+# and will break. Those use the application's own OIDC integration instead.
+# Never set it on the auth host itself.
 caddy_reverse_proxies:
   - host: "auth"
     upstream: "{{ caddy_upstream_auth }}"
