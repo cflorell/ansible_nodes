@@ -1,3 +1,10 @@
+{
+    # rate_limit ships in a third-party module, so its place in the middleware
+    # chain is not known to Caddy and has to be stated. Ahead of the auth
+    # directives, so a flood is rejected before any credential is checked.
+    order rate_limit before basicauth
+}
+
 *.{{ porkbun_domain }} {
     tls {
         dns porkbun {
@@ -18,6 +25,20 @@
         forward_auth {{ caddy_upstream_authentik_outpost }} {
             uri /outpost.goauthentik.io/auth/caddy
             copy_headers X-authentik-username X-authentik-groups X-authentik-email X-authentik-name X-authentik-uid X-authentik-jwt X-authentik-meta-jwks X-authentik-meta-outpost X-authentik-meta-provider X-authentik-meta-app X-authentik-meta-version
+        }
+
+{% endif %}
+{% if site.rate_limit is defined %}
+        # Throttles this host's credential-checking endpoints per client
+        # address. Scoped to those paths so ordinary browsing and media
+        # streaming are untouched. Exceeding the limit returns 429.
+        @{{ site.host }}_rl path {{ site.rate_limit.paths | join(' ') }}
+        rate_limit @{{ site.host }}_rl {
+            zone {{ site.host }}_login {
+                key {remote_host}
+                events {{ site.rate_limit.events }}
+                window {{ site.rate_limit.window }}
+            }
         }
 
 {% endif %}

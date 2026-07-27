@@ -23,6 +23,12 @@ homelable_api_url: "http://127.0.0.1:{{ homelable_web_port }}/api/v1"
 #   host                  subdomain under porkbun_domain; also the matcher name
 #   upstream              where Caddy forwards, usually a caddy_upstream_* var
 #   insecure_skip_verify  set true when the upstream serves a self-signed cert
+#   rate_limit            throttle matching paths per client address:
+#                         paths (list of Caddy path matchers), events (max per
+#                         window) and window (duration). Scope it to endpoints
+#                         that check credentials; a whole-site limit interferes
+#                         with browsing and media streaming. Needs the
+#                         caddy-ratelimit module, built in files/docker/caddy.
 #   forward_auth          set true to require an Authentik login before the
 #                         request reaches the upstream, via the embedded
 #                         outpost at caddy_upstream_authentik_outpost. Needs a
@@ -38,12 +44,25 @@ caddy_reverse_proxies:
   - host: "auth"
     upstream: "{{ caddy_upstream_auth }}"
     insecure_skip_verify: true
+  # Home Assistant and Jellyfin both keep their own password login: neither can
+  # sit behind Authentik without breaking its native clients.
   - host: "homeassistant"
     upstream: "{{ caddy_upstream_homeassistant }}"
+    rate_limit:
+      paths:
+        - "/auth/login_flow*"
+        - "/auth/token*"
+      events: 15
+      window: 1m
   - host: "immich"
     upstream: "{{ caddy_upstream_immich }}"
   - host: "jellyfin"
     upstream: "{{ caddy_upstream_jellyfin }}"
+    rate_limit:
+      paths:
+        - "/Users/AuthenticateByName*"
+      events: 10
+      window: 1m
 
 # Legacy DuckDNS hostname, backup-only.
 # Same forward target as the homeassistant entry above, so it reuses that var
