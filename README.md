@@ -317,6 +317,30 @@ still up.
 Never set `forward_auth` on the `auth` host itself: it would place Authentik
 behind itself, and it is the escape hatch when a binding is misconfigured.
 
+### Internal resolution of the auth hostname
+
+`auth.<porkbun_domain>` must resolve to the Caddy host from inside the LAN, via
+an OPNsense Unbound host override, the same mechanism the Proxmox ACME
+hostnames use:
+
+```text
+auth.<porkbun_domain>  ->  <docker host IP>
+```
+
+Point it at the Caddy host, not the Authentik LXC: Caddy terminates TLS with
+the wildcard certificate, while Authentik serves plain HTTP on :9000 and a
+self-signed certificate on :9443.
+
+Without the override the name resolves to the WAN address everywhere, and any
+service that must reach Authentik server-side depends on the router hairpinning
+traffic back in. An OIDC client such as Immich fails its discovery request with
+a bare "fetch failed" when that does not work. Terraform's authentik project and
+the in-cluster CI runner reach Authentik the same way.
+
+Keeping one hostname for both sides matters beyond convenience: an OIDC issuer
+is compared as a string, so an internal client configured with a different URL
+than the browser uses would be rejected even when both reach the same server.
+
 ## CI (merge request check, manual apply)
 
 CI runs on two separate runners. Jobs needing nested KVM (`molecule`, and the

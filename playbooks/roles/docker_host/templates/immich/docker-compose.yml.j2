@@ -7,6 +7,7 @@ services:
     volumes:
       - ${UPLOAD_LOCATION}:/usr/src/app/upload
       - /etc/localtime:/etc/localtime:ro
+      - ./immich-config.json:/config/immich-config.json:ro
     env_file:
       - .env
     ports:
