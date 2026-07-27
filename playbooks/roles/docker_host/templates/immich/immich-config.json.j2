@@ -234,7 +234,7 @@
   "oauth": {
     "allowInsecureRequests": false,
     "autoLaunch": false,
-    "autoRegister": true,
+    "autoRegister": false,
     "buttonText": "Login with Authentik",
     "clientId": {{ immich_oidc_client_id | to_json }},
     "clientSecret": {{ immich_oidc_client_secret | to_json }},
@@ -254,8 +254,15 @@
     "timeout": 30000,
     "tokenEndpointAuthMethod": "client_secret_post"
   },
+{#
+  Authentik is the only interactive way in. To recover from an Authentik outage
+  or a broken policy binding, set this back to true and redeploy:
+    ansible-playbook playbooks/playbook.yml --limit immich,docker --tags node-immich
+  API keys, share links and the CLI do not use this setting and keep working
+  either way.
+#}
   "passwordLogin": {
-    "enabled": true
+    "enabled": false
   },
   "reverseGeocoding": {
     "enabled": true
