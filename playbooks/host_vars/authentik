@@ -10,6 +10,10 @@ services:
   - name: authentik-server
     port: 9000
     check: http
+    # Readiness endpoint rather than the root redirect. Once applications are
+    # behind forward auth, Authentik being unready means they return 502, so
+    # this check is the early warning for all of them.
+    path: /-/health/ready/
     interval: 2m
     canvas:
       icon: brand:authentik
@@ -39,7 +43,7 @@ services:
     canvas:
       icon: brand:postgresql
       notes: >-
-        PostgreSQL 16 — Authentik's database.
+        PostgreSQL 18 — Authentik's database.
 
   - name: redis
     check: none

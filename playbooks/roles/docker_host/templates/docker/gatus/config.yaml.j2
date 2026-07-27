@@ -183,33 +183,33 @@ endpoints:
       - "[CERTIFICATE_EXPIRATION] > {{ gatus_cert_min_expiry | default('336h') }}"
     alerts: *notify-all
 
-  # --- roles/kubernetes_control, roles/kubernetes_worker ---
-  # kubeadm sets up the API server and kubelet with mTLS/token-gated endpoints, so these
-  # are plain TCP-connect checks rather than HTTP health assertions.
-  - name: kube-apiserver
-    group: kubernetes
-    url: "tcp://{{ hostvars[groups['kubernetes_control'][0]].ansible_host }}:6443"
-    interval: 2m
-    conditions: *connected-conditions
-    alerts: *notify-all
-
-  # etcd — a corrupt/unreachable etcd is a much nastier failure mode than a
-  # dead kubelet, and TCP-connect is cheap to add alongside the checks above.
-  - name: etcd
-    group: kubernetes
-    url: "tcp://{{ hostvars[groups['kubernetes_control'][0]].ansible_host }}:2379"
-    interval: 5m
-    conditions: *connected-conditions
-    alerts: *notify-all
-
-{% for host in groups['kubernetes_control'] + groups['kubernetes_workers'] %}
-  - name: "kubelet-{{ host }}"
-    group: kubernetes
-    url: "tcp://{{ hostvars[host].ansible_host }}:10250"
-    interval: 5m
-    conditions: *connected-conditions
-    alerts: *notify-all
-{% endfor %}
+{#  # --- roles/kubernetes_control, roles/kubernetes_worker ---#}
+{#  # kubeadm sets up the API server and kubelet with mTLS/token-gated endpoints, so these#}
+{#  # are plain TCP-connect checks rather than HTTP health assertions.#}
+{#  - name: kube-apiserver#}
+{#    group: kubernetes#}
+{#    url: "tcp://{{ hostvars[groups['kubernetes_control'][0]].ansible_host }}:6443"#}
+{#    interval: 2m#}
+{#    conditions: *connected-conditions#}
+{#    alerts: *notify-all#}
+{##}
+{#  # etcd — a corrupt/unreachable etcd is a much nastier failure mode than a#}
+{#  # dead kubelet, and TCP-connect is cheap to add alongside the checks above.#}
+{#  - name: etcd#}
+{#    group: kubernetes#}
+{#    url: "tcp://{{ hostvars[groups['kubernetes_control'][0]].ansible_host }}:2379"#}
+{#    interval: 5m#}
+{#    conditions: *connected-conditions#}
+{#    alerts: *notify-all#}
+{##}
+{#{% for host in groups['kubernetes_control'] + groups['kubernetes_workers'] %}#}
+{#  - name: "kubelet-{{ host }}"#}
+{#    group: kubernetes#}
+{#    url: "tcp://{{ hostvars[host].ansible_host }}:10250"#}
+{#    interval: 5m#}
+{#    conditions: *connected-conditions#}
+{#    alerts: *notify-all#}
+{#{% endfor %}#}
 
   # --- roles/runner ---
   # GitLab Runner (shell executor) only polls gitlab.com outbound; it has no inbound

@@ -24,6 +24,17 @@
     group: "{{ ansible_facts['user_id'] }}"
     mode: "0600"
 
+# Mounted read-only at the path IMMICH_CONFIG_FILE points to in env.j2. It holds
+# the whole system configuration, not just the OIDC section, because Immich
+# treats the file as complete and defaults anything it omits.
+- name: docker_host | node-immich | move immich-config.json to host
+  ansible.builtin.template:
+    src: "immich/immich-config.json.j2"
+    dest: "/{{ ansible_facts['user_id'] }}/immich-config.json"
+    owner: "{{ ansible_facts['user_id'] }}"
+    group: "{{ ansible_facts['user_id'] }}"
+    mode: "0600"
+
 
 - name: docker_host | node-immich | deploy Docker Compose stack
   community.docker.docker_compose_v2:

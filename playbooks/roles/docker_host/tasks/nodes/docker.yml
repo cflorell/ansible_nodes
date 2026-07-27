@@ -57,6 +57,22 @@
     group: "{{ ansible_facts['user_id'] }}"
     mode: "0600"
 
+- name: docker_host | node-docker | Check whether caddy is running
+  ansible.builtin.command:
+    cmd: docker compose ps --status running --quiet caddy
+    chdir: "/{{ ansible_facts['user_id'] }}/"
+  register: caddy_running
+  changed_when: false
+  failed_when: false
+
+- name: docker_host | node-docker | Validate caddy/Caddyfile
+  ansible.builtin.command:
+    cmd: docker compose exec -T caddy caddy validate --adapter caddyfile --config /etc/caddy/Caddyfile
+    chdir: "/{{ ansible_facts['user_id'] }}/"
+  register: caddy_validate
+  changed_when: false
+  when: caddy_running.stdout | trim | length > 0
+
 - name: docker_host | node-docker | Move homepage config files
   ansible.builtin.template:
     src: "{{ item }}"
