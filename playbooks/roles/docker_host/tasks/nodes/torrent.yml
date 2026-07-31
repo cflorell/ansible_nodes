@@ -56,3 +56,13 @@
     remove_orphans: true
     files:
       - docker-compose.yml
+
+- name: docker_host | node-torrent | force-recreate qbittorrentvpn and torrent-natpmp-keeper
+  community.docker.docker_compose_v2:
+    project_src: "/{{ ansible_facts['user_id'] }}/"
+    files:
+      - docker-compose.yml
+    services:
+      - qbittorrentvpn
+      - torrent-natpmp-keeper
+    recreate: always
