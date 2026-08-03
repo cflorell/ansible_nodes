@@ -1,0 +1,84 @@
+---
+- name: llama_cpp | Verify the requested backend is known
+  ansible.builtin.assert:
+    that: llama_backend in llama_backend_devices
+    fail_msg: >-
+      llama_backend must be one of {{ llama_backend_devices.keys() | list | join(', ') }},
+      got '{{ llama_backend }}'.
+
+- name: llama_cpp | Check that podman is installed
+  ansible.builtin.command: podman --version
+  register: llama_podman_version
+  changed_when: false
+  failed_when: llama_podman_version.rc != 0
+
+- name: llama_cpp | Check that the GPU device nodes exist
+  ansible.builtin.stat:
+    path: "{{ item }}"
+  register: llama_device_stat
+  failed_when: not llama_device_stat.stat.exists
+  loop: "{{ llama_devices }}"
+
+- name: llama_cpp | Create the model cache directory
+  ansible.builtin.file:
+    path: "{{ llama_cache_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: llama_cpp | Install the llama-server Quadlet unit
+  ansible.builtin.template:
+    src: llama-server.container.j2
+    dest: "{{ llama_quadlet_dir }}/{{ llama_service_name }}.container"
+    owner: root
+    group: root
+    mode: "0644"
+  register: llama_quadlet
+
+# Quadlet units only exist after a daemon-reload regenerates them, so the
+# reload cannot be deferred to a handler: the service has no name to address
+# until it has happened. The unit is started but never enabled, since the
+# [Install] section in the .container file is what brings it up at boot.
+- name: llama_cpp | Run the llama-server service
+  ansible.builtin.systemd_service:
+    name: "{{ llama_service_name }}.service"
+    daemon_reload: true
+    state: "{{ 'restarted' if llama_quadlet is changed else 'started' }}"
+
+- name: llama_cpp | Collect service facts
+  ansible.builtin.service_facts:
+  when: llama_open_firewall
+
+- name: llama_cpp | Open the inference port in firewalld
+  ansible.posix.firewalld:
+    port: "{{ llama_port }}/tcp"
+    permanent: true
+    immediate: true
+    state: enabled
+  when:
+    - llama_open_firewall
+    - ansible_facts['services']['firewalld.service'] is defined
+    - ansible_facts['services']['firewalld.service'].state == 'running'
+
+# Checked over the loopback rather than the published address, so this reports
+# on the server itself and not on whether the firewall rule above worked.
+- name: llama_cpp | Wait for the inference API to answer
+  ansible.builtin.uri:
+    url: "http://127.0.0.1:{{ llama_port }}/v1/models"
+    status_code: 200
+  register: llama_ready
+  until: llama_ready is succeeded
+  retries: "{{ llama_ready_retries }}"
+  delay: "{{ llama_ready_delay }}"
+  changed_when: false
+  when: llama_wait_for_ready
+
+- name: llama_cpp | Report the served model
+  ansible.builtin.debug:
+    msg: >-
+      llama-server is answering on port {{ llama_port }}, serving:
+      {{ llama_ready.json.data | map(attribute='id') | join(', ') }}
+  when:
+    - llama_wait_for_ready
+    - llama_ready.json is defined

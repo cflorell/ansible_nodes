@@ -1,0 +1,27 @@
+---
+# The only host here that escalates over SSH (the rest connect as root), and
+# without pipelining every become times out waiting for a sudo prompt that
+# never reaches Ansible. Pipelining passes the module and the become password
+# over the open stdin stream instead of a separate PTY-backed call, which
+# avoids the prompt handshake entirely. Safe because no host sets requiretty.
+ansible_pipelining: true
+
+llama_server: true
+llama_backend: vulkan
+
+# Agent use needs far more context than chat does: Hermes' system prompt
+# carries every tool and skill definition before a single user token, and at
+# the role default of 16384 it overflows on an empty message.
+#
+# 16 GB of VRAM cannot hold 32k of f16 KV cache on top of ~9 GB of weights
+# (160 KB per token, so ~5.2 GB), hence the quantised cache below, which
+# halves that to ~2.6 GB and leaves the total near 12.6 GB. Quantised KV
+# requires flash attention, which recent Vulkan builds provide and llama.cpp
+# enables automatically. 64k, the figure Hermes' docs suggest for agents, does
+# not fit this card alongside these weights.
+llama_context_size: 32768
+llama_extra_args:
+  - "--cache-type-k"
+  - "q8_0"
+  - "--cache-type-v"
+  - "q8_0"

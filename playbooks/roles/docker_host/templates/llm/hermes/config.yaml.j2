@@ -1,0 +1,28 @@
+# {{ ansible_managed }}
+# Hermes reads this from $HERMES_HOME/config.yaml, which the image fixes at
+# /opt/data (see docker-compose.yml.j2, which mounts this directory there).
+#
+# _config_version must be present. Without it Hermes treats the file as
+# predating schema version 12, refuses to auto-migrate it, and falls back to
+# defaults, which leaves the model settings below with no effect.
+#
+# provider: custom is a first-class provider, not an alias, and is what points
+# Hermes at a self-hosted OpenAI-compatible server rather than a cloud API.
+# The same llama.cpp instance on christoffer-desktop backs Open WebUI, so both
+# front ends share one loaded model and one GPU.
+#
+# `default` must match the id llama-server reports at /v1/models. Hermes
+# auto-detects it when the server has exactly one model loaded, which is the
+# case here, so a mismatch degrades to auto-detection rather than failing.
+_config_version: 12
+
+model:
+  default: {{ hermes_model }}
+  provider: custom
+  base_url: {{ llm_openai_api_base_url }}
+  api_key: "{{ llm_openai_api_key }}"
+  # Declared because Hermes falls back to a large default for custom providers
+  # rather than reading the real window from the server. It must match
+  # llama_context_size on the desktop, or Hermes budgets for a context the
+  # model does not have.
+  context_length: {{ hermes_context_length }}

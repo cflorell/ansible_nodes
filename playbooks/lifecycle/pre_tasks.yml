@@ -1,4 +1,10 @@
 ---
+# This play runs for every host, the `atomic` group included, because the
+# explicit setup below is the only fact gathering independent of --tags: the
+# later plays gather implicitly, which inherits those plays' own tags and is
+# therefore skipped on a narrowly tagged run, while tasks tagged `always`
+# (roles/base's include_vars, for one) still execute and need facts. Only the
+# package-manager task is skipped for image-based hosts.
 - name: Pre tasks
   hosts: all
   tags: always
@@ -30,6 +36,9 @@
       ansible.builtin.package:
         update_cache: true
       become: true
+      # An image-based (ostree) host has no package cache to refresh: Ansible
+      # reports pkg_mgr: atomic_container there and this fails outright.
+      when: "'atomic' not in group_names"
       # A pure cache refresh (no name/upgrade) reports changed based on
       # whether the mirror's metadata moved since last sync — not a
       # meaningful state change for any backend, so never counts as changed.

@@ -1,0 +1,110 @@
+services:
+  promtail:
+    image: grafana/promtail:3.6.11
+    container_name: promtail
+    user: root
+    volumes:
+      - /var/log:/var/log
+      - ./promtail:/etc/promtail
+    restart: unless-stopped
+    command: -config.file=/etc/promtail/promtail-config.yml
+
+  open-webui:
+    image: ghcr.io/open-webui/open-webui:0.11.0
+    container_name: open-webui
+    restart: unless-stopped
+    depends_on:
+      - searxng
+    ports:
+      - "{{ open_webui_port }}:8080"
+    volumes:
+      - ./open-webui:/app/backend/data
+    environment:
+      # Two OpenAI-compatible upstreams, semicolon separated and index-matched
+      # with the keys below: llama.cpp on christoffer-desktop for plain chat,
+      # and Hermes next door for agentic work. Ollama is unused here, so its
+      # API is switched off to keep Open WebUI from probing a dead port.
+      - OPENAI_API_BASE_URLS={{ llm_openai_api_base_url }};http://hermes:8642/v1
+      - OPENAI_API_KEYS={{ llm_openai_api_key }};{{ hermes_api_server_key }}
+      - ENABLE_OLLAMA_API=false
+      - WEBUI_URL=http://{{ ansible_host }}:{{ open_webui_port }}
+      - WEBUI_SECRET_KEY={{ openwebui_secret_key }}
+      # Web search through the SearXNG next to it, over the compose network.
+      # These are PersistentConfig settings: Open WebUI copies them into its
+      # database on first start, after which the admin UI is authoritative and
+      # changing them here has no effect.
+      - ENABLE_WEB_SEARCH=true
+      - WEB_SEARCH_ENGINE=searxng
+      - SEARXNG_QUERY_URL=http://searxng:8080/search?q=<query>
+      - WEB_SEARCH_RESULT_COUNT=5
+      - WEB_SEARCH_CONCURRENT_REQUESTS=10
+
+  hermes:
+    image: docker.io/nousresearch/hermes-agent:v2026.7.30
+    container_name: hermes
+    restart: unless-stopped
+    # Without this the image starts its interactive TUI, which finds stdin is
+    # not a terminal, exits 0 and leaves the container restarting forever.
+    command: gateway run
+    ports:
+      - "{{ hermes_port }}:8642"
+      - "{{ hermes_dashboard_port }}:9119"
+    volumes:
+      # The image sets HERMES_HOME=/opt/data and declares it as its volume;
+      # config.yaml, memory, skills and the database all live there.
+      - ./hermes:/opt/data
+    environment:
+      # OpenAI-compatible API server, the interface Open WebUI talks to.
+      # API_SERVER_HOST is required: without it the server binds loopback
+      # inside the container and the published port reaches nothing.
+      - API_SERVER_ENABLED=true
+      - API_SERVER_HOST=0.0.0.0
+      - API_SERVER_KEY={{ hermes_api_server_key }}
+      # Built-in web dashboard, a supervised s6 service in the same container.
+      # It refuses to bind anything but loopback until an auth provider is
+      # registered, so the credentials below are what make it reachable on the
+      # LAN at all. The secret keeps sessions valid across restarts.
+      - HERMES_DASHBOARD=1
+      - HERMES_DASHBOARD_BASIC_AUTH_USERNAME={{ hermes_dashboard_username }}
+      - HERMES_DASHBOARD_BASIC_AUTH_PASSWORD={{ hermes_dashboard_password }}
+      - HERMES_DASHBOARD_BASIC_AUTH_SECRET={{ hermes_dashboard_secret }}
+      # Hermes is an agent with a shell tool. Commands run inside this
+      # container, which is given no docker socket and no host bind mounts
+      # beyond its own data directory, so the container is itself the sandbox.
+      # The alternative backend (TERMINAL_ENV=docker) would spawn throwaway
+      # containers, but only by mounting the host docker socket, which is
+      # root-equivalent on this LXC and a wider grant than it removes.
+      - TERMINAL_ENV=local
+      - TERMINAL_CWD=/opt/data/workspace
+      - TERMINAL_TIMEOUT=60
+      - TERMINAL_LIFETIME_SECONDS=300
+      # No SUDO_PASSWORD is set, so the shell tool cannot escalate inside the
+      # container either.
+      - GATEWAY_ALLOW_ALL_USERS=false
+      - CONTEXT_COMPRESSION_ENABLED=true
+
+  searxng:
+    image: docker.io/searxng/searxng:2026.8.1-8892414dc
+    container_name: searxng
+    restart: unless-stopped
+    ports:
+      - "{{ searxng_port }}:8080"
+    volumes:
+      - ./searxng:/etc/searxng
+    environment:
+      - SEARXNG_BASE_URL={{ searxng_base_url }}
+    # Upstream's recommended capability set: SearXNG only needs to drop to its
+    # own unprivileged user, nothing else.
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - SETGID
+      - SETUID
+    logging:
+      driver: "json-file"
+      options:
+        max-file: "1"
+        max-size: "1m"
+
+{% include "common/docker-socket-proxy.yml.j2" %}

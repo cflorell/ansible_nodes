@@ -1,0 +1,36 @@
+# {{ ansible_managed }}
+# Podman Quadlet: systemd generates llama-server.service from this file on
+# `systemctl daemon-reload`. Podman is used rather than Docker because it ships
+# with the host image; nothing has to be layered on to run this.
+[Unit]
+Description=llama.cpp inference server ({{ llama_backend }})
+After=network-online.target
+Wants=network-online.target
+
+[Container]
+ContainerName={{ llama_service_name }}
+Image={{ llama_image }}
+PublishPort={{ llama_listen_address }}:{{ llama_port }}:8080
+Volume={{ llama_cache_dir }}:/root/.cache/llama.cpp
+Environment=LLAMA_CACHE=/root/.cache/llama.cpp
+{% if llama_backend == "rocm" and llama_rocm_gfx_override %}
+Environment=HSA_OVERRIDE_GFX_VERSION={{ llama_rocm_gfx_override }}
+{% endif %}
+{% for device in llama_devices -%}
+AddDevice={{ device }}
+{% endfor -%}
+# The GPU device nodes carry host labels, not container ones, so an enforcing
+# SELinux denies the container access to them until labelling is switched off
+# for this container.
+SecurityLabelDisable=true
+Exec=--host 0.0.0.0 --port 8080 -hf {{ llama_model }} --n-gpu-layers {{ llama_gpu_layers }} --ctx-size {{ llama_context_size }} --jinja{% for arg in llama_extra_args %} {{ arg }}{% endfor %}
+
+[Service]
+# The first start pulls the image and downloads several gigabytes of weights,
+# which overruns systemd's default 90-second start timeout.
+TimeoutStartSec=1800
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target

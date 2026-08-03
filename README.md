@@ -26,6 +26,16 @@ The main playbook configures three broad host types:
 - `workstation`: desktop or laptop machines.
 - `all`: common base system configuration shared across hosts.
 
+One cross-cutting group also exists: `atomic`, for image-based (ostree) systems
+such as Bazzite. Its members belong to their normal group as well, and are
+listed there only so the lifecycle plays in `playbooks/lifecycle/` can skip
+what drives a classic package manager, which these hosts do not have.
+`post_tasks.yml` drops them at the play level (`hosts: all:!atomic`);
+`pre_tasks.yml` keeps them and guards its single package task with
+`when: "'atomic' not in group_names"`, because its explicit `setup` is the only
+fact gathering in the run that does not depend on `--tags`. Dropping a host
+from that play leaves it without facts for every later `always`-tagged task.
+
 `ansible.cfg` uses `inventory/hosts` as the default inventory file. The real
 `inventory/hosts` file is private and ignored by Git.
 
@@ -129,7 +139,92 @@ ansible-playbook playbooks/playbook.yml --limit proxmox1 --tags server-proxmox1
 ansible-playbook playbooks/playbook.yml --limit runner --tags runner
 ansible-playbook playbooks/playbook.yml --limit kubernetes --tags kubernetes
 ansible-playbook playbooks/playbook.yml --limit vivobook --tags workstation
+ansible-playbook playbooks/playbook.yml --limit christoffer-desktop --tags llama-cpp --ask-become-pass
 ```
+
+The workstation hosts connect as `christoffer` rather than `root` and their
+sudoers entry requires a password (`files/users/sudoers_christoffer`), so any
+run that escalates on them needs `--ask-become-pass` (`-K`). Runs limited to
+the `server`, `nodes` or `kubernetes` groups connect as root and do not.
+
+`christoffer-desktop` is the only host that escalates over SSH, and it also
+sets `ansible_pipelining: true` in its host_vars. Without it every `become`
+there fails with `Timeout waiting for privilege escalation prompt`: sudo works
+fine on the host, but the prompt from the PTY-backed call Ansible makes never
+reaches it. Pipelining sends the module and the become password over the open
+stdin stream instead, skipping the prompt handshake. It is scoped to that host
+rather than set in `ansible.cfg` so the connection behaviour of every other
+host stays unchanged; promoting it globally is a safe speedup if wanted, since
+no managed host sets `requiretty`.
+
+### Local inference (llm node + llama_cpp role)
+
+Local LLM serving is split across two machines, because the only GPU worth
+running a model on sits in a desktop rather than in a hypervisor:
+
+- The `llm` LXC on proxmox1 runs the front ends: Open WebUI for chat, SearXNG
+  as its web-search backend, and Hermes Agent as an agent runtime, deployed
+  like every other node through `docker_host` (`--tags node-llm`).
+- `christoffer-desktop` runs llama.cpp itself, deployed by the `llama_cpp`
+  role (`--tags llama-cpp`). It is an image-based Fedora system (Bazzite), so
+  the server runs as a podman Quadlet container in
+  `/etc/containers/systemd/llama-server.container` rather than as a layered
+  package, and uses the Vulkan build of llama.cpp, which needs only the Mesa
+  driver already present in the image. Setting `llama_backend: rocm` in
+  `playbooks/host_vars/christoffer-desktop` switches to the ROCm build of the
+  same release and adds `/dev/kfd`.
+
+The model is declared as `llama_model` (llama-server's `-hf` form) and is
+downloaded on first start into `/var/lib/llama.cpp`, so restarts do not
+re-fetch it. `llama_context_size` is the knob to watch: on a 16 GB card the
+weights and the KV cache have to share the VRAM, and a context too large for
+both silently pushes layers back onto the CPU.
+
+Agent use raises that floor sharply. Hermes puts every tool and skill
+definition in its system prompt, which overflows a 16k window before the user
+types anything, so `christoffer-desktop` runs 32k with a q8_0 KV cache
+(`llama_extra_args`) to halve the cache cost. `hermes_context_length` in
+`host_vars/llm` must be kept equal to `llama_context_size`, since Hermes
+assumes a large default for custom providers instead of reading the server's
+real window.
+
+Open WebUI treats the desktop as an optional upstream. When it is powered off,
+Open WebUI simply lists no models instead of failing.
+
+Hermes Agent runs as `command: gateway run`. The image's default entrypoint is
+its interactive TUI, which exits cleanly the moment it finds stdin is not a
+terminal, so without the override the container restarts forever while logging
+a successful startup.
+
+It then serves two ports from one container: the OpenAI-compatible API on 8642,
+which needs `API_SERVER_ENABLED`, `API_SERVER_KEY` and
+`API_SERVER_HOST=0.0.0.0` (without the last it binds loopback inside the
+container and the published port reaches nothing), and its web dashboard on
+9119, which starts on `HERMES_DASHBOARD=1`. The dashboard refuses any
+non-loopback bind until an auth provider is registered, so the
+`HERMES_DASHBOARD_BASIC_AUTH_*` credentials are what make it reachable on the
+LAN rather than an optional hardening step. The image fixes its data directory
+at `/opt/data` via `HERMES_HOME`, so config, memory, skills and the database
+are persisted by mounting there rather than at a home directory path.
+
+Hermes Agent shares that one llama.cpp instance rather than loading a model of
+its own: `templates/llm/hermes/config.yaml.j2` sets `provider: custom` with the
+same base URL, and Open WebUI lists both as OpenAI connections
+(`OPENAI_API_BASE_URLS`, semicolon separated and index-matched with
+`OPENAI_API_KEYS`). Those are PersistentConfig settings, so an Open WebUI whose
+database already exists keeps its stored connections and needs the second one
+added through the admin UI instead.
+
+Hermes ships a shell tool. It runs with `TERMINAL_ENV=local`, which confines
+commands to the Hermes container: no host docker socket, no host bind mounts
+beyond its own data directory, and no `SUDO_PASSWORD`. The upstream alternative
+(`TERMINAL_ENV=docker`) isolates each command in a throwaway container but
+requires mounting the host docker socket, which is root-equivalent on the LXC
+and grants more than it contains.
+
+The `llama_cpp` role is a separate play rather than part of the `workstation`
+role so that it can run on its own, without triggering the package installs
+that role performs.
 
 ### Service registry and monitoring sync
 

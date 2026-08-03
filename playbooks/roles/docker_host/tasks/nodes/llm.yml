@@ -1,0 +1,57 @@
+---
+- name: docker_host | node-llm | Create service directories
+  ansible.builtin.file:
+    path: "/{{ ansible_facts['user_id'] }}/{{ item }}"
+    state: directory
+    mode: "0755"
+  loop:
+    - hermes
+    - open-webui
+    - promtail
+    - searxng
+
+- name: docker_host | node-llm | Move promtail-config.yml
+  ansible.builtin.template:
+    src: common/promtail-config.yml.j2
+    dest: "/{{ ansible_facts['user_id'] }}/promtail/promtail-config.yml"
+    owner: "{{ ansible_facts['user_id'] }}"
+    group: "{{ ansible_facts['user_id'] }}"
+    mode: "0600"
+
+# SearXNG runs as its own unprivileged user inside the container, so this file
+# has to stay readable there. It sits under root's home directory, which is not
+# world-readable, so the secret key in it is not exposed on the host.
+- name: docker_host | node-llm | move SearXNG settings.yml to host
+  ansible.builtin.template:
+    src: "llm/searxng/settings.yml.j2"
+    dest: "/{{ ansible_facts['user_id'] }}/searxng/settings.yml"
+    owner: "{{ ansible_facts['user_id'] }}"
+    group: "{{ ansible_facts['user_id'] }}"
+    mode: "0644"
+
+# Hermes rewrites this file itself when reconfigured from its CLI, so Ansible
+# owning it means a `hermes config set` is reverted on the next run. That is
+# the intended direction: the repo stays the source of truth.
+- name: docker_host | node-llm | move Hermes config.yaml to host
+  ansible.builtin.template:
+    src: "llm/hermes/config.yaml.j2"
+    dest: "/{{ ansible_facts['user_id'] }}/hermes/config.yaml"
+    owner: "{{ ansible_facts['user_id'] }}"
+    group: "{{ ansible_facts['user_id'] }}"
+    mode: "0600"
+
+- name: docker_host | node-llm | move docker-compose.yml file to host
+  ansible.builtin.template:
+    src: "llm/docker-compose.yml.j2"
+    dest: "/{{ ansible_facts['user_id'] }}/docker-compose.yml"
+    owner: "{{ ansible_facts['user_id'] }}"
+    group: "{{ ansible_facts['user_id'] }}"
+    mode: "0600"
+
+- name: docker_host | node-llm | deploy Docker Compose stack
+  community.docker.docker_compose_v2:
+    project_src: "/{{ ansible_facts['user_id'] }}/"
+    remove_orphans: true
+    files:
+      - docker-compose.yml
+    recreate: always
