@@ -1,0 +1,28 @@
+# {{ ansible_managed }}
+# Overrides layered on top of the image's own settings.yml.
+use_default_settings: true
+
+general:
+  instance_name: "Homelab SearXNG"
+  # No public instance, so there is nobody to file a bug report.
+  enable_metrics: false
+
+server:
+  secret_key: "{{ searxng_secret_key }}"
+  base_url: "{{ searxng_base_url }}"
+  # The limiter blocks non-browser clients, which is exactly what Open WebUI
+  # is. This instance is LAN-only, so bot protection buys nothing.
+  limiter: false
+  public_instance: false
+  image_proxy: true
+
+search:
+  # Open WebUI queries the JSON API; the default settings only enable html.
+  formats:
+    - html
+    - json
+  safe_search: 0
+  autocomplete: "duckduckgo"
+
+ui:
+  query_in_title: true

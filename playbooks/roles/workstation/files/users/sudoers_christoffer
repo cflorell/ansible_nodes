@@ -1,1 +1,1 @@
-"{{ christoffer }}" ALL=(ALL) PASSWD: ALL
+christoffer ALL=(ALL) PASSWD: ALL

@@ -1,6 +1,10 @@
 ---
+# Skips the `atomic` group: an image-based host has no apt cache to clean and
+# no orphan packages to remove. Excluded at the play level rather than per task
+# (the way pre_tasks.yml does it) because nothing here is needed elsewhere,
+# unlike that play's fact gathering.
 - name: end of run cleanup
-  hosts: all
+  hosts: all:!atomic
   become: true
   tasks:
     - name: cleanup package cache (debian and ubuntu)

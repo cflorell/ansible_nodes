@@ -47,6 +47,11 @@
     owner: root
     group: root
     mode: "0440"
+    # sudo refuses to run at all while any file under /etc/sudoers.d fails to
+    # parse, which locks every user out of privilege escalation on the host
+    # (Ansible's own become included). Validating before the file is put in
+    # place turns that into a failed task instead.
+    validate: /usr/sbin/visudo -csf %s
 
 - name: users | christoffer | create .ssh directory
   ansible.builtin.file:

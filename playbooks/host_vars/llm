@@ -1,0 +1,108 @@
+---
+nfs_client: false
+nfs_server: false
+
+docker: true
+
+# Where Open WebUI sends chat completions: llama.cpp's OpenAI-compatible API on
+# christoffer-desktop, deployed by roles/llama_cpp. That desktop is not a
+# server and is often powered off; Open WebUI then simply lists no models
+# instead of failing to start, so it is deliberately not a hard dependency.
+llm_inference_host: "{{ hostvars['christoffer-desktop'].ansible_host }}"
+llm_inference_port: 8080
+llm_openai_api_base_url: "http://{{ llm_inference_host }}:{{ llm_inference_port }}/v1"
+
+# llama-server accepts any bearer token unless started with --api-key, but Open
+# WebUI refuses to configure an OpenAI connection without one.
+llm_openai_api_key: "llama-cpp"
+
+open_webui_port: 8080
+searxng_port: 8088
+hermes_port: 8642
+hermes_dashboard_port: 9119
+hermes_dashboard_username: christoffer
+
+# Model id Hermes requests from llama.cpp. It must match what llama-server
+# reports at /v1/models (curl http://<desktop>:8080/v1/models). Hermes
+# auto-detects when the server has exactly one model loaded, which it does.
+hermes_model: "qwen3-14b"
+
+# Must track llama_context_size in host_vars/christoffer-desktop. Hermes
+# assumes a large default for custom providers, then discovers mid-request
+# that the server has less, which surfaces as "context length exceeded" with
+# an absurd remainder rather than a clear error.
+hermes_context_length: 32768
+
+# SearXNG builds absolute URLs (opensearch, images, result links) from this.
+searxng_base_url: "http://{{ ansible_host }}:{{ searxng_port }}/"
+
+# Service registry — consumed by the gatus/homepage/homelable-canvas templates
+# on the docker host. Schema documented in host_vars/docker.
+services:
+  - name: open-webui
+    port: "{{ open_webui_port }}"
+    check: http
+    canvas:
+      icon: brand:open-webui
+      notes: >-
+        Open WebUI chat front end. Talks to llama.cpp on christoffer-desktop
+        over the LAN and uses the SearXNG next to it for web search.
+    homepage:
+      name: Open WebUI
+      group: Tools
+      icon: open-webui.png
+      description: LLM chat
+      weight: 20
+      extra:
+        proxmoxNode: proxmox
+        proxmoxVMID: 109
+        proxmoxType: lxc
+
+  - name: searxng
+    port: "{{ searxng_port }}"
+    check: http
+    canvas:
+      icon: brand:searxng
+      notes: >-
+        SearXNG metasearch engine. Serves the JSON format so Open WebUI can
+        use it as a web-search backend; also usable directly as a search page.
+    homepage:
+      name: SearXNG
+      group: Tools
+      icon: searxng.png
+      description: Metasearch
+      weight: 30
+
+  # Every endpoint Hermes exposes requires the API server key, so an HTTP check
+  # would assert on a 401. A TCP connect proves the listener is up without
+  # putting the key in the monitoring config.
+  # The check targets the API server on 8642, since that is what Open WebUI
+  # depends on. Every endpoint there requires the API key, so an HTTP check
+  # would assert on a 401 and a TCP connect is used instead. The tile points
+  # at the dashboard on 9119 (same container) via an href override, because
+  # 8642 serves no browsable page.
+  - name: hermes
+    port: "{{ hermes_port }}"
+    check: tcp
+    canvas:
+      icon: robot
+      notes: >-
+        Hermes Agent. Wraps the same llama.cpp model in an agent runtime with
+        memory, skills and a sandboxed shell. Serves an OpenAI-compatible API
+        on 8642 for Open WebUI and its own dashboard on 9119.
+    homepage:
+      name: Hermes
+      group: Tools
+      icon: si-robotframework
+      description: Agent runtime
+      weight: 25
+      extra:
+        href: "http://{{ ansible_host }}:{{ hermes_dashboard_port }}/"
+
+  - name: promtail
+    check: none
+    canvas:
+      label: promtail (llm)
+      icon: upload
+      notes: >-
+        Ships this host's container logs to Loki.

@@ -43,6 +43,7 @@
 {% set immich_host = hostvars.get('immich', {}).get('ansible_host', 'immich') %}
 {% set media_host = hostvars.get('media', {}).get('ansible_host', 'media') %}
 {% set media2_host = hostvars.get('media2', {}).get('ansible_host', 'media2') %}
+{% set llm_host = hostvars.get('llm', {}).get('ansible_host', 'llm') %}
 {% set prometheus_grafana_host = hostvars.get('prometheus-grafana', {}).get('ansible_host', 'prometheus-grafana') %}
 {% set proxmox1_host = hostvars.get('proxmox1', {}).get('ansible_host', 'proxmox1') %}
 {% set proxmox2_host = hostvars.get('proxmox2', {}).get('ansible_host', 'proxmox2') %}
@@ -146,6 +147,8 @@
     - label: torrent
       linkType: virtual
     - label: media2
+      linkType: virtual
+    - label: llm
       linkType: virtual
     - label: runner
       linkType: virtual
@@ -282,6 +285,21 @@
   links:
 {{ service_links('media2') }}
 {{ container_nodes('media2') }}
+
+- nodeType: lxc
+  label: llm
+  nodeIcon: brand:open-webui
+  ipAddress: "{{ llm_host }}"
+  checkMethod: http
+  checkTarget: "http://{{ llm_host }}:8080"
+  cpuCore: 4
+  ram: 4
+  disk: 32
+  notes: >-
+    LXC 109 on proxmox1. LLM frontend.
+  links:
+{{ service_links('llm') }}
+{{ container_nodes('llm') }}
 
 - nodeType: vm
   label: runner

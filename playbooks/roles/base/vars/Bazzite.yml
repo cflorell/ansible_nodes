@@ -1,0 +1,6 @@
+# Bazzite is a Fedora Atomic image and reports its own distribution name, so it
+# needs a vars file of its own even though the rpm package names match Fedora.
+clock_package: chrony
+cron_package: cronie
+fd_package: fd-find
+nfs_package: nfs-utils

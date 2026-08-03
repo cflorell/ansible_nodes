@@ -66,6 +66,11 @@
       ansible.builtin.import_tasks: nodes/media2.yml
       when: inventory_hostname == "media2"
 
+    - name: Node llm
+      tags: node-llm
+      ansible.builtin.import_tasks: nodes/llm.yml
+      when: inventory_hostname == "llm"
+
     - name: Node torrent
       tags: node-torrent
       ansible.builtin.import_tasks: nodes/torrent.yml

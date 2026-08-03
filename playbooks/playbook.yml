@@ -25,6 +25,14 @@
   roles:
     - workstation
 
+- name: Run llama.cpp inference server tasks
+  hosts: workstation
+  tags: llama-cpp
+  become: true
+  roles:
+    - role: llama_cpp
+      when: llama_server is defined and llama_server
+
 - name: Run runner tasks
   hosts: runner
   tags: runner

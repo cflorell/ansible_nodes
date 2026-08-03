@@ -1,6 +1,11 @@
 [workstation]
 workstation-test ansible_connection=local ansible_user=runner
 
+# Image-based (ostree) systems such as Fedora Silverblue or Bazzite. Excluded
+# from the pre/post lifecycle plays, which drive a classic package manager
+# these hosts do not have. Members are also listed in their normal group above.
+[atomic]
+
 [server]
 proxmox1 ansible_host=192.0.2.10 ansible_user=root ansible_port=22
 proxmox2 ansible_host=192.0.2.11 ansible_user=root ansible_port=22
@@ -15,6 +20,7 @@ media ansible_host=192.0.2.24 ansible_user=root ansible_port=22
 torrent ansible_host=192.0.2.26 ansible_user=root ansible_port=22
 media2 ansible_host=192.0.2.27 ansible_user=root ansible_port=22
 runner ansible_host=192.0.2.28 ansible_user=root ansible_port=22
+llm ansible_host=192.0.2.29 ansible_user=root ansible_port=22
 
 [kubernetes:children]
 kubernetes_control
