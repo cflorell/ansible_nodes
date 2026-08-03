@@ -30,6 +30,13 @@ services:
     user: root
     ports:
       - '3000:3000'
+    environment:
+      # Grafana otherwise phones home to grafana.com for update checks and
+      # usage-stats reporting; the homelab's DNS blocker catches this traffic
+      # frequently enough to be noisy, so it's disabled outright.
+      - GF_ANALYTICS_REPORTING_ENABLED=false
+      - GF_ANALYTICS_CHECK_FOR_UPDATES=false
+      - GF_ANALYTICS_CHECK_FOR_PLUGIN_UPDATES=false
     depends_on:
       - prometheus
     volumes:
