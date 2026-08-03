@@ -1,0 +1,96 @@
+#!/usr/bin/env bash
+# {{ ansible_managed }}
+#
+# Writes amdgpu metrics from sysfs into a node_exporter textfile. Everything
+# read here is provided by the kernel driver, so no ROCm or vendor userspace is
+# required. Written to a temporary file and renamed, because node_exporter may
+# read the directory mid-write and a partial file would be parsed as truncated.
+set -euo pipefail
+
+OUT="{{ node_exporter_textfile_dir }}/amdgpu.prom"
+TMP="$(mktemp "${OUT}.XXXXXX")"
+trap 'rm -f "${TMP}"' EXIT
+
+{% if amdgpu_card == 'auto' %}
+# Largest reported VRAM wins: on a host with an integrated and a discrete
+# Radeon, that is the discrete card.
+CARD=""
+BEST=0
+for dev in /sys/class/drm/card*/device; do
+    [ -r "${dev}/mem_info_vram_total" ] || continue
+    total="$(cat "${dev}/mem_info_vram_total")"
+    if [ "${total}" -gt "${BEST}" ]; then
+        BEST="${total}"
+        CARD="${dev}"
+    fi
+done
+{% else %}
+CARD="/sys/class/drm/{{ amdgpu_card }}/device"
+{% endif %}
+
+# No card found: publish an empty file rather than leaving the last values in
+# place. A metric that disappears is a clearer signal than one frozen at its
+# final reading.
+if [ -z "${CARD}" ] || [ ! -d "${CARD}" ]; then
+    : > "${TMP}"
+    mv "${TMP}" "${OUT}"
+    trap - EXIT
+    exit 0
+fi
+
+NAME="$(basename "$(dirname "${CARD}")")"
+
+# Reads the first readable match of a glob, since hwmon index is not stable.
+read_hwmon() {
+    local f
+    for f in "${CARD}"/hwmon/hwmon*/"$1"; do
+        if [ -r "${f}" ]; then
+            cat "${f}"
+            return 0
+        fi
+    done
+    return 1
+}
+
+{
+    if v="$(cat "${CARD}/gpu_busy_percent" 2>/dev/null)"; then
+        echo "# HELP amdgpu_busy_percent Current GPU utilisation in percent."
+        echo "# TYPE amdgpu_busy_percent gauge"
+        echo "amdgpu_busy_percent{card=\"${NAME}\"} ${v}"
+    fi
+
+    if v="$(cat "${CARD}/mem_info_vram_used" 2>/dev/null)"; then
+        echo "# HELP amdgpu_vram_used_bytes VRAM currently allocated, in bytes."
+        echo "# TYPE amdgpu_vram_used_bytes gauge"
+        echo "amdgpu_vram_used_bytes{card=\"${NAME}\"} ${v}"
+    fi
+
+    if v="$(cat "${CARD}/mem_info_vram_total" 2>/dev/null)"; then
+        echo "# HELP amdgpu_vram_total_bytes Total VRAM on the device, in bytes."
+        echo "# TYPE amdgpu_vram_total_bytes gauge"
+        echo "amdgpu_vram_total_bytes{card=\"${NAME}\"} ${v}"
+    fi
+
+    # Reported in millidegrees Celsius.
+    if v="$(read_hwmon temp1_input)"; then
+        echo "# HELP amdgpu_temperature_celsius GPU junction temperature."
+        echo "# TYPE amdgpu_temperature_celsius gauge"
+        awk -v c="${NAME}" -v v="${v}" 'BEGIN { printf "amdgpu_temperature_celsius{card=\"%s\"} %.3f\n", c, v / 1000 }'
+    fi
+
+    # Reported in microwatts. power1_average is absent on some cards, in which
+    # case power1_input carries the instantaneous reading instead.
+    if v="$(read_hwmon power1_average)" || v="$(read_hwmon power1_input)"; then
+        echo "# HELP amdgpu_power_watts GPU power draw."
+        echo "# TYPE amdgpu_power_watts gauge"
+        awk -v c="${NAME}" -v v="${v}" 'BEGIN { printf "amdgpu_power_watts{card=\"%s\"} %.3f\n", c, v / 1000000 }'
+    fi
+
+    echo "# HELP amdgpu_collector_last_run_seconds Unix time of the last successful collection."
+    echo "# TYPE amdgpu_collector_last_run_seconds gauge"
+    echo "amdgpu_collector_last_run_seconds{card=\"${NAME}\"} $(date +%s)"
+} > "${TMP}"
+
+chmod 0644 "${TMP}"
+mv "${TMP}" "${OUT}"
+trap - EXIT

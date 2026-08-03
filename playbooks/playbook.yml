@@ -33,6 +33,17 @@
     - role: llama_cpp
       when: llama_server is defined and llama_server
 
+# The prometheus.prometheus.node_exporter role below installs a binary, which
+# does not belong on an image-based host. This one runs the same exporter as a
+# podman Quadlet instead, plus a sysfs collector for GPU metrics.
+- name: Run node exporter tasks on image-based hosts
+  hosts: atomic
+  tags: node-exporter, node-exporter-atomic
+  become: true
+  roles:
+    - role: node_exporter_atomic
+      when: node_exporter is defined and node_exporter
+
 - name: Run runner tasks
   hosts: runner
   tags: runner

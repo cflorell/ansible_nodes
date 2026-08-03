@@ -1,0 +1,8 @@
+# {{ ansible_managed }}
+[Unit]
+Description=Collect amdgpu metrics into the node_exporter textfile directory
+After=local-fs.target
+
+[Service]
+Type=oneshot
+ExecStart={{ amdgpu_script_path }}

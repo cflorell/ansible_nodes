@@ -1,0 +1,19 @@
+# {{ ansible_managed }}
+# Grafana dashboard provider. Everything under the path below is loaded at
+# start and re-read on the interval, so a templated dashboard converges the
+# same way the rest of this stack does.
+apiVersion: 1
+
+providers:
+  - name: homelab
+    orgId: 1
+    folder: Homelab
+    type: file
+    # Deletion in the UI is not persisted: the file is reloaded and the
+    # dashboard reappears. Editing works, but the next Ansible run overwrites
+    # it, so changes belong in the template.
+    disableDeletion: false
+    allowUiUpdates: false
+    updateIntervalSeconds: 30
+    options:
+      path: /etc/grafana/provisioning/dashboards/homelab

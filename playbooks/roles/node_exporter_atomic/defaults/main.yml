@@ -1,0 +1,34 @@
+---
+# node_exporter for image-based (ostree) hosts, where the usual
+# prometheus.prometheus.node_exporter role's package/binary install does not
+# belong. Runs as a podman Quadlet, the same pattern as roles/llama_cpp.
+node_exporter_image: quay.io/prometheus/node-exporter:v1.12.1
+node_exporter_service_name: node-exporter
+node_exporter_port: 9100
+node_exporter_quadlet_dir: /etc/containers/systemd
+
+# Host networking rather than a published port: node_exporter reports on the
+# host's interfaces, and a bridged container would measure the bridge instead.
+node_exporter_host_network: true
+
+# Where .prom files are read from, and where the amdgpu collector writes.
+node_exporter_textfile_dir: /var/lib/node_exporter/textfile
+
+node_exporter_open_firewall: true
+
+# --- amdgpu sysfs collector -------------------------------------------------
+# The kernel exposes utilisation, VRAM, temperature and power under
+# /sys/class/drm/card*/device. No ROCm or vendor tooling is involved, so this
+# works on a Vulkan-only host.
+amdgpu_textfile_enabled: true
+
+# Which DRM card to read. `auto` picks the one reporting the most VRAM, which
+# on a machine with both an integrated and a discrete Radeon is the discrete
+# one. Override with a card name such as `card1` to pin it.
+amdgpu_card: auto
+
+# Matched to Prometheus' 15s scrape_interval: collecting less often leaves the
+# scrape reading a stale file, more often is wasted work.
+amdgpu_collect_interval: 15s
+
+amdgpu_script_path: /usr/local/bin/amdgpu-textfile-collector

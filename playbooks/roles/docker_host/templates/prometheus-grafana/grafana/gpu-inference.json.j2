@@ -1,0 +1,263 @@
+{
+  "uid": "homelab-gpu-inference",
+  "title": "GPU and local inference",
+  "description": "{{ ansible_managed }}. Rendered from roles/docker_host/templates/prometheus-grafana/grafana/gpu-inference.json.j2; edits made in the UI are overwritten on the next Ansible run. GPU series come from the amdgpu sysfs collector in roles/node_exporter_atomic, inference series from llama-server started with --metrics.",
+  "tags": ["homelab", "gpu", "llm"],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "editable": true,
+  "refresh": "10s",
+  "time": { "from": "now-3h", "to": "now" },
+  "templating": {
+    "list": [
+      {
+        "current": {},
+        "hide": 0,
+        "includeAll": false,
+        "label": "Data source",
+        "multi": false,
+        "name": "datasource",
+        "options": [],
+        "query": "prometheus",
+        "refresh": 1,
+        "regex": "",
+        "skipUrlSync": false,
+        "type": "datasource"
+      },
+      {
+        "current": {},
+        "datasource": { "type": "prometheus", "uid": "${datasource}" },
+        "definition": "label_values(amdgpu_vram_total_bytes, hostname)",
+        "hide": 0,
+        "includeAll": true,
+        "label": "Host",
+        "multi": true,
+        "name": "hostname",
+        "options": [],
+        "query": { "query": "label_values(amdgpu_vram_total_bytes, hostname)", "refId": "StandardVariableQuery" },
+        "refresh": 1,
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 1,
+        "type": "query"
+      }
+    ]
+  },
+  "panels": [
+    {
+      "type": "stat",
+      "title": "GPU utilisation",
+      "id": 1,
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 0 },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "min": 0,
+          "max": 100,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "blue", "value": null },
+              { "color": "green", "value": 1 },
+              { "color": "orange", "value": 90 }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "colorMode": "value", "graphMode": "area" },
+      "targets": [
+        { "refId": "A", "expr": "amdgpu_busy_percent{hostname=~\"$hostname\"}", "legendFormat": "{{ '{{hostname}}' }}" }
+      ]
+    },
+    {
+      "type": "stat",
+      "title": "VRAM used",
+      "id": 2,
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "h": 4, "w": 6, "x": 6, "y": 0 },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "min": 0,
+          "max": 100,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "orange", "value": 85 },
+              { "color": "red", "value": 95 }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "colorMode": "value", "graphMode": "area" },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "100 * amdgpu_vram_used_bytes{hostname=~\"$hostname\"} / amdgpu_vram_total_bytes{hostname=~\"$hostname\"}",
+          "legendFormat": "{{ '{{hostname}}' }}"
+        }
+      ]
+    },
+    {
+      "type": "stat",
+      "title": "GPU temperature",
+      "id": 3,
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "h": 4, "w": 6, "x": 12, "y": 0 },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "celsius",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "orange", "value": 80 },
+              { "color": "red", "value": 95 }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "colorMode": "value", "graphMode": "area" },
+      "targets": [
+        { "refId": "A", "expr": "amdgpu_temperature_celsius{hostname=~\"$hostname\"}", "legendFormat": "{{ '{{hostname}}' }}" }
+      ]
+    },
+    {
+      "type": "stat",
+      "title": "GPU power",
+      "id": 4,
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "h": 4, "w": 6, "x": 18, "y": 0 },
+      "fieldConfig": {
+        "defaults": { "unit": "watt", "thresholds": { "mode": "absolute", "steps": [{ "color": "blue", "value": null }] } },
+        "overrides": []
+      },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "colorMode": "value", "graphMode": "area" },
+      "targets": [
+        { "refId": "A", "expr": "amdgpu_power_watts{hostname=~\"$hostname\"}", "legendFormat": "{{ '{{hostname}}' }}" }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "GPU utilisation over time",
+      "id": 5,
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 4 },
+      "description": "Prefill pegs this near 100%. Decode is memory-bandwidth bound and sits lower while still generating.",
+      "fieldConfig": {
+        "defaults": { "unit": "percent", "min": 0, "max": 100, "custom": { "fillOpacity": 20, "showPoints": "never" } },
+        "overrides": []
+      },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "multi" } },
+      "targets": [
+        { "refId": "A", "expr": "amdgpu_busy_percent{hostname=~\"$hostname\"}", "legendFormat": "{{ '{{hostname}}' }}" }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "VRAM",
+      "id": 6,
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 4 },
+      "description": "Weights are a fixed floor; growth above it is the KV cache filling as context accumulates.",
+      "fieldConfig": {
+        "defaults": { "unit": "bytes", "min": 0, "custom": { "fillOpacity": 10, "showPoints": "never" } },
+        "overrides": [
+          {
+            "matcher": { "id": "byRegexp", "options": ".*total.*" },
+            "properties": [{ "id": "custom.fillOpacity", "value": 0 }, { "id": "custom.lineStyle", "value": { "dash": [10, 10], "fill": "dash" } }]
+          }
+        ]
+      },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "multi" } },
+      "targets": [
+        { "refId": "A", "expr": "amdgpu_vram_used_bytes{hostname=~\"$hostname\"}", "legendFormat": "used" },
+        { "refId": "B", "expr": "amdgpu_vram_total_bytes{hostname=~\"$hostname\"}", "legendFormat": "total" }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Temperature and power",
+      "id": 7,
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 12 },
+      "fieldConfig": {
+        "defaults": { "custom": { "fillOpacity": 0, "showPoints": "never" } },
+        "overrides": [
+          { "matcher": { "id": "byName", "options": "temperature" }, "properties": [{ "id": "unit", "value": "celsius" }] },
+          {
+            "matcher": { "id": "byName", "options": "power" },
+            "properties": [{ "id": "unit", "value": "watt" }, { "id": "custom.axisPlacement", "value": "right" }]
+          }
+        ]
+      },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "multi" } },
+      "targets": [
+        { "refId": "A", "expr": "amdgpu_temperature_celsius{hostname=~\"$hostname\"}", "legendFormat": "temperature" },
+        { "refId": "B", "expr": "amdgpu_power_watts{hostname=~\"$hostname\"}", "legendFormat": "power" }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Inference throughput",
+      "id": 8,
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 12 },
+      "description": "Prompt throughput is prefill speed, generation throughput is decode speed. Both are llama-server's own averages.",
+      "fieldConfig": {
+        "defaults": { "unit": "none", "min": 0, "custom": { "fillOpacity": 10, "showPoints": "never", "axisLabel": "tokens/s" } },
+        "overrides": []
+      },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "multi" } },
+      "targets": [
+        { "refId": "A", "expr": "llamacpp:predicted_tokens_seconds{hostname=~\"$hostname\"}", "legendFormat": "generation" },
+        { "refId": "B", "expr": "llamacpp:prompt_tokens_seconds{hostname=~\"$hostname\"}", "legendFormat": "prompt" }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Requests",
+      "id": 9,
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 20 },
+      "description": "Deferred requests above zero mean every slot is busy and work is queueing. llama-server runs a single slot unless --parallel is set.",
+      "fieldConfig": {
+        "defaults": { "unit": "none", "min": 0, "custom": { "fillOpacity": 20, "showPoints": "never", "stacking": { "mode": "normal" } } },
+        "overrides": []
+      },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "multi" } },
+      "targets": [
+        { "refId": "A", "expr": "llamacpp:requests_processing{hostname=~\"$hostname\"}", "legendFormat": "processing" },
+        { "refId": "B", "expr": "llamacpp:requests_deferred{hostname=~\"$hostname\"}", "legendFormat": "deferred" }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Context high-water mark and token rate",
+      "id": 10,
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 20 },
+      "description": "n_tokens_max is the largest context seen. Approaching the configured llama_context_size is the signal to raise it or trim the agent's tool set.",
+      "fieldConfig": {
+        "defaults": { "unit": "none", "min": 0, "custom": { "fillOpacity": 0, "showPoints": "never" } },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "tokens generated/s" },
+            "properties": [{ "id": "custom.axisPlacement", "value": "right" }]
+          }
+        ]
+      },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "multi" } },
+      "targets": [
+        { "refId": "A", "expr": "llamacpp:n_tokens_max{hostname=~\"$hostname\"}", "legendFormat": "context high-water" },
+        { "refId": "B", "expr": "rate(llamacpp:tokens_predicted_total{hostname=~\"$hostname\"}[5m])", "legendFormat": "tokens generated/s" }
+      ]
+    }
+  ]
+}

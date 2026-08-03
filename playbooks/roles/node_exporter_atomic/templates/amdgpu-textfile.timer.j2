@@ -1,0 +1,13 @@
+# {{ ansible_managed }}
+[Unit]
+Description=Collect amdgpu metrics every {{ amdgpu_collect_interval }}
+
+[Timer]
+OnBootSec=30s
+OnUnitActiveSec={{ amdgpu_collect_interval }}
+# systemd batches timers by default, which at this interval would let readings
+# drift enough to alias against the scrape.
+AccuracySec=1s
+
+[Install]
+WantedBy=timers.target

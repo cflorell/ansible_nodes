@@ -25,3 +25,13 @@ llama_extra_args:
   - "q8_0"
   - "--cache-type-v"
   - "q8_0"
+  # Prometheus metrics at /metrics on the same port: tokens per second, prompt
+  # eval time, KV cache utilisation and queue depth.
+  - "--metrics"
+
+# node_exporter plus the amdgpu sysfs collector (roles/node_exporter_atomic),
+# scraped by prometheus-grafana alongside the llama-server metrics above. This
+# host is a workstation and is off much of the time, so its targets are
+# expected to be down; no alert rule watches them.
+node_exporter: true
+llama_metrics: true

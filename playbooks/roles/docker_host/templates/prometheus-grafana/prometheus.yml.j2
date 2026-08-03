@@ -17,12 +17,37 @@ scrape_configs:
 
   - job_name: 'node_exporter'
     static_configs:
-{# Scrape every inventory host that gets the node_exporter role, the same
-   `node_exporter: true` host_vars flag playbook.yml gates the role on. Each
+{# Scrape every inventory host that gets a node_exporter, the same
+   `node_exporter: true` host_vars flag playbook.yml gates the roles on. Each
    target carries a `hostname` label with its inventory name so alert rules can
-   match hosts without hardcoding addresses. #}
-{% for host in groups['nodes'] + groups['server'] if hostvars[host]['node_exporter'] | default(false) %}
+   match hosts without hardcoding addresses.
+
+   Workstations are included because christoffer-desktop exports GPU metrics
+   via roles/node_exporter_atomic. They are personal machines rather than
+   servers, so their targets are down whenever the machine is off; nothing in
+   alert.rules.yml watches them, and adding a rule that does would page on
+   every shutdown. #}
+{% for host in groups['nodes'] + groups['server'] + groups['workstation'] if hostvars[host]['node_exporter'] | default(false) %}
       - targets: ['{{ hostvars[host].ansible_host }}:9100']
         labels:
           hostname: '{{ host }}'
 {% endfor %}
+
+{# llama.cpp exposes Prometheus metrics on its own port when started with
+   --metrics (see roles/llama_cpp). Separate job because the port and path
+   belong to llama-server, not to a node_exporter. The job is omitted entirely
+   when no host enables it, since a scrape_config with an empty static_configs
+   is not valid. #}
+{% set llama_metric_hosts = [] %}
+{% for host in groups['workstation'] if hostvars[host]['llama_metrics'] | default(false) %}
+{% set _ = llama_metric_hosts.append(host) %}
+{% endfor %}
+{% if llama_metric_hosts %}
+  - job_name: 'llama_cpp'
+    static_configs:
+{% for host in llama_metric_hosts %}
+      - targets: ['{{ hostvars[host].ansible_host }}:{{ hostvars[host]['llama_port'] | default(8080) }}']
+        labels:
+          hostname: '{{ host }}'
+{% endfor %}
+{% endif %}

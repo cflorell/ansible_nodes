@@ -1,0 +1,31 @@
+# {{ ansible_managed }}
+# Podman Quadlet: systemd generates node-exporter.service from this file on
+# `systemctl daemon-reload`.
+[Unit]
+Description=Prometheus node_exporter
+After=network-online.target
+Wants=network-online.target
+
+[Container]
+ContainerName={{ node_exporter_service_name }}
+Image={{ node_exporter_image }}
+{% if node_exporter_host_network %}
+Network=host
+{% else %}
+PublishPort=0.0.0.0:{{ node_exporter_port }}:{{ node_exporter_port }}
+{% endif %}
+Volume=/proc:/host/proc:ro
+Volume=/sys:/host/sys:ro
+Volume=/:/rootfs:ro,rslave
+Volume={{ node_exporter_textfile_dir }}:{{ node_exporter_textfile_dir }}:ro
+# Host paths are labelled for the host, not for a container domain, so an
+# enforcing SELinux denies these reads until labelling is switched off here.
+SecurityLabelDisable=true
+Exec=--path.procfs=/host/proc --path.sysfs=/host/sys --path.rootfs=/rootfs --collector.textfile.directory={{ node_exporter_textfile_dir }} --web.listen-address=:{{ node_exporter_port }}
+
+[Service]
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target

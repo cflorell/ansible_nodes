@@ -34,6 +34,11 @@ services:
       - prometheus
     volumes:
       - ./grafana:/var/lib/grafana
+      # Dashboards as code. The datasource is left alone: dashboards bind to it
+      # through a `datasource` template variable, so the existing hand-made
+      # Prometheus datasource keeps working and is not duplicated by a second,
+      # provisioned one.
+      - ./grafana-provisioning:/etc/grafana/provisioning/dashboards:ro
     restart: unless-stopped
 
   loki:

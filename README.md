@@ -222,6 +222,35 @@ beyond its own data directory, and no `SUDO_PASSWORD`. The upstream alternative
 requires mounting the host docker socket, which is root-equivalent on the LXC
 and grants more than it contains.
 
+### GPU and inference metrics
+
+`christoffer-desktop` is scraped by the existing Prometheus, so GPU and
+inference history is visible in Grafana from any machine on the LAN rather than
+only in a terminal on the desktop itself:
+
+- `node_exporter_atomic` runs node_exporter as a podman Quadlet, since the
+  `prometheus.prometheus.node_exporter` role installs a binary and that does
+  not belong on an image-based host. It also installs a small script and
+  systemd timer that read `/sys/class/drm/card*/device` into a textfile
+  collector, giving `amdgpu_busy_percent`, `amdgpu_vram_used_bytes`,
+  `amdgpu_vram_total_bytes`, `amdgpu_temperature_celsius` and
+  `amdgpu_power_watts`. The card is auto-detected as the one reporting the
+  most VRAM, which distinguishes a discrete Radeon from an integrated one;
+  `amdgpu_card` pins it explicitly. Nothing here needs ROCm, so it works on a
+  Vulkan-only host.
+- `--metrics` in `llama_extra_args` exposes llama-server's own counters on its
+  existing port, scraped as a separate `llama_cpp` job.
+- The `gpu-inference` dashboard is provisioned from
+  `templates/prometheus-grafana/grafana/`, so it is rendered by Ansible like
+  the rest of the stack. It binds to Prometheus through a `datasource`
+  template variable rather than a fixed UID, which leaves the existing
+  hand-made datasource untouched instead of provisioning a duplicate. UI edits
+  to it are overwritten on the next run.
+
+Both targets belong to a workstation that is powered off much of the time, so
+they are down by design and no alert rule watches them. Adding one would page
+on every shutdown.
+
 The `llama_cpp` role is a separate play rather than part of the `workstation`
 role so that it can run on its own, without triggering the package installs
 that role performs.

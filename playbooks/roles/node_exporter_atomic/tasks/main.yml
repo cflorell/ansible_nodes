@@ -1,0 +1,107 @@
+---
+- name: node_exporter_atomic | Check that podman is installed
+  ansible.builtin.command: podman --version
+  register: node_exporter_podman_version
+  changed_when: false
+  failed_when: node_exporter_podman_version.rc != 0
+
+- name: node_exporter_atomic | Create the textfile collector directory
+  ansible.builtin.file:
+    path: "{{ node_exporter_textfile_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: node_exporter_atomic | amdgpu textfile collector
+  when: amdgpu_textfile_enabled
+  block:
+    - name: node_exporter_atomic | Install the amdgpu collector script
+      ansible.builtin.template:
+        src: amdgpu-textfile-collector.j2
+        dest: "{{ amdgpu_script_path }}"
+        owner: root
+        group: root
+        mode: "0755"
+      register: amdgpu_script
+
+    - name: node_exporter_atomic | Install the amdgpu collector units
+      ansible.builtin.template:
+        src: "amdgpu-textfile.{{ item }}.j2"
+        dest: "/etc/systemd/system/amdgpu-textfile.{{ item }}"
+        owner: root
+        group: root
+        mode: "0644"
+      loop:
+        - service
+        - timer
+      register: amdgpu_units
+
+    - name: node_exporter_atomic | Enable the amdgpu collector timer
+      ansible.builtin.systemd_service:
+        name: amdgpu-textfile.timer
+        daemon_reload: true
+        enabled: true
+        state: "{{ 'restarted' if amdgpu_units is changed else 'started' }}"
+
+    # The timer's first firing is 30 seconds out. Running once now means the
+    # very first scrape after a deploy has data rather than a missing series.
+    - name: node_exporter_atomic | Collect amdgpu metrics once now
+      ansible.builtin.systemd_service:
+        name: amdgpu-textfile.service
+        state: restarted
+      when: amdgpu_script is changed or amdgpu_units is changed
+
+- name: node_exporter_atomic | Install the node-exporter Quadlet unit
+  ansible.builtin.template:
+    src: node-exporter.container.j2
+    dest: "{{ node_exporter_quadlet_dir }}/{{ node_exporter_service_name }}.container"
+    owner: root
+    group: root
+    mode: "0644"
+  register: node_exporter_quadlet
+
+# Quadlet units only exist once a daemon-reload has generated them, so the
+# reload cannot be deferred to a handler. Started but never enabled: the
+# [Install] section in the .container file is what brings it up at boot.
+- name: node_exporter_atomic | Run the node-exporter service
+  ansible.builtin.systemd_service:
+    name: "{{ node_exporter_service_name }}.service"
+    daemon_reload: true
+    state: "{{ 'restarted' if node_exporter_quadlet is changed else 'started' }}"
+
+- name: node_exporter_atomic | Collect service facts
+  ansible.builtin.service_facts:
+  when: node_exporter_open_firewall
+
+- name: node_exporter_atomic | Open the metrics port in firewalld
+  ansible.posix.firewalld:
+    port: "{{ node_exporter_port }}/tcp"
+    permanent: true
+    immediate: true
+    state: enabled
+  when:
+    - node_exporter_open_firewall
+    - ansible_facts['services']['firewalld.service'] is defined
+    - ansible_facts['services']['firewalld.service'].state == 'running'
+
+- name: node_exporter_atomic | Wait for the metrics endpoint to answer
+  ansible.builtin.uri:
+    url: "http://127.0.0.1:{{ node_exporter_port }}/metrics"
+    status_code: 200
+    return_content: true
+  register: node_exporter_ready
+  until: node_exporter_ready is succeeded
+  retries: 12
+  delay: 5
+  changed_when: false
+
+- name: node_exporter_atomic | Confirm the amdgpu series are being exported
+  ansible.builtin.assert:
+    that: "'amdgpu_vram_total_bytes' in node_exporter_ready.content"
+    fail_msg: >-
+      node_exporter is up but no amdgpu metrics reached it. Check
+      `systemctl status amdgpu-textfile.service` and that
+      {{ node_exporter_textfile_dir }}/amdgpu.prom is non-empty.
+    success_msg: amdgpu metrics are present in the node_exporter output.
+  when: amdgpu_textfile_enabled
