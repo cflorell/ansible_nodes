@@ -32,22 +32,3 @@ scrape_configs:
         labels:
           hostname: '{{ host }}'
 {% endfor %}
-
-{# llama.cpp exposes Prometheus metrics on its own port when started with
-   --metrics (see roles/llama_cpp). Separate job because the port and path
-   belong to llama-server, not to a node_exporter. The job is omitted entirely
-   when no host enables it, since a scrape_config with an empty static_configs
-   is not valid. #}
-{% set llama_metric_hosts = [] %}
-{% for host in groups['workstation'] if hostvars[host]['llama_metrics'] | default(false) %}
-{% set _ = llama_metric_hosts.append(host) %}
-{% endfor %}
-{% if llama_metric_hosts %}
-  - job_name: 'llama_cpp'
-    static_configs:
-{% for host in llama_metric_hosts %}
-      - targets: ['{{ hostvars[host].ansible_host }}:{{ hostvars[host]['llama_port'] | default(8080) }}']
-        labels:
-          hostname: '{{ host }}'
-{% endfor %}
-{% endif %}

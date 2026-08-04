@@ -6,6 +6,13 @@
       llama_backend must be one of {{ llama_backend_devices.keys() | list | join(', ') }},
       got '{{ llama_backend }}'.
 
+- name: llama_cpp | Verify at least one model is configured
+  ansible.builtin.assert:
+    that: llama_models | length > 0
+    fail_msg: >-
+      llama_models is empty. Define at least one model (id, repo, context_size)
+      in this host's host_vars; the role has no sane default to fall back to.
+
 - name: llama_cpp | Check that podman is installed
   ansible.builtin.command: podman --version
   register: llama_podman_version
@@ -27,6 +34,23 @@
     group: root
     mode: "0755"
 
+- name: llama_cpp | Create the llama-swap config directory
+  ansible.builtin.file:
+    path: "{{ llama_swap_config_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: llama_cpp | Install the llama-swap config
+  ansible.builtin.template:
+    src: llama-swap-config.yaml.j2
+    dest: "{{ llama_swap_config_dir }}/config.yaml"
+    owner: root
+    group: root
+    mode: "0644"
+  register: llama_config
+
 - name: llama_cpp | Install the llama-server Quadlet unit
   ansible.builtin.template:
     src: llama-server.container.j2
@@ -40,11 +64,15 @@
 # reload cannot be deferred to a handler: the service has no name to address
 # until it has happened. The unit is started but never enabled, since the
 # [Install] section in the .container file is what brings it up at boot.
+# A config-only change (e.g. a new model) restarts the service too, even
+# though the image runs llama-swap with -watch-config and would pick it up on
+# its own: forcing a restart keeps this play's outcome independent of that
+# behaviour rather than relying on it.
 - name: llama_cpp | Run the llama-server service
   ansible.builtin.systemd_service:
     name: "{{ llama_service_name }}.service"
     daemon_reload: true
-    state: "{{ 'restarted' if llama_quadlet is changed else 'started' }}"
+    state: "{{ 'restarted' if (llama_quadlet is changed or llama_config is changed) else 'started' }}"
 
 - name: llama_cpp | Collect service facts
   ansible.builtin.service_facts:
@@ -74,10 +102,10 @@
   changed_when: false
   when: llama_wait_for_ready
 
-- name: llama_cpp | Report the served model
+- name: llama_cpp | Report the configured models
   ansible.builtin.debug:
     msg: >-
-      llama-server is answering on port {{ llama_port }}, serving:
+      llama-swap is answering on port {{ llama_port }}, configured models:
       {{ llama_ready.json.data | map(attribute='id') | join(', ') }}
   when:
     - llama_wait_for_ready

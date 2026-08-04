@@ -22,16 +22,9 @@ hermes_port: 8642
 hermes_dashboard_port: 9119
 hermes_dashboard_username: christoffer
 
-# Model id Hermes requests from llama.cpp. It must match what llama-server
-# reports at /v1/models (curl http://<desktop>:8080/v1/models). Hermes
-# auto-detects when the server has exactly one model loaded, which it does.
-hermes_model: "qwen3-14b"
+hermes_model: "qwen3-8b"
 
-# Must track llama_context_size in host_vars/christoffer-desktop. Hermes
-# assumes a large default for custom providers, then discovers mid-request
-# that the server has less, which surfaces as "context length exceeded" with
-# an absurd remainder rather than a clear error.
-hermes_context_length: 32768
+hermes_context_length: 65536
 
 # SearXNG builds absolute URLs (opensearch, images, result links) from this.
 searxng_base_url: "http://{{ ansible_host }}:{{ searxng_port }}/"

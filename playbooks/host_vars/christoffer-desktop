@@ -9,29 +9,49 @@ ansible_pipelining: true
 llama_server: true
 llama_backend: vulkan
 
-# Agent use needs far more context than chat does: Hermes' system prompt
-# carries every tool and skill definition before a single user token, and at
-# the role default of 16384 it overflows on an empty message.
-#
-# 16 GB of VRAM cannot hold 32k of f16 KV cache on top of ~9 GB of weights
-# (160 KB per token, so ~5.2 GB), hence the quantised cache below, which
-# halves that to ~2.6 GB and leaves the total near 12.6 GB. Quantised KV
-# requires flash attention, which recent Vulkan builds provide and llama.cpp
-# enables automatically. 64k, the figure Hermes' docs suggest for agents, does
-# not fit this card alongside these weights.
-llama_context_size: 32768
-llama_extra_args:
-  - "--cache-type-k"
-  - "q8_0"
-  - "--cache-type-v"
-  - "q8_0"
-  # Prometheus metrics at /metrics on the same port: tokens per second, prompt
-  # eval time, KV cache utilisation and queue depth.
-  - "--metrics"
+# Two models behind llama-swap, picked per request rather than one fixed
+# model: whichever is requested loads on demand and the other unloads, so
+# both can be offered without holding both in VRAM at once (16 GB cannot fit
+# both anyway - 9 GB + 5 GB of weights alone leaves no room for KV cache).
+# Loaded models are freed after an hour of disuse (llama_model_ttl below) so
+# an idle desktop is not left holding either one in VRAM indefinitely.
+llama_model_ttl: 3600
+llama_models:
+  # Best quality, native 32768 context. Good default for chat via Open WebUI.
+  - id: qwen3-14b
+    repo: "unsloth/Qwen3-14B-GGUF:Q4_K_M"
+    context_size: 32768
+    extra_args:
+      - "--cache-type-k"
+      - "q8_0"
+      - "--cache-type-v"
+      - "q8_0"
+      # Exposes this model's own /metrics (tokens/s, KV cache utilisation,
+      # queue depth) at GET /upstream/qwen3-14b/metrics on llama-swap's port,
+      # for manual curl-based checks. Not scraped by Prometheus: that would
+      # force this model to load on every scrape, evicting whichever model
+      # was actually in use. See the comment in prometheus.yml.j2.
+      - "--metrics"
+
+  - id: qwen3-8b
+    repo: "unsloth/Qwen3-8B-GGUF:Q4_K_M"
+    context_size: 65536
+    extra_args:
+      - "--cache-type-k"
+      - "q8_0"
+      - "--cache-type-v"
+      - "q8_0"
+      - "--rope-scaling"
+      - "yarn"
+      - "--rope-scale"
+      - "4"
+      - "--yarn-orig-ctx"
+      - "32768"
+      # See the qwen3-14b comment above: manual-inspection-only, same reason.
+      - "--metrics"
 
 # node_exporter plus the amdgpu sysfs collector (roles/node_exporter_atomic),
-# scraped by prometheus-grafana alongside the llama-server metrics above. This
-# host is a workstation and is off much of the time, so its targets are
-# expected to be down; no alert rule watches them.
+# scraped by prometheus-grafana. This host is a workstation and is off much
+# of the time, so its targets are expected to be down; no alert rule watches
+# them.
 node_exporter: true
-llama_metrics: true

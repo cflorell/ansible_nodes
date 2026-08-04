@@ -1,7 +1,7 @@
 {
   "uid": "homelab-gpu-inference",
   "title": "GPU and local inference",
-  "description": "{{ ansible_managed }}. Rendered from roles/docker_host/templates/prometheus-grafana/grafana/gpu-inference.json.j2; edits made in the UI are overwritten on the next Ansible run. GPU series come from the amdgpu sysfs collector in roles/node_exporter_atomic, inference series from llama-server started with --metrics.",
+  "description": "{{ ansible_managed }}. Rendered from roles/docker_host/templates/prometheus-grafana/grafana/gpu-inference.json.j2; edits made in the UI are overwritten on the next Ansible run. GPU series come from the amdgpu sysfs collector in roles/node_exporter_atomic. No per-model inference series (token throughput, request queue, context high-water): llama-swap fronting multiple models (roles/llama_cpp) means the only way to get those is a scrape that forces a specific model to load, evicting whatever was actually in use - see the comment in prometheus.yml.j2.",
   "tags": ["homelab", "gpu", "llm"],
   "timezone": "browser",
   "schemaVersion": 39,
@@ -201,62 +201,6 @@
       "targets": [
         { "refId": "A", "expr": "amdgpu_temperature_celsius{hostname=~\"$hostname\"}", "legendFormat": "temperature" },
         { "refId": "B", "expr": "amdgpu_power_watts{hostname=~\"$hostname\"}", "legendFormat": "power" }
-      ]
-    },
-    {
-      "type": "timeseries",
-      "title": "Inference throughput",
-      "id": 8,
-      "datasource": { "type": "prometheus", "uid": "${datasource}" },
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 12 },
-      "description": "Prompt throughput is prefill speed, generation throughput is decode speed. Both are llama-server's own averages.",
-      "fieldConfig": {
-        "defaults": { "unit": "none", "min": 0, "custom": { "fillOpacity": 10, "showPoints": "never", "axisLabel": "tokens/s" } },
-        "overrides": []
-      },
-      "options": { "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "multi" } },
-      "targets": [
-        { "refId": "A", "expr": "llamacpp:predicted_tokens_seconds{hostname=~\"$hostname\"}", "legendFormat": "generation" },
-        { "refId": "B", "expr": "llamacpp:prompt_tokens_seconds{hostname=~\"$hostname\"}", "legendFormat": "prompt" }
-      ]
-    },
-    {
-      "type": "timeseries",
-      "title": "Requests",
-      "id": 9,
-      "datasource": { "type": "prometheus", "uid": "${datasource}" },
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 20 },
-      "description": "Deferred requests above zero mean every slot is busy and work is queueing. llama-server runs a single slot unless --parallel is set.",
-      "fieldConfig": {
-        "defaults": { "unit": "none", "min": 0, "custom": { "fillOpacity": 20, "showPoints": "never", "stacking": { "mode": "normal" } } },
-        "overrides": []
-      },
-      "options": { "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "multi" } },
-      "targets": [
-        { "refId": "A", "expr": "llamacpp:requests_processing{hostname=~\"$hostname\"}", "legendFormat": "processing" },
-        { "refId": "B", "expr": "llamacpp:requests_deferred{hostname=~\"$hostname\"}", "legendFormat": "deferred" }
-      ]
-    },
-    {
-      "type": "timeseries",
-      "title": "Context high-water mark and token rate",
-      "id": 10,
-      "datasource": { "type": "prometheus", "uid": "${datasource}" },
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 20 },
-      "description": "n_tokens_max is the largest context seen. Approaching the configured llama_context_size is the signal to raise it or trim the agent's tool set.",
-      "fieldConfig": {
-        "defaults": { "unit": "none", "min": 0, "custom": { "fillOpacity": 0, "showPoints": "never" } },
-        "overrides": [
-          {
-            "matcher": { "id": "byName", "options": "tokens generated/s" },
-            "properties": [{ "id": "custom.axisPlacement", "value": "right" }]
-          }
-        ]
-      },
-      "options": { "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "multi" } },
-      "targets": [
-        { "refId": "A", "expr": "llamacpp:n_tokens_max{hostname=~\"$hostname\"}", "legendFormat": "context high-water" },
-        { "refId": "B", "expr": "rate(llamacpp:tokens_predicted_total{hostname=~\"$hostname\"}[5m])", "legendFormat": "tokens generated/s" }
       ]
     }
   ]

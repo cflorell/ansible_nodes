@@ -1,0 +1,22 @@
+# {{ ansible_managed }}
+# llama-swap configuration. Full schema:
+# https://github.com/mostlygeek/llama-swap/blob/main/docs/configuration.md
+
+# First use of a model not yet cached in llama_cache_dir pulls several
+# gigabytes of weights before llama-server's /health responds; the default
+# 120s would kill that as a failed health check mid-download.
+healthCheckTimeout: 1800
+
+models:
+{% for model in llama_models %}
+  "{{ model.id }}":
+    ttl: {{ model.ttl | default(llama_model_ttl) }}
+    cmd: |
+      llama-server --port ${PORT} --host 127.0.0.1 -hf {{ model.repo }}
+      --n-gpu-layers {{ model.gpu_layers | default(llama_gpu_layers) }}
+      --ctx-size {{ model.context_size }}
+      --jinja
+{% for arg in model.extra_args | default([]) %}
+      {{ arg }}
+{% endfor %}
+{% endfor %}

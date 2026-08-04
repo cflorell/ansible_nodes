@@ -1,17 +1,28 @@
 ---
-# GPU backend for the llama.cpp container image. Both variants come from the
-# same upstream build:
+# GPU backend for the llama.cpp/llama-swap container image. Both variants come
+# from the same upstream build:
 #   vulkan  Mesa/RADV, needs only /dev/dri. The right default on an image-based
 #           desktop such as Bazzite, where nothing extra can be layered in
 #           without a rebuild and reboot.
 #   rocm    AMD's compute stack, additionally needs /dev/kfd. Faster for some
 #           models, but the image must have been built for the card's LLVM
 #           target (gfx1201 for RDNA4); set llama_rocm_gfx_override when it was
-#           not.
+#           not. Note: mostlygeek/llama-swap does not currently publish a rocm
+#           image, only cuda/vulkan/intel/musa/cpu, so this option only works
+#           for the device-passthrough logic below, not llama_swap_image.
 llama_backend: vulkan
 
-llama_image_build: b10156
-llama_image: "ghcr.io/ggml-org/llama.cpp:server-{{ llama_backend }}-{{ llama_image_build }}"
+# llama-swap (github.com/mostlygeek/llama-swap) fronts every model in
+# llama_models behind one OpenAI-compatible port: it loads whichever model a
+# request asks for and swaps to a different one on demand, so several models
+# can be configured without keeping all of them in VRAM at once. The "unified"
+# image bundles llama-server itself, so the swap spawns it as a subprocess
+# inside this same container rather than needing one container per model.
+# Pinned to a dated build tag (published daily) rather than the floating
+# "unified-{backend}" tag, for the same reproducibility reason the old
+# llama_image_build pinned a specific llama.cpp server build.
+llama_swap_image_build: "2026-08-03"
+llama_swap_image: "ghcr.io/mostlygeek/llama-swap:unified-{{ llama_backend }}-{{ llama_swap_image_build }}"
 
 llama_backend_devices:
   vulkan:
@@ -25,41 +36,36 @@ llama_devices: "{{ llama_backend_devices[llama_backend] }}"
 # Ignored when llama_backend is vulkan. Empty means "do not set it".
 llama_rocm_gfx_override: ""
 
-# Model to serve, in llama-server's -hf form (<hf-repo>:<quant>). It is
-# downloaded on first start and cached in llama_cache_dir, so a restart does
-# not re-fetch it.
-llama_model: "unsloth/Qwen3-14B-GGUF:Q4_K_M"
-
+# Models llama-swap can serve, chosen per host in host_vars. Each entry:
+#   id            required; the model name clients request and the id
+#                 reported at /v1/models. Also what hermes_model and similar
+#                 downstream settings must match.
+#   repo          required; llama-server's -hf form (<hf-repo>:<quant>).
+#                 Downloaded on first use and cached in llama_cache_dir, so a
+#                 restart or swap back to this model does not re-fetch it.
+#   context_size  required; --ctx-size for this model.
+#   gpu_layers    optional, defaults to llama_gpu_layers.
+#   extra_args    optional, defaults to []. Appended verbatim to this model's
+#                 command line (e.g. KV cache quantisation, rope scaling).
+#   ttl           optional, defaults to llama_model_ttl. Seconds of disuse
+#                 before llama-swap unloads this model; 0 means never.
+# No sane cross-host default exists, so this starts empty and every host
+# running this role must define its own.
+llama_models: []
+# 99 means "all of them"; llama.cpp clamps to the model's layer count. Used by
+# any llama_models entry that does not set its own gpu_layers.
+llama_gpu_layers: 99
+# Used by any llama_models entry that does not set its own ttl. 0 keeps every
+# model loaded indefinitely once swapped in, matching a single always-on
+# llama-server's behaviour; raise it to free VRAM after a period of disuse.
+llama_model_ttl: 0
 llama_listen_address: "0.0.0.0"
 llama_port: 8080
-
-# Context is the second-largest consumer of VRAM after the weights themselves:
-# Qwen3-14B at Q4_K_M is roughly 9 GB, and its KV cache costs about 160 KB per
-# token, so 16k tokens adds another ~2.6 GB. Raising this on a 16 GB card needs
-# a quantised KV cache (--cache-type-k q8_0 --cache-type-v q8_0) via
-# llama_extra_args, or layers start spilling to system RAM.
-llama_context_size: 16384
-
-# 99 means "all of them"; llama.cpp clamps to the model's layer count.
-llama_gpu_layers: 99
-
-# Appended verbatim to the llama-server command line.
-llama_extra_args: []
-
 llama_cache_dir: /var/lib/llama.cpp
+llama_swap_config_dir: /etc/llama-swap
 llama_quadlet_dir: /etc/containers/systemd
 llama_service_name: llama-server
-
-# Open the inference port so Open WebUI on the llm node can reach it. Skipped
-# when firewalld is not running.
 llama_open_firewall: true
-
-# Confirm the server actually answers before the play reports success. Quadlet
-# units are Type=notify and podman signals ready as soon as the container
-# starts, which is long before llama-server has fetched the weights and bound
-# its port, so systemd alone cannot tell a working server from a crash loop.
-# The defaults allow 30 minutes, matching the unit's TimeoutStartSec, since a
-# first run downloads the whole model.
 llama_wait_for_ready: true
 llama_ready_retries: 60
 llama_ready_delay: 30

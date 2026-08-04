@@ -2,16 +2,22 @@
 # Podman Quadlet: systemd generates llama-server.service from this file on
 # `systemctl daemon-reload`. Podman is used rather than Docker because it ships
 # with the host image; nothing has to be layered on to run this.
+#
+# Runs llama-swap rather than llama-server directly: it fronts every model in
+# llama_models behind this one port, loading whichever one a client requests
+# and swapping to a different one on demand. See llama_swap_image in
+# defaults/main.yml for why "unified".
 [Unit]
-Description=llama.cpp inference server ({{ llama_backend }})
+Description=llama-swap inference proxy ({{ llama_backend }})
 After=network-online.target
 Wants=network-online.target
 
 [Container]
 ContainerName={{ llama_service_name }}
-Image={{ llama_image }}
+Image={{ llama_swap_image }}
 PublishPort={{ llama_listen_address }}:{{ llama_port }}:8080
 Volume={{ llama_cache_dir }}:/root/.cache/llama.cpp
+Volume={{ llama_swap_config_dir }}/config.yaml:/etc/llama-swap/config/config.yaml:ro
 Environment=LLAMA_CACHE=/root/.cache/llama.cpp
 {% if llama_backend == "rocm" and llama_rocm_gfx_override %}
 Environment=HSA_OVERRIDE_GFX_VERSION={{ llama_rocm_gfx_override }}
@@ -23,12 +29,13 @@ AddDevice={{ device }}
 # SELinux denies the container access to them until labelling is switched off
 # for this container.
 SecurityLabelDisable=true
-Exec=--host 0.0.0.0 --port 8080 -hf {{ llama_model }} --n-gpu-layers {{ llama_gpu_layers }} --ctx-size {{ llama_context_size }} --jinja{% for arg in llama_extra_args %} {{ arg }}{% endfor %}
 
 [Service]
-# The first start pulls the image and downloads several gigabytes of weights,
-# which overruns systemd's default 90-second start timeout.
-TimeoutStartSec=1800
+# Unlike the old single-model setup, the container itself starts in seconds:
+# no model loads until a client requests one, so this only has to cover
+# llama-swap's own startup, not a weights download. That wait is covered by
+# healthCheckTimeout in config.yaml instead.
+TimeoutStartSec=120
 Restart=always
 RestartSec=10
 
