@@ -24,11 +24,10 @@ scrape_configs:
 
    Workstations are included because christoffer-desktop exports GPU metrics
    via roles/node_exporter_atomic. They are personal machines rather than
-   servers, so their targets are down whenever the machine is off; nothing in
-   alert.rules.yml watches them, and adding a rule that does would page on
-   every shutdown. #}
+   servers, so their targets are down whenever the machine is off.
 {% for host in groups['nodes'] + groups['server'] + groups['workstation'] if hostvars[host]['node_exporter'] | default(false) %}
       - targets: ['{{ hostvars[host].ansible_host }}:9100']
         labels:
           hostname: '{{ host }}'
+          workstation: '{{ 'true' if host in groups['workstation'] else 'false' }}'
 {% endfor %}

@@ -142,8 +142,10 @@ groups:
 
   - name: MiscAlerts
     rules:
+      # Excludes workstation=true targets (christoffer-desktop): those are
+      # personal machines that are expected to be off much of the time.
       - alert: NodeUnreachable
-        expr: up{job="node_exporter"} == 0
+        expr: up{job="node_exporter", workstation!="true"} == 0
         for: 5m
         labels:
           severity: critical
