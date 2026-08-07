@@ -52,7 +52,7 @@ services:
     # Official TimescaleDB image with PostgreSQL 16
     # Note: TimescaleDB Toolkit is not included in the official image
     # For Toolkit support, use the supervised deployment instead
-    image: timescale/timescaledb:2.28.3-pg16
+    image: timescale/timescaledb:2.29.1-pg16
     container_name: tracearr-db
     shm_size: 256mb  # Required for PostgreSQL shared memory
     # Allow unlimited tuple decompression for migrations on compressed hypertables
