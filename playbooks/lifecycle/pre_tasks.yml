@@ -107,18 +107,25 @@
           changed_when: false
           failed_when: false
 
+        # ansible.builtin.known_hosts only compares the first "host type key"
+        # triple in `key`, so feeding it ssh-keyscan's raw multi-algorithm
+        # stdout directly was never idempotent:
+        # Flatten to one key line per call instead.
+        - name: runner | ssh | flatten scanned keys to one line per host key
+          ansible.builtin.set_fact:
+            gitlab_runner_known_hosts_lines: "{{ gitlab_runner_keyscan.results | map(attribute='stdout_lines') | flatten }}"
+
         - name: runner | ssh | trust scanned host keys for gitlab-runner
           ansible.builtin.known_hosts:
             path: /home/gitlab-runner/.ssh/known_hosts
-            name: "{{ item.item }}"
-            key: "{{ item.stdout }}"
+            name: "{{ item.split(' ')[0] }}"
+            key: "{{ item }}"
             state: present
           become: true
           become_user: gitlab-runner
-          loop: "{{ gitlab_runner_keyscan.results }}"
+          loop: "{{ gitlab_runner_known_hosts_lines }}"
           loop_control:
-            label: "{{ item.item }}"
-          when: item.stdout | length > 0
+            label: "{{ item.split(' ')[0] }}"
 
     - name: Kubernetes-hosted CI runner SSH keypair bootstrap
       when: inventory_hostname == 'kube-control'
