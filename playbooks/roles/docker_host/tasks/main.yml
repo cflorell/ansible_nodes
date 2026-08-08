@@ -36,6 +36,17 @@
       ansible.builtin.import_tasks: software/docker.yml
       when: docker is defined and docker
 
+     - name: Prune unused Docker data before deploying stacks
+      tags: docker-prune
+      community.docker.docker_prune:
+        containers: true
+        images: true
+        images_filters:
+          dangling: false
+        networks: true
+        builder_cache: true
+      when: docker is defined and docker
+
     - name: Node Docker
       tags: node-docker
       ansible.builtin.import_tasks: nodes/docker.yml
