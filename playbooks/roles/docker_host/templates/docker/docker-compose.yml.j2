@@ -80,6 +80,18 @@ services:
           - ./caddy/data:/data
           - ./caddy/config:/config
 
+  registry:
+      image: registry:2
+      container_name: registry
+      environment:
+          - REGISTRY_AUTH=htpasswd
+          - REGISTRY_AUTH_HTPASSWD_REALM=Registry Realm
+          - REGISTRY_AUTH_HTPASSWD_PATH=/auth/htpasswd
+      volumes:
+          - ./registry/htpasswd:/auth/htpasswd:ro
+          - {{ storage_disks.disk3.path }}/registry:/var/lib/registry
+      restart: unless-stopped
+
   porkbun-ddns:
       image: "mietzen/porkbun-ddns:2.0.0"
       container_name: porkbun-ddns

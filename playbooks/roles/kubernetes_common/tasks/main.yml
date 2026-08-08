@@ -129,6 +129,10 @@
          | regex_replace('SystemdCgroup = false', 'SystemdCgroup = true')
          | regex_replace('disabled_plugins = \["cri"\]', 'disabled_plugins = []')
          | regex_replace('bin_dir = "/usr/lib/cni"', 'bin_dir = "/opt/cni/bin"') }}
+
+      [plugins."io.containerd.grpc.v1.cri".registry.configs."registry.{{ porkbun_domain }}".auth]
+        username = "{{ registry_auth_username }}"
+        password = "{{ registry_auth_password }}"
   notify: restart containerd
 
 - name: kubernetes common | configure crictl

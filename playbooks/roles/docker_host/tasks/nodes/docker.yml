@@ -16,6 +16,7 @@
     - WatchYourLAN
     - homelable
     - gatus
+    - registry
 
 - name: docker_host | node-docker | Move promtail-config.yml
   ansible.builtin.template:
@@ -108,6 +109,14 @@
   ansible.builtin.template:
     src: "docker/gatus/config.yaml.j2"
     dest: "/{{ ansible_facts['user_id'] }}/gatus/config.yaml"
+    owner: "{{ ansible_facts['user_id'] }}"
+    group: "{{ ansible_facts['user_id'] }}"
+    mode: "0600"
+
+- name: docker_host | node-docker | Move registry htpasswd file
+  ansible.builtin.copy:
+    dest: "/{{ ansible_facts['user_id'] }}/registry/htpasswd"
+    content: "{{ registry_auth_username }}:{{ registry_auth_password_hash }}\n"
     owner: "{{ ansible_facts['user_id'] }}"
     group: "{{ ansible_facts['user_id'] }}"
     mode: "0600"
