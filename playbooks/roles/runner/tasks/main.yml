@@ -42,6 +42,27 @@
     name: "{{ gitlab_runner_ci_packages }}"
     update_cache: true
 
+- name: runner | add Docker apt repository
+  ansible.builtin.deb822_repository:
+    name: docker
+    types: deb
+    uris: "https://download.docker.com/linux/{{ ansible_facts['distribution'] | lower }}"
+    suites: "{{ ansible_facts['distribution_release'] | lower }}"
+    components: stable
+    signed_by: "https://download.docker.com/linux/{{ ansible_facts['distribution'] | lower }}/gpg"
+    state: present
+    enabled: true
+
+# Gives CI jobs on this runner the ability to build and push images to the
+# private registry (roles/docker_host, node-docker). No registry login is
+# configured here: each consuming repo's own CI job authenticates itself via
+# GitLab CI/CD variables, rather than storing credentials on this shared VM.
+- name: runner | install Docker packages
+  ansible.builtin.apt:
+    name: "{{ item }}"
+    update_cache: true
+  loop: [docker-ce, docker-ce-cli, containerd.io, docker-compose-plugin]
+
 - name: runner | query latest sops release
   ansible.builtin.uri:
     url: https://api.github.com/repos/getsops/sops/releases/latest

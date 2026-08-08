@@ -110,10 +110,14 @@
         # ansible.builtin.known_hosts only compares the first "host type key"
         # triple in `key`, so feeding it ssh-keyscan's raw multi-algorithm
         # stdout directly was never idempotent:
-        # Flatten to one key line per call instead.
+        # Flatten to one key line per call instead. Newer ssh-keyscan
+        # (OpenSSH 10+) also emits "# host:port banner" comment lines on
+        # stdout alongside the actual keys; drop those too.
         - name: runner | ssh | flatten scanned keys to one line per host key
           ansible.builtin.set_fact:
-            gitlab_runner_known_hosts_lines: "{{ gitlab_runner_keyscan.results | map(attribute='stdout_lines') | flatten }}"
+            gitlab_runner_known_hosts_lines: >-
+              {{ gitlab_runner_keyscan.results | map(attribute='stdout_lines')
+                 | flatten | reject('match', '^#') }}
 
         - name: runner | ssh | trust scanned host keys for gitlab-runner
           ansible.builtin.known_hosts:

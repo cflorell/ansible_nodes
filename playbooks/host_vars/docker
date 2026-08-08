@@ -63,6 +63,8 @@ caddy_reverse_proxies:
         - "/Users/AuthenticateByName*"
       events: 10
       window: 1m
+  - host: "registry"
+    upstream: "http://registry:5000"
 
 # Legacy DuckDNS hostname, backup-only.
 # Same forward target as the homeassistant entry above, so it reuses that var
@@ -253,3 +255,16 @@ services:
       check: false
       notes: >-
         Ships this host's container logs to Loki on prometheus-grafana.
+
+  - name: registry
+    check: http
+    gatus_url: "http://registry:5000/v2/" # no published port; container DNS
+    status: 401 # htpasswd auth enabled: unauthenticated /v2/ returns 401 when up
+    canvas:
+      icon: brand:docker
+      notes: >-
+        Private Docker registry (registry:2) for the kubeadm cluster and CI.
+        Fronted by Caddy at registry.{{ porkbun_domain }}; no host port
+        published, reachable only through Caddy or container DNS. No
+        dashboard tile: registry:2 has no browsable web UI, and Homepage's
+        tile builder needs a published `port` (none here) to link to.
