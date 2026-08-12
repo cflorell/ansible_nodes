@@ -7,7 +7,7 @@ kubernetes_runner_gitlab_url: "https://gitlab.com"
 # homelab group). Set the real value in secrets.sops.yaml.
 kubernetes_runner_gitlab_token: ""
 kubernetes_runner_tag_list: "k8s"
-kubernetes_runner_concurrent: 4
+kubernetes_runner_concurrent: 3
 kubernetes_runner_pod_cpu_request: "250m"
 kubernetes_runner_pod_memory_request: "256Mi"
 kubernetes_runner_pod_cpu_limit: "1"
