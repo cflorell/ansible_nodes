@@ -262,6 +262,7 @@ services:
     status: 401 # htpasswd auth enabled: unauthenticated /v2/ returns 401 when up
     canvas:
       icon: brand:docker
+      check: false # no published port; canvas checkTarget needs addr:port
       notes: >-
         Private Docker registry (registry:2) for the kubeadm cluster and CI.
         Fronted by Caddy at registry.{{ porkbun_domain }}; no host port
