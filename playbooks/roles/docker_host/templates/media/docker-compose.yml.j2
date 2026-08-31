@@ -24,7 +24,7 @@ services:
     command: -config.file=/etc/promtail/promtail-config.yml
 
   tracearr:
-    image: ghcr.io/connorgallopo/tracearr:2.0.1
+    image: ghcr.io/connorgallopo/tracearr:2.2.3
     container_name: tracearr
     ports:
       - "${PORT:-3000}:3000"
