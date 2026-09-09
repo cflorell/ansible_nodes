@@ -31,7 +31,10 @@
 
 # Hermes rewrites this file itself when reconfigured from its CLI, so Ansible
 # owning it means a `hermes config set` is reverted on the next run. That is
-# the intended direction: the repo stays the source of truth.
+# the intended direction: the repo stays the source of truth. The one
+# deliberate exception is model.default, which is intentionally absent from the
+# template (and host_vars/llm) so the model choice made from the web dashboard
+# is not reverted.
 - name: docker_host | node-llm | move Hermes config.yaml to host
   ansible.builtin.template:
     src: "llm/hermes/config.yaml.j2"

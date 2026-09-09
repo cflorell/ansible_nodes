@@ -11,13 +11,13 @@
 # The same llama.cpp instance on christoffer-desktop backs Open WebUI, so both
 # front ends share one loaded model and one GPU.
 #
-# `default` must match the id llama-server reports at /v1/models. Hermes
-# auto-detects it when the server has exactly one model loaded, which is the
-# case here, so a mismatch degrades to auto-detection rather than failing.
+# No `default` is pinned here on purpose: it is the one setting the user owns
+# from the web dashboard, and writing it from Ansible reverts that choice on
+# every run. Hermes auto-detects the model id when the server has exactly one
+# model loaded, which is the case here.
 _config_version: 12
 
 model:
-  default: {{ hermes_model }}
   provider: custom
   base_url: {{ llm_openai_api_base_url }}
   api_key: "{{ llm_openai_api_key }}"

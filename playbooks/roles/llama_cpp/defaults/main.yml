@@ -38,8 +38,9 @@ llama_rocm_gfx_override: ""
 
 # Models llama-swap can serve, chosen per host in host_vars. Each entry:
 #   id            required; the model name clients request and the id
-#                 reported at /v1/models. Also what hermes_model and similar
-#                 downstream settings must match.
+#                 reported at /v1/models. Hermes auto-detects it when exactly
+#                 one model is loaded, so it does not need to match anything
+#                 downstream.
 #   repo          required; llama-server's -hf form (<hf-repo>:<quant>).
 #                 Downloaded on first use and cached in llama_cache_dir, so a
 #                 restart or swap back to this model does not re-fetch it.

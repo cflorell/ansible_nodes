@@ -22,7 +22,6 @@ hermes_port: 8642
 hermes_dashboard_port: 9119
 hermes_dashboard_username: christoffer
 
-hermes_model: "qwen3-8b"
 
 hermes_context_length: 65536
 
