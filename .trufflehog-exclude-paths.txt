@@ -1,3 +1,7 @@
 # False positive: empty placeholders here:
 playbooks/roles/kubernetes_flux/defaults/main\.yml
 playbooks/roles/kubernetes_flux/tasks/main\.yml
+
+# False positive: credential-less JDBC URL (host is a compose service name, password is a vault var):
+playbooks/roles/docker_host/templates/media/env\.j2
+playbooks/roles/server/templates/media/env\.j2
