@@ -89,6 +89,14 @@ endpoints:
     conditions: *http-conditions
     alerts: *notify-all
 
+  # --- Blue Iris NVR (Windows host, not Ansible-managed).
+  - name: blueiris
+    group: blueiris
+    url: "http://{{ blueiris_ip | default('192.168.2.67') }}:81"
+    interval: 2m
+    conditions: *http-conditions
+    alerts: *notify-all
+
   # --- OPNsense gateway — nothing else here checks the router itself, and
   #     it's the single point of failure for the whole LAN plus WAN/DDNS.
   - name: opnsense
