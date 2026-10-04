@@ -1,5 +1,5 @@
 ---
-nfs_client: false
+nfs_client: true
 nfs_server: false
 
 docker: true

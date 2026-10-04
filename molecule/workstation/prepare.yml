@@ -16,7 +16,7 @@
       changed_when: false
 
     - name: Bootstrap python on Arch Linux
-      ansible.builtin.raw: pacman -Sy --noconfirm python
+      ansible.builtin.raw: pacman -Syu --noconfirm python
       when: is_arch.rc == 0
       changed_when: false
 
