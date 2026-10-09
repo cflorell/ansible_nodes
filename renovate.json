@@ -3,5 +3,17 @@
   "extends": ["config:recommended"],
   "docker-compose": {
     "managerFilePatterns": ["/(^|/)docker-compose\\.ya?ml\\.j2$/"]
-  }
+  },
+  "customManagers": [
+    {
+      "customType": "regex",
+      "managerFilePatterns": ["/(^|/)roles/kubernetes_flux/defaults/main\\.ya?ml$/"],
+      "matchStrings": [
+        "kubernetes_flux_cli_version:\\s*\"(?<currentValue>[0-9]+\\.[0-9]+\\.[0-9]+)\""
+      ],
+      "datasourceTemplate": "github-releases",
+      "depNameTemplate": "fluxcd/flux2",
+      "extractVersionTemplate": "^v?(?<version>.*)$"
+    }
+  ]
 }

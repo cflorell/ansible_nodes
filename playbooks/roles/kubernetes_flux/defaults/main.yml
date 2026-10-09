@@ -1,5 +1,5 @@
 ---
-kubernetes_flux_cli_version: "2.6.4"
+kubernetes_flux_cli_version: "2.9.6"
 kubernetes_flux_namespace: flux-system
 kubernetes_flux_gitlab_hostname: gitlab.com
 kubernetes_flux_gitlab_owner: cf_homelab
