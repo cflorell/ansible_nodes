@@ -15,7 +15,11 @@
 # from the web dashboard, and writing it from Ansible reverts that choice on
 # every run. Hermes auto-detects the model id when the server has exactly one
 # model loaded, which is the case here.
-_config_version: 12
+#
+# _config_version tracks the schema the image expects. It is kept current (the
+# image's own cli-config.yaml.example is the reference) so a rendered file is
+# not treated as pre-v12 and migrated on every run.
+_config_version: 46
 
 model:
   provider: custom
@@ -26,3 +30,31 @@ model:
   # llama_context_size on the desktop, or Hermes budgets for a context the
   # model does not have.
   context_length: {{ hermes_context_length }}
+
+# MCP servers. Hermes reads this list only from this file, and its own CLI and
+# web dashboard write into the same file, so a server added from the UI is
+# reverted on the next run unless it is declared here too — the repo is the
+# source of truth (see tasks/nodes/llm.yml). Tokens are referenced as ${VAR}
+# and resolved from .env when Hermes loads the file, so no secret is committed
+# here and none is rendered into the file on the host.
+mcp_servers:
+  # Home Assistant's built-in MCP server (Settings → Voice assistants, where
+  # the entities to expose are chosen). It speaks SSE only, so the
+  # streamable-HTTP default would fail to connect: transport is explicit.
+  # The token is a long-lived HA access token in Hermes' .env; rotating it
+  # there is enough, nothing here changes.
+  homeassistant:
+    url: "{{ hermes_mcp_homeassistant_url }}"
+    transport: sse
+    headers:
+      Authorization: "Bearer ${MCP_HOMEASSISTANT_API_KEY}"
+
+# Other servers worth adding, each needing its own token in Hermes' .env
+# first (the Home Assistant key above is the only one there today):
+#   grafana    stdio  /opt/data/bin/mcp-grafana
+#                    GRAFANA_SERVICE_ACCOUNT_TOKEN, GRAFANA_URL
+#   jellyfin   stdio  npx -y @jaredtrent/jellyfin-mcp     JELLYFIN_API_KEY
+#   jellyseerr stdio  npx -y @cyanheads/seerr-mcp-server  SEERR_API_KEY
+# A stdio entry also needs its launcher inside the Hermes container (node/npx
+# for the two npx ones, or the downloaded binary for grafana), which is why
+# the URL-based server above is the one that needs nothing extra.

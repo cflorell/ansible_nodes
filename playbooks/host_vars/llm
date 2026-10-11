@@ -25,6 +25,14 @@ hermes_dashboard_username: christoffer
 
 hermes_context_length: 65536
 
+# Home Assistant's built-in MCP server, which Hermes talks to directly over the
+# LAN. The address is the same target Caddy fronts for the dashboard, so it
+# reuses that var rather than duplicating the IP under a second name (the same
+# reason Caddyfile.j2 reuses it for the DuckDNS host). The API token lives in
+# Hermes' .env as MCP_HOMEASSISTANT_API_KEY and is referenced from the
+# config.yaml template, so it is never committed or rendered.
+hermes_mcp_homeassistant_url: "{{ caddy_upstream_homeassistant }}/mcp_server/sse"
+
 # SearXNG builds absolute URLs (opensearch, images, result links) from this.
 searxng_base_url: "http://{{ ansible_host }}:{{ searxng_port }}/"
 
