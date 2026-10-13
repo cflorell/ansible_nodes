@@ -49,17 +49,6 @@ services:
       - PUID=0
       - PGID=0
 
-  torrent-natpmp-keeper:
-    container_name: torrent-natpmp-keeper
-    build: ./torrent-natpmp-keeper
-    network_mode: "container:torrent"
-    env_file:
-      - torrent-natpmp-keeper.env
-    depends_on:
-      qbittorrentvpn:
-        condition: service_healthy
-    restart: unless-stopped
-
   promtail:
     image: grafana/promtail:3.6.11
     container_name: promtail
