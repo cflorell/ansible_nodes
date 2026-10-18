@@ -1,14 +1,18 @@
 ---
 - name: docker_host | node-llm | Create service directories
   ansible.builtin.file:
-    path: "/{{ ansible_facts['user_id'] }}/{{ item }}"
+    path: "/{{ ansible_facts['user_id'] }}/{{ item.path }}"
     state: directory
-    mode: "0755"
+    mode: "{{ item.mode }}"
   loop:
-    - hermes
-    - open-webui
-    - promtail
-    - searxng
+    - path: hermes
+      mode: "0700"
+    - path: open-webui
+      mode: "0755"
+    - path: promtail
+      mode: "0755"
+    - path: searxng
+      mode: "0755"
 
 - name: docker_host | node-llm | Move promtail-config.yml
   ansible.builtin.template:
@@ -17,6 +21,7 @@
     owner: "{{ ansible_facts['user_id'] }}"
     group: "{{ ansible_facts['user_id'] }}"
     mode: "0600"
+  notify: recreate docker stack
 
 # SearXNG runs as its own unprivileged user inside the container, so this file
 # has to stay readable there. It sits under root's home directory, which is not
@@ -28,6 +33,7 @@
     owner: "{{ ansible_facts['user_id'] }}"
     group: "{{ ansible_facts['user_id'] }}"
     mode: "0644"
+  notify: recreate docker stack
 
 # Hermes rewrites this file itself when reconfigured from its CLI, so Ansible
 # owning it means a `hermes config set` is reverted on the next run. That is
@@ -35,6 +41,11 @@
 # deliberate exception is model.default, which is intentionally absent from the
 # template (and host_vars/llm) so the model choice made from the web dashboard
 # is not reverted.
+#
+# Because Hermes rewrites the file, it always differs from the rendered
+# template on disk, so this task can never report ok - and must not notify a
+# recreate, which would then fire on every run. The file is still rewritten
+# (repo wins); the result is just not reported.
 - name: docker_host | node-llm | move Hermes config.yaml to host
   ansible.builtin.template:
     src: "llm/hermes/config.yaml.j2"
@@ -42,6 +53,7 @@
     owner: "{{ ansible_facts['user_id'] }}"
     group: "{{ ansible_facts['user_id'] }}"
     mode: "0600"
+  changed_when: false
 
 - name: docker_host | node-llm | move docker-compose.yml file to host
   ansible.builtin.template:
@@ -57,4 +69,3 @@
     remove_orphans: true
     files:
       - docker-compose.yml
-    recreate: always

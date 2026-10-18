@@ -27,6 +27,7 @@
     owner: "{{ ansible_facts['user_id'] }}"
     group: "{{ ansible_facts['user_id'] }}"
     mode: "0600"
+  notify: recreate docker stack
 
 # Grafana reads the provider file from the directory root and the dashboards
 # themselves from the subdirectory it names, so the two cannot be co-located.
@@ -37,6 +38,7 @@
     owner: "{{ ansible_facts['user_id'] }}"
     group: "{{ ansible_facts['user_id'] }}"
     mode: "0644"
+  notify: recreate docker stack
 
 - name: docker_host | node-prometheus-grafana | Move provisioned dashboards
   ansible.builtin.template:
@@ -47,6 +49,7 @@
     mode: "0644"
   loop:
     - gpu-inference
+  notify: recreate docker stack
 
 - name: docker_host | node-prometheus-grafana | Move alertmanager.yml
   ansible.builtin.template:
@@ -55,6 +58,7 @@
     owner: "{{ ansible_facts['user_id'] }}"
     group: "{{ ansible_facts['user_id'] }}"
     mode: "0600"
+  notify: recreate docker stack
 
 - name: docker_host | node-prometheus-grafana | Move alert.rules.yml
   ansible.builtin.copy:
@@ -63,15 +67,7 @@
     owner: "{{ ansible_facts['user_id'] }}"
     group: "{{ ansible_facts['user_id'] }}"
     mode: "0600"
-
-- name: docker_host | node-prometheus-grafana | Move /etc/docker/daemon.json
-  ansible.builtin.copy:
-    src: files/{{ inventory_hostname }}/daemon.json
-    dest: "/etc/docker/"
-    owner: "{{ ansible_facts['user_id'] }}"
-    group: "{{ ansible_facts['user_id'] }}"
-    mode: "0644"
-  register: daemon_json
+  notify: recreate docker stack
 
 - name: docker_host | node-prometheus-grafana | Move promtail-config.yml
   ansible.builtin.template:
@@ -80,6 +76,7 @@
     owner: "{{ ansible_facts['user_id'] }}"
     group: "{{ ansible_facts['user_id'] }}"
     mode: "0600"
+  notify: recreate docker stack
 
 - name: docker_host | node-prometheus-grafana | Move loki-config.yml
   ansible.builtin.copy:
@@ -88,6 +85,7 @@
     owner: "{{ ansible_facts['user_id'] }}"
     group: "{{ ansible_facts['user_id'] }}"
     mode: "0600"
+  notify: recreate docker stack
 
 - name: docker_host | node-prometheus-grafana | Deploy Docker Compose stack
   community.docker.docker_compose_v2:
@@ -95,7 +93,6 @@
     remove_orphans: true
     files:
       - docker-compose.yml
-    recreate: always
 
 # Marks the stack as refreshed for this run, so the "Sync monitoring hub" play
 # in playbook.yml knows it does not need to run these tasks a second time.

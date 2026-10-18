@@ -2,7 +2,7 @@
     "log-driver": "loki",
     "log-opts": {
         "mode":"non-blocking",
-        "loki-url": "{{ loki_push_url }}",
+        "loki-url": "{{ docker_daemon_loki_url | default(loki_push_url) }}",
         "loki-batch-size": "400",
         "loki-retries": "2",
         "loki-max-backoff":"800ms",

@@ -15,7 +15,14 @@
     name: systemd-timesyncd
     state: started
     enabled: true
-  when: ansible_facts['distribution'] in ['Ubuntu', 'Debian', 'Archlinux']
+  when:
+    - ansible_facts['distribution'] in ['Ubuntu', 'Debian', 'Archlinux']
+    # systemd-timesyncd carries ConditionVirtualization=!container, so systemd
+    # skips it inside containers (the LXC docker hosts): `systemctl start`
+    # succeeds without ever activating the unit, so `state: started` reported
+    # changed on every run. Containers take the host's clock anyway. This
+    # mirrors systemd's own condition via Ansible's virtualization fact.
+    - "'container' not in (ansible_facts['virtualization_tech_guest'] | default([]))"
 
 - name: system setup | clock | start and enable chrony
   tags: ntp,system settings

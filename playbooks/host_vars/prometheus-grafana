@@ -4,6 +4,14 @@ nfs_server: false
 
 docker: true
 
+# /etc/docker/daemon.json is rendered by the shared docker role from
+# templates/common/daemon.json.j2, which defaults to loki_push_url (the remote
+# Loki). This host runs Loki itself, so its containers ship logs to localhost.
+# The override keeps a single task owning daemon.json; previously a
+# host-specific copy task overwrote the shared template, so the shared task
+# reported changed (and re-notified restart docker) on every run.
+docker_daemon_loki_url: "http://localhost:3100/loki/api/v1/push"
+
 # Service registry — consumed by the gatus/homepage/homelable-canvas templates
 # on the docker host. Schema documented in host_vars/docker.
 services:

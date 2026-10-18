@@ -19,6 +19,7 @@
     owner: "{{ ansible_facts['user_id'] }}"
     group: "{{ ansible_facts['user_id'] }}"
     mode: "0600"
+  notify: recreate docker stack
 
 - name: docker_host | node-media | move docker-compose.yml file to host
   ansible.builtin.template:
@@ -35,6 +36,7 @@
     owner: "{{ ansible_facts['user_id'] }}"
     group: "{{ ansible_facts['user_id'] }}"
     mode: "0600"
+  notify: recreate docker stack
 
 - name: docker_host | node-media | deploy Docker Compose stack
   block:
@@ -44,7 +46,6 @@
         remove_orphans: true
         files:
           - docker-compose.yml
-        recreate: always
   rescue:
     # Docker's DOCKER/nat iptables chains can go missing on this host between
     # deploys (LXC + host-level netfilter drift), which breaks port publishing
@@ -61,4 +62,3 @@
         remove_orphans: true
         files:
           - docker-compose.yml
-        recreate: always

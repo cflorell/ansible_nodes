@@ -135,6 +135,12 @@ services:
       # Configuring any watcher disables WUD's implicit local one, so the local
       # socket watcher must be declared explicitly alongside the remote hosts.
       - WUD_WATCHER_LOCAL_SOCKET=/var/run/docker.sock
+      # WUD 9.4.x makes authentication mandatory and refuses to start without an
+      # admin, crash-looping instead. Its store (/store/wud.sqlite) has no
+      # persistent volume, so an admin created in the UI would not survive a
+      # recreate - configure one here instead.
+      - WUD_AUTH_ADMIN_USER={{ wud_auth_admin_user }}
+      - WUD_AUTH_ADMIN_PASSWORD={{ wud_auth_admin_password }}
 {# Watch every inventory host that runs docker (they all expose the read-only
    docker-socket-proxy from common/docker-socket-proxy.yml.j2) except this
    host itself, which the local socket watcher above covers. #}

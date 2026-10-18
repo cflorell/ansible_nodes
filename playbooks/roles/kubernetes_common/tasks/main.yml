@@ -117,6 +117,11 @@
       - default
   register: kubernetes_containerd_default_config
   changed_when: false
+  # command has no real check-mode support and is skipped under --check, which
+  # would leave .stdout empty and make the copy task below render a bogus
+  # config (and re-notify restart containerd) on every check run. This is a
+  # read-only call, so run it for real even in check mode.
+  check_mode: false
 
 - name: kubernetes common | write containerd config
   ansible.builtin.copy:

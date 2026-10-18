@@ -1,12 +1,17 @@
 ---
 - name: docker_host | node-immich | Create service directories
   ansible.builtin.file:
-    path: "/{{ ansible_facts['user_id'] }}/{{ item }}"
+    path: "/{{ ansible_facts['user_id'] }}/{{ item.path }}"
     state: directory
-    mode: "0755"
+    mode: "{{ item.mode }}"
   loop:
-    - model_cache
-    - postgres
+    - path: model_cache
+      mode: "0755"
+    # postgres chmods its data dir to 0700 on startup; matching that here keeps
+    # the task idempotent instead of resetting it to 0755 (and reporting
+    # changed) on every run.
+    - path: postgres
+      mode: "0700"
 
 - name: docker_host | node-immich | move docker-compose.yml file to host
   ansible.builtin.template:
@@ -23,6 +28,7 @@
     owner: "{{ ansible_facts['user_id'] }}"
     group: "{{ ansible_facts['user_id'] }}"
     mode: "0600"
+  notify: recreate docker stack
 
 # Mounted read-only at the path IMMICH_CONFIG_FILE points to in env.j2. It holds
 # the whole system configuration, not just the OIDC section, because Immich
@@ -34,6 +40,7 @@
     owner: "{{ ansible_facts['user_id'] }}"
     group: "{{ ansible_facts['user_id'] }}"
     mode: "0600"
+  notify: recreate docker stack
 
 
 - name: docker_host | node-immich | deploy Docker Compose stack
@@ -42,4 +49,3 @@
     remove_orphans: true
     files:
       - docker-compose.yml
-    recreate: always

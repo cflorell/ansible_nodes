@@ -16,6 +16,7 @@
     owner: "{{ ansible_facts['user_id'] }}"
     group: "{{ ansible_facts['user_id'] }}"
     mode: "0600"
+  notify: recreate docker stack
 
 - name: docker_host | node-media2 | move docker-compose.yml file to host
   ansible.builtin.template:
@@ -31,4 +32,3 @@
     remove_orphans: true
     files:
       - docker-compose.yml
-    recreate: always

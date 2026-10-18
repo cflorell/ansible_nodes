@@ -19,6 +19,7 @@
     owner: "{{ ansible_facts['user_id'] }}"
     group: "{{ ansible_facts['user_id'] }}"
     mode: "0600"
+  notify: recreate docker stack
 
 - name: docker_host | node-authentik | move docker-compose.yml file to host
   ansible.builtin.template:
@@ -35,6 +36,7 @@
     owner: "{{ ansible_facts['user_id'] }}"
     group: "{{ ansible_facts['user_id'] }}"
     mode: "0600"
+  notify: recreate docker stack
 
 
 - name: docker_host | node-authentik | deploy Docker Compose stack
@@ -43,4 +45,3 @@
     remove_orphans: true
     files:
       - docker-compose.yml
-    recreate: always

@@ -98,11 +98,20 @@
     groups: "{{ gitlab_runner_groups }}"
   notify: restart gitlab-runner
 
-- name: runner | enable libvirt daemon
+# libvirtd is socket-activated and runs with LIBVIRTD_ARGS="--timeout 120", so
+# the daemon exits when idle and the service sits "inactive (dead)" almost all
+# the time. Forcing state: started on the service therefore never converges -
+# it reported changed on every run. Keep the sockets up instead: they stay
+# active and start the daemon on demand.
+- name: runner | enable libvirt sockets
   ansible.builtin.systemd:
-    name: libvirtd
+    name: "{{ item }}"
     enabled: true
     state: started
+  loop:
+    - libvirtd.socket
+    - libvirtd-ro.socket
+    - libvirtd-admin.socket
 
 - name: runner | enable GitLab Runner service
   ansible.builtin.systemd:

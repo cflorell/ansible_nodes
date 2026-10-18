@@ -10,6 +10,9 @@
     url: https://gist.githubusercontent.com/el-pato/49b094855a04aafbca3ebb875475cdf9/raw/3a58c03c50b02097285ac6f367547848436594f7/en_SE
     dest: /usr/share/i18n/locales/en_SE
     mode: '0644'
+    # Pinned gist revision: fixed content, so pin the checksum too. Otherwise
+    # get_url's --check HEAD request can never match and reports changed always.
+    checksum: sha256:498136ff9a3ab94bba6aae8fbd835333241642c1cffc4b24d101f8503ff27b87
 
 - name: system setup | fedora locale | List available locales
   ansible.builtin.command: locale -a

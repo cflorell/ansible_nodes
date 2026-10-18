@@ -4,6 +4,32 @@
     name: docker
     state: restarted
 
+# Recreates a node's Compose stack after one of its mounted config files
+# changed. The deploy task uses the module's idempotent default
+# (recreate: auto), which only recreates on a compose/service definition
+# change - not when a bind-mounted config file's contents change. Config tasks
+# notify this handler instead of the deploy task forcing recreate: always,
+# which reported changed on every single run.
+- name: recreate docker stack
+  community.docker.docker_compose_v2:
+    project_src: "/{{ ansible_facts['user_id'] }}/"
+    remove_orphans: true
+    files:
+      - docker-compose.yml
+    recreate: always
+
+# qbittorrentvpn reads its OpenVPN profile at startup, so it needs a recreate
+# when the profile is (re)seeded. Kept separate from "recreate docker stack" so
+# only this service is bounced for that case.
+- name: recreate qbittorrentvpn
+  community.docker.docker_compose_v2:
+    project_src: "/{{ ansible_facts['user_id'] }}/"
+    files:
+      - docker-compose.yml
+    services:
+      - qbittorrentvpn
+    recreate: always
+
 - name: reload systemd daemon
   ansible.builtin.systemd:
     daemon_reload: true

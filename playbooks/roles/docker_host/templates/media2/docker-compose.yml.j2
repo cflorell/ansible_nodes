@@ -44,6 +44,10 @@ services:
     environment:
       PAPERLESS_REDIS: redis://broker:6379
       PAPERLESS_DBHOST: db
+      # Required by paperless-ngx 3.x. Without it Django raises
+      # ImproperlyConfigured("PAPERLESS_SECRET_KEY is not set") and the
+      # container crash-loops (the check stage then reports the stack changed).
+      PAPERLESS_SECRET_KEY: "{{ paperless_secret_key }}"
 
   # RomM
   romm:

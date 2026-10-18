@@ -25,6 +25,7 @@
     owner: "{{ ansible_facts['user_id'] }}"
     group: "{{ ansible_facts['user_id'] }}"
     mode: "0600"
+  notify: recreate docker stack
 
 - name: docker_host | node-docker | move docker-compose.yml file to host
   ansible.builtin.template:
@@ -41,6 +42,7 @@
     owner: "{{ ansible_facts['user_id'] }}"
     group: "{{ ansible_facts['user_id'] }}"
     mode: "0600"
+  notify: recreate docker stack
 
 - name: docker_host | node-docker | Move caddy Dockerfile
   ansible.builtin.copy:
@@ -57,6 +59,7 @@
     owner: "{{ ansible_facts['user_id'] }}"
     group: "{{ ansible_facts['user_id'] }}"
     mode: "0600"
+  notify: recreate docker stack
 
 # Caddy is a custom xcaddy build (porkbun DNS, rate limiting), so only a binary
 # carrying those modules can judge the Caddyfile. Building first means a config
@@ -96,6 +99,7 @@
     group: "{{ ansible_facts['user_id'] }}"
     mode: "0600"
   loop: "{{ lookup('ansible.builtin.fileglob', role_path ~ '/templates/docker/homepage/*.j2', wantlist=True) }}"
+  notify: recreate docker stack
 
 - name: docker_host | node-docker | Move homelable .env file
   ansible.builtin.template:
@@ -104,6 +108,7 @@
     owner: "{{ ansible_facts['user_id'] }}"
     group: "{{ ansible_facts['user_id'] }}"
     mode: "0600"
+  notify: recreate docker stack
 
 - name: docker_host | node-docker | Move gatus/config.yaml
   ansible.builtin.template:
@@ -112,6 +117,7 @@
     owner: "{{ ansible_facts['user_id'] }}"
     group: "{{ ansible_facts['user_id'] }}"
     mode: "0600"
+  notify: recreate docker stack
 
 - name: docker_host | node-docker | Move registry htpasswd file
   ansible.builtin.copy:
@@ -120,6 +126,7 @@
     owner: "{{ ansible_facts['user_id'] }}"
     group: "{{ ansible_facts['user_id'] }}"
     mode: "0600"
+  notify: recreate docker stack
 
 - name: docker_host | node-docker | deploy Docker Compose stack
   community.docker.docker_compose_v2:
@@ -127,7 +134,6 @@
     remove_orphans: true
     files:
       - docker-compose.yml
-    recreate: always
 
 # Marks the hub as refreshed for this run, so the "Sync monitoring hub" play in
 # playbook.yml knows it does not need to run these tasks a second time.

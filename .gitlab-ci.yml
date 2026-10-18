@@ -193,7 +193,13 @@ ansible_check:
     # should not redeploy it as an incidental side effect of the broad
     # kubernetes limit.
     # This is handled from local machine when updates are needed.
-    - ansible-playbook playbooks/playbook.yml --check --limit "$HOMELAB_ANSIBLE_CD_LIMIT" --skip-tags kubernetes-runner
+    #
+    # node-exporter is skipped too: its tasks delegate to localhost and cache
+    # the binary under /tmp with check_mode: false, so on an ephemeral CI pod
+    # they create/download/unpack on every run and always report changed. There
+    # is nothing meaningful to dry-run for a remote binary install; apply still
+    # runs it.
+    - ansible-playbook playbooks/playbook.yml --check --limit "$HOMELAB_ANSIBLE_CD_LIMIT" --skip-tags kubernetes-runner,node-exporter
 
 ansible_apply:
   extends: .ansible_cd
