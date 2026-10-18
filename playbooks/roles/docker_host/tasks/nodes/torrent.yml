@@ -8,7 +8,6 @@
     - promtail
     - qbittorrent-config
     - qbittorrent-data
-    - torrent-natpmp-keeper
 
 - name: docker_host | node-torrent | Move promtail-config.yml
   ansible.builtin.template:
@@ -26,26 +25,10 @@
     group: "{{ ansible_facts['user_id'] }}"
     mode: "0600"
 
-- name: docker_host | node-torrent | move torrent-natpmp-keeper.env file to host
-  ansible.builtin.template:
-    src: "torrent/torrent-natpmp-keeper.env.j2"
-    dest: "/{{ ansible_facts['user_id'] }}/torrent-natpmp-keeper.env"
-    owner: "{{ ansible_facts['user_id'] }}"
-    group: "{{ ansible_facts['user_id'] }}"
-    mode: "0600"
-
 - name: docker_host | node-torrent | move se.protonvpn.udp.ovpn file to qbittorrent-config
   ansible.builtin.copy:
     src: "torrent/se.protonvpn.udp.ovpn"
     dest: "/{{ ansible_facts['user_id'] }}/qbittorrent-config/openvpn/se.protonvpn.udp.ovpn"
-    owner: "{{ ansible_facts['user_id'] }}"
-    group: "{{ ansible_facts['user_id'] }}"
-    mode: "0600"
-
-- name: docker_host | node-torrent | move torrent-natpmp-keeper files
-  ansible.builtin.copy:
-    src: "torrent/torrent-natpmp-keeper/"
-    dest: "/{{ ansible_facts['user_id'] }}/torrent-natpmp-keeper/"
     owner: "{{ ansible_facts['user_id'] }}"
     group: "{{ ansible_facts['user_id'] }}"
     mode: "0600"
@@ -57,12 +40,11 @@
     files:
       - docker-compose.yml
 
-- name: docker_host | node-torrent | force-recreate qbittorrentvpn and torrent-natpmp-keeper
+- name: docker_host | node-torrent | force-recreate qbittorrentvpn
   community.docker.docker_compose_v2:
     project_src: "/{{ ansible_facts['user_id'] }}/"
     files:
       - docker-compose.yml
     services:
       - qbittorrentvpn
-      - torrent-natpmp-keeper
     recreate: always
