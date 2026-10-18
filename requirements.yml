@@ -12,5 +12,10 @@ collections:
     version: ">=2.3.0"
   - name: community.crypto
     version: ">=2.20.0"
+  # molecule-plugins >=26.10 dropped its bundled `vagrant` action module and
+  # now calls the FQCN `community.vagrant.vagrant`, so the collection must be
+  # installed for the molecule job's create/destroy playbooks to resolve.
+  - name: community.vagrant
+    version: ">=1.0.0"
   - name: ansible.posix
     version: ">=1.5.0"

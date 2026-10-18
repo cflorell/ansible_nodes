@@ -2,13 +2,16 @@
 # Wrapper around `molecule` that works around a molecule 26 / molecule-plugins
 # incompatibility with the vagrant driver.
 #
-# molecule-plugins ships the `vagrant` action as a bundled Ansible module, and
-# molecule core used to inject that module directory into ANSIBLE_LIBRARY when
-# running the driver's create/destroy playbooks. molecule 26 dropped that
-# injection (the driver still exposes modules_dir(), but core no longer reads
-# it), so `ansible-playbook` fails with "couldn't resolve module/action
-# 'vagrant'". We compute the module dir from the installed package and export
-# it; molecule's provisioner inherits os.environ, so every step picks it up.
+# Older molecule-plugins shipped the `vagrant` action as a bundled Ansible
+# module, and molecule core used to inject that module directory into
+# ANSIBLE_LIBRARY when running the driver's create/destroy playbooks. molecule
+# 26 dropped that injection (the driver still exposes modules_dir(), but core
+# no longer reads it), so `ansible-playbook` fails with "couldn't resolve
+# module/action 'vagrant'". Newer molecule-plugins (>=26.10) removed the
+# bundled module entirely and switched the playbooks to the FQCN
+# `community.vagrant.vagrant`, which is installed from requirements.yml. We
+# cover both: export the bundled module dir when it still exists, otherwise the
+# collection provides the module.
 #
 # Usage: scripts/molecule.sh test -s base   (any molecule args are forwarded)
 # Overrides: MOLECULE_BIN / MOLECULE_PYTHON to point at a specific venv.
@@ -29,7 +32,9 @@ print(os.path.join(os.path.dirname(m.__file__), "modules"))
 PY
 )"
 
-export ANSIBLE_LIBRARY="${vagrant_modules}${ANSIBLE_LIBRARY:+:$ANSIBLE_LIBRARY}"
+if [ -d "$vagrant_modules" ]; then
+  export ANSIBLE_LIBRARY="${vagrant_modules}${ANSIBLE_LIBRARY:+:$ANSIBLE_LIBRARY}"
+fi
 
 # The vagrant driver's create/destroy playbooks run on localhost and import
 # python-vagrant, which is installed in this same interpreter. Ansible's
