@@ -88,7 +88,7 @@ parse-sast-results:
 
 ansible_lint:
   stage: lint
-  image: python:3-slim
+  image: python:3.14-slim
   variables:
     # The Kubernetes executor's build dir is world-writable (shared between
     # the helper container's git clone and the job's build container, which
@@ -142,7 +142,9 @@ molecule:
     - rm -rf .venv-molecule
 
 .ansible_cd:
-  image: python:3-slim
+  # Same Python pin/rationale as ansible_lint: `pip install ansible-core`
+  # currently resolves to 2.21.x, which is broken on Python 3.15.
+  image: python:3.14-slim
   tags:
     - k8s
   variables:
