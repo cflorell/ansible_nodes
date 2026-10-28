@@ -26,12 +26,6 @@ llama_models:
       - "q8_0"
       - "--cache-type-v"
       - "q8_0"
-      # Exposes this model's own /metrics (tokens/s, KV cache utilisation,
-      # queue depth) at GET /upstream/qwen3-14b/metrics on llama-swap's port,
-      # for manual curl-based checks. Not scraped by Prometheus: that would
-      # force this model to load on every scrape, evicting whichever model
-      # was actually in use. See the comment in prometheus.yml.j2.
-      - "--metrics"
 
   - id: qwen3-8b
     repo: "unsloth/Qwen3-8B-GGUF:Q4_K_M"
@@ -47,11 +41,3 @@ llama_models:
       - "4"
       - "--yarn-orig-ctx"
       - "32768"
-      # See the qwen3-14b comment above: manual-inspection-only, same reason.
-      - "--metrics"
-
-# node_exporter plus the amdgpu sysfs collector (roles/node_exporter_atomic),
-# scraped by prometheus-grafana. This host is a workstation and is off much
-# of the time, so its targets are expected to be down; no alert rule watches
-# them.
-node_exporter: true

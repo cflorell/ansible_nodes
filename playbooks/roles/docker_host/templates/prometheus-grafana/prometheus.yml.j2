@@ -22,9 +22,9 @@ scrape_configs:
    target carries a `hostname` label with its inventory name so alert rules can
    match hosts without hardcoding addresses.
 
-   Workstations are included because christoffer-desktop exports GPU metrics
-   via roles/node_exporter_atomic. They are personal machines rather than
-   servers, so their targets are down whenever the machine is off. #}
+   Workstations are included in case one opts in, but they are personal
+   machines rather than servers, so their targets are down whenever the
+   machine is off. #}
 {% for host in groups['nodes'] + groups['server'] + groups['workstation'] if hostvars[host]['node_exporter'] | default(false) %}
       - targets: ['{{ hostvars[host].ansible_host }}:9100']
         labels:

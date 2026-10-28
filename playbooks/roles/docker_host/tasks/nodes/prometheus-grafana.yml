@@ -40,16 +40,13 @@
     mode: "0644"
   notify: recreate docker stack
 
-- name: docker_host | node-prometheus-grafana | Move provisioned dashboards
-  ansible.builtin.template:
-    src: "prometheus-grafana/grafana/{{ item }}.json.j2"
-    dest: "/{{ ansible_facts['user_id'] }}/grafana-provisioning/homelab/{{ item }}.json"
-    owner: "{{ ansible_facts['user_id'] }}"
-    group: "{{ ansible_facts['user_id'] }}"
-    mode: "0644"
-  loop:
-    - gpu-inference
-  notify: recreate docker stack
+# The GPU/inference dashboard is no longer shipped with the stack. Delete the
+# copy a previous run provisioned so it disappears from Grafana too; template
+# tasks do not remove files whose source has been deleted.
+- name: docker_host | node-prometheus-grafana | Remove the retired GPU dashboard
+  ansible.builtin.file:
+    path: "/{{ ansible_facts['user_id'] }}/grafana-provisioning/homelab/gpu-inference.json"
+    state: absent
 
 - name: docker_host | node-prometheus-grafana | Move alertmanager.yml
   ansible.builtin.template:
