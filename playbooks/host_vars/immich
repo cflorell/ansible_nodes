@@ -4,6 +4,26 @@ nfs_server: false
 
 docker: true
 
+# Optional person-to-album sync. Immich's People view is a face cluster, not an
+# album, so an album has to be populated separately. This service adds a
+# person's assets to an existing album and keeps it current.
+#
+# Each job becomes a separate user entry in the container config, so one
+# container can sync several accounts with different API keys. Use the person
+# ID from the account that owns the key. Set the keys in
+# group_vars/all/secrets.sops.yaml under immich_person_album_api_keys.
+immich_person_album_enabled: true
+immich_person_album_schedule: "*/30 * * * *"
+immich_person_album_jobs:
+  - description: "Kid (main account)"
+    api_key_name: admin
+    person_id: "3acd64f6-fcad-415e-9295-9223a66f8850"
+    album_id: "d3ee16db-d90a-44f1-b3bf-0dc56399fef1"
+  - description: "Kid (other account)"
+    api_key_name: other
+    person_id: "3acd64f6-fcad-415e-9295-9223a66f8850"
+    album_id: "d3ee16db-d90a-44f1-b3bf-0dc56399fef1"
+
 # Service registry — consumed by the gatus/homepage/homelable-canvas templates
 # on the docker host. Schema documented in host_vars/docker.
 services:
@@ -29,6 +49,15 @@ services:
         proxmoxNode: proxmox2
         proxmoxVMID: 102
         proxmoxType: lxc
+
+  - name: immich-person-to-album
+    check: none
+    canvas:
+      label: immich_person_album
+      icon: sync
+      notes: >-
+        Optional person-to-album sync; runs only while the integration is
+        enabled.
 
   - name: immich-machine-learning
     check: none

@@ -1,0 +1,18 @@
+{
+  "immichServer": "http://immich-server:2283",
+  "schedule": {{ immich_person_album_schedule | to_json }},
+  "users": [
+{% for job in immich_person_album_jobs %}
+    {
+      "apiKey": {{ immich_person_album_api_keys[job.api_key_name] | to_json }},
+      "personLinks": [
+        {
+          "description": {{ job.description | to_json }},
+          "personId": {{ job.person_id | to_json }},
+          "albumId": {{ job.album_id | to_json }}
+        }
+      ]
+    }{% if not loop.last %},{% endif %}
+{% endfor %}
+  ]
+}

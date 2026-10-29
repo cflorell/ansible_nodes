@@ -436,6 +436,145 @@ Keeping one hostname for both sides matters beyond convenience: an OIDC issuer
 is compared as a string, so an internal client configured with a different URL
 than the browser uses would be rejected even when both reach the same server.
 
+## Immich sharing
+
+Immich has no read-only account role. A viewer account is approximated with
+three settings:
+
+- the shared account is a member of `immich-family` in Authentik, a group that
+  only the Immich application binds;
+- the matching Immich user has a storage quota of `0` GiB;
+- albums are shared with the account as **Viewer**, not **Editor**.
+
+The quota is the part that is easy to miss: an empty quota means unlimited,
+while `0` blocks uploads. The quota is set in Administration > Users. The OIDC
+`immich_quota` claim can set the same value automatically.
+
+### Creating the account
+
+1. Add the account to `immich_family_users` in the `authentik` project's
+   tfvars, apply the project, then set a password for the account in the
+   Authentik admin UI.
+2. Create the Immich user with the same email address, no admin rights, and
+   storage quota `0` GiB. With `autoRegister` disabled, the Immich user must
+   exist before the first OIDC login.
+3. Create the album, open Share, add the family account, and choose Viewer.
+
+### Person-to-album sync
+
+Immich's People view is a face cluster, not an album, and the v3.3 people
+sharing feature shares person records rather than assets. To keep an album of
+one person current, the optional `immich-person-to-album` service adds that
+person's assets to an existing album. It is a third-party container, not part
+of Immich.
+
+Prerequisites:
+
+1. Create the album and share it with the family account as Viewer.
+2. Copy the person ID from Explore > People > person, the UUID in the URL.
+3. Copy the album ID from Albums > album, the UUID in the URL.
+4. Create an Immich API key per account that owns the photos, with
+   `asset.read` and `albumAsset.create`.
+
+Configuration:
+
+- `playbooks/host_vars/immich`: set `immich_person_album_enabled: true` and add
+  one or more entries to `immich_person_album_jobs`. Each entry has a
+  `description`, `api_key_name`, `person_id`, and `album_id`.
+  `immich_person_album_schedule` is optional.
+- `playbooks/group_vars/all/secrets.sops.yaml`: add an entry to
+  `immich_person_album_api_keys` for each `api_key_name`.
+- Deploy:
+
+  ```bash
+  ansible-playbook playbooks/playbook.yml --limit immich,docker --tags node-immich
+  ```
+
+Verify with `docker logs immich_person_to_album`. The log shows each person and
+album pair and processes pages of assets. Check the albums in the web UI.
+
+### Multiple accounts and keys
+
+One container can sync several accounts. Each job becomes a separate user entry
+in the container config, with its own API key and person/album pair:
+
+```yaml
+immich_person_album_jobs:
+  - description: "Kid (my account)"
+    api_key_name: admin
+    person_id: "<person-uuid>"
+    album_id: "<album-uuid>"
+  - description: "Kid (other account)"
+    api_key_name: other
+    person_id: "<person-uuid>"
+    album_id: "<album-uuid>"
+```
+
+```yaml
+immich_person_album_api_keys:
+  admin: "<key-for-my-account>"
+  other: "<key-for-other-account>"
+```
+
+Each key must belong to the account that owns the person and its assets. Use
+the person ID from that account, not a person shared from another account. To
+combine both accounts in one album, share the album with the other account as
+Editor; the family viewer keeps Viewer. Otherwise, point the second job at the
+other account's own album and share that album with the family viewer as well.
+
+The sync state key includes the API key prefix, person ID, and album ID, so the
+jobs do not collide. The playbook rejects any job whose key is missing or still
+set to `changeme`.
+
+Behaviour and limits:
+
+- The service adds all assets for the person, including videos. It does not
+  filter by media type.
+- It only adds. Reassigning a face or removing an asset from the person does
+  not remove it from the album.
+- The last processed `updatedAt` is stored in `~/person_to_album/store.json`.
+  Deleting that file causes a full re-scan on the next run.
+- The container has no healthcheck or exposed port; the service registry marks
+  it `check: none`.
+- The image is pinned to 1.0.2 (September 2025) and built against an older
+  Immich SDK. If an Immich upgrade changes the API, the album stops updating.
+  Check the logs after Immich upgrades.
+- The API keys are stored in `~/person_to_album/config.json` with mode 0600.
+  Rotate one by updating its entry in `immich_person_album_api_keys` and
+  redeploying.
+- Setting `immich_person_album_enabled: false` removes the container and the
+  config file. The sync state remains.
+
+### 2FA on a shared account
+
+2FA belongs to the Authentik account, so one shared account can have it. The
+first login is forced through TOTP or WebAuthn enrolment by the
+`default-authentication-mfa-validation` stage. Further authenticators are
+enrolled under Settings > MFA Devices while signed in as the shared account,
+so each family member can hold a separate TOTP device. Deleting the device
+revokes that person without changing the shared password.
+
+The shared account cannot distinguish viewers: every login, view and download
+is recorded against the same Immich user. Use separate accounts if per-person
+audit or per-person album access is required.
+
+### Limits
+
+- A Viewer can download originals. Immich has no per-album download toggle for
+  account shares; that control exists only on public links.
+- Viewers see EXIF metadata, including GPS coordinates, on shared assets.
+- The account can change its own settings and create empty albums. It cannot
+  upload (quota 0), modify shared assets, or see albums that were not shared.
+- Partner sharing would expose the whole library. Do not enable it for this
+  account.
+
+### Public link alternative
+
+If 2FA is not required, a public link is genuinely read-only and needs no
+account. Set a password and expiry, and disable upload and download. It
+bypasses Authentik entirely, so anyone with the link and password can view the
+album.
+
 ## CI (merge request check, manual apply)
 
 CI runs on two separate runners. Jobs needing nested KVM (`molecule`, and the

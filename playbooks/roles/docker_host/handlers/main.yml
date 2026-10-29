@@ -30,6 +30,17 @@
       - qbittorrentvpn
     recreate: always
 
+# The person-to-album sync reads its config.json only at startup. Restart just
+# that service when the API key, person ID, or album ID changes.
+- name: recreate immich-person-to-album
+  community.docker.docker_compose_v2:
+    project_src: "/{{ ansible_facts['user_id'] }}/"
+    files:
+      - docker-compose.yml
+    services:
+      - immich-person-to-album
+    recreate: always
+
 - name: reload systemd daemon
   ansible.builtin.systemd:
     daemon_reload: true

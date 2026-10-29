@@ -51,4 +51,18 @@ services:
     shm_size: 128mb
     restart: unless-stopped
 
+{% if immich_person_album_enabled | default(false) %}
+  # Third-party sync: adds a person's assets to an existing album. The album is
+  # shared with the family viewer separately; this container only populates it.
+  immich-person-to-album:
+    container_name: immich_person_to_album
+    image: alangrainger/immich-person-to-album:1.0.2
+    restart: unless-stopped
+    volumes:
+      - ./person_to_album:/data
+    depends_on:
+      immich-server:
+        condition: service_healthy
+{% endif %}
+
 {% include "common/docker-socket-proxy.yml.j2" %}

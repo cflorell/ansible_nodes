@@ -42,6 +42,62 @@
     mode: "0600"
   notify: recreate docker stack
 
+# The sync image runs as its node user (UID/GID 1000). The bind mount is owned
+# by the same IDs so the container can read config.json and write store.json.
+- name: docker_host | node-immich | validate person-to-album configuration
+  ansible.builtin.assert:
+    that:
+      - (immich_person_album_jobs | default([])) | length > 0
+    fail_msg: >-
+      Add at least one entry to immich_person_album_jobs in host_vars/immich.
+  when: immich_person_album_enabled | default(false)
+
+- name: docker_host | node-immich | validate person-to-album jobs
+  ansible.builtin.assert:
+    that:
+      - item.description | default('') | length > 0
+      - item.person_id | length > 0
+      - item.album_id | length > 0
+      - item.api_key_name in (immich_person_album_api_keys | default({}))
+      - ((immich_person_album_api_keys | default({})).get(item.api_key_name, '')) | length > 0
+      - ((immich_person_album_api_keys | default({})).get(item.api_key_name, '')) != 'changeme'
+    fail_msg: >-
+      Job "{{ item.description | default(item.api_key_name) }}": set person_id
+      and album_id in host_vars/immich, and give api_key_name a real entry in
+      immich_person_album_api_keys. The API key needs asset.read and
+      albumAsset.create.
+  loop: "{{ immich_person_album_jobs | default([]) }}"
+  loop_control:
+    label: "{{ item.description | default(item.api_key_name) }}"
+  when: immich_person_album_enabled | default(false)
+
+- name: docker_host | node-immich | create person-to-album data directory
+  ansible.builtin.file:
+    path: "/{{ ansible_facts['user_id'] }}/person_to_album"
+    state: directory
+    owner: "1000"
+    group: "1000"
+    mode: "0755"
+  when: immich_person_album_enabled | default(false)
+
+- name: docker_host | node-immich | move person-to-album config to host
+  ansible.builtin.template:
+    src: "immich/person-to-album-config.json.j2"
+    dest: "/{{ ansible_facts['user_id'] }}/person_to_album/config.json"
+    owner: "1000"
+    group: "1000"
+    mode: "0600"
+  when: immich_person_album_enabled | default(false)
+  notify: recreate immich-person-to-album
+
+# Do not leave the API key on disk after the integration is switched off. The
+# data directory stays so store.json survives a temporary disable.
+- name: docker_host | node-immich | remove person-to-album config when disabled
+  ansible.builtin.file:
+    path: "/{{ ansible_facts['user_id'] }}/person_to_album/config.json"
+    state: absent
+  when: not (immich_person_album_enabled | default(false))
+
 
 - name: docker_host | node-immich | deploy Docker Compose stack
   community.docker.docker_compose_v2:
