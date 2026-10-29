@@ -33,7 +33,7 @@ services:
     volumes:
       - ./redis:/data
   server:
-    image: ${AUTHENTIK_IMAGE:-ghcr.io/goauthentik/server}:${AUTHENTIK_TAG:-2026.5.5}
+    image: ghcr.io/goauthentik/server:2026.8.5
     container_name: authentik-server
     restart: unless-stopped
     command: server
@@ -57,7 +57,7 @@ services:
       redis:
         condition: service_healthy
   worker:
-    image: ${AUTHENTIK_IMAGE:-ghcr.io/goauthentik/server}:${AUTHENTIK_TAG:-2026.5.5}
+    image: ghcr.io/goauthentik/server:2026.8.5
     container_name: authentik-worker
     restart: unless-stopped
     command: worker
