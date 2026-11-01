@@ -81,7 +81,7 @@ services:
           - ./caddy/config:/config
 
   registry:
-      image: registry:3
+      image: registry:3.1.2
       container_name: registry
       environment:
           - REGISTRY_AUTH=htpasswd
