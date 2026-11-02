@@ -15,7 +15,7 @@
 {% set kube_node1_host = hostvars['kube-node1'].ansible_host if 'kube-node1' in hostvars else hostvars['kubernetes-node1'].ansible_host if 'kubernetes-node1' in hostvars else 'kube-node1' %}
 {% set kube_node2_host = hostvars['kube-node2'].ansible_host if 'kube-node2' in hostvars else hostvars['kubernetes-node2'].ansible_host if 'kubernetes-node2' in hostvars else 'kube-node2' %}
 {% set kube_node3_host = hostvars['kube-node3'].ansible_host if 'kube-node3' in hostvars else hostvars['kubernetes-node3'].ansible_host if 'kubernetes-node3' in hostvars else 'kube-node3' %}
-{% set homeassistant_host = hostvars['homeassistant'].ansible_host if 'homeassistant' in hostvars else 'homeassistant' %}
+{% set homeassistant_addr = homeassistant_host | default(hostvars['homeassistant'].ansible_host if 'homeassistant' in hostvars else 'homeassistant') %}
 {% set ns = namespace(tiles=[]) %}
 {% for host in groups['nodes'] + groups['server'] %}
 {% set addr = hostvars[host].ansible_host %}
@@ -42,11 +42,11 @@
 {% if grp == 'Home' %}
     - Home Assistant:
         icon: home-assistant.png
-        href: http://{{ homeassistant_host }}:8123/
+        href: http://{{ homeassistant_addr }}:8123/
         description: Home automation VM
         widget:
           type: homeassistant
-          url: http://{{ homeassistant_host }}:8123/
+          url: http://{{ homeassistant_addr }}:8123/
           key: "{{ homeassistant_access_token | default('changeme') }}"
         proxmoxNode: proxmox2
         proxmoxVMID: 105
@@ -89,7 +89,7 @@
         icon: gitlab.png
         href: ssh://root@{{ runner_host }}
         description: GitLab runner VM
-        proxmoxNode: proxmox
+        proxmoxNode: proxmox3
         proxmoxVMID: 108
         proxmoxType: qemu
     - Kubernetes Control:

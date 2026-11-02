@@ -18,6 +18,50 @@
     - gatus
     - registry
 
+# Homepage's Kubernetes widget runs outside the cluster, so "default" mode
+# needs a kubeconfig on disk. Copy the control-plane admin.conf here and let
+# the compose template mount it read-only. The stat/slurp are delegated so a
+# run limited to the docker host still has the file available after the first
+# cluster bootstrap; before the cluster exists they are skipped and the widget
+# renders as disabled instead of failing.
+- name: docker_host | node-docker | Check for a control-plane kubeconfig
+  ansible.builtin.stat:
+    path: /etc/kubernetes/admin.conf
+  delegate_to: "{{ groups['kubernetes_control'][0] }}"
+  when: groups['kubernetes_control'] | default([]) | length > 0
+  register: docker_host_kubeconfig
+  no_log: true
+
+- name: docker_host | node-docker | Read the control-plane kubeconfig
+  ansible.builtin.slurp:
+    src: /etc/kubernetes/admin.conf
+  delegate_to: "{{ groups['kubernetes_control'][0] }}"
+  when:
+    - groups['kubernetes_control'] | default([]) | length > 0
+    - docker_host_kubeconfig.stat.exists
+  register: docker_host_kubeconfig_content
+  no_log: true
+
+- name: docker_host | node-docker | Install kubeconfig for Homepage
+  ansible.builtin.copy:
+    content: "{{ docker_host_kubeconfig_content.content | b64decode }}"
+    dest: "/{{ ansible_facts['user_id'] }}/homepage/kubeconfig"
+    owner: "{{ ansible_facts['user_id'] }}"
+    group: "{{ ansible_facts['user_id'] }}"
+    mode: "0600"
+  when:
+    - groups['kubernetes_control'] | default([]) | length > 0
+    - docker_host_kubeconfig.stat.exists
+  no_log: true
+  notify: recreate docker stack
+
+- name: docker_host | node-docker | Record Homepage kubeconfig availability
+  ansible.builtin.set_fact:
+    homepage_kubeconfig_exists: true
+  when:
+    - groups['kubernetes_control'] | default([]) | length > 0
+    - docker_host_kubeconfig.stat.exists
+
 - name: docker_host | node-docker | Move promtail-config.yml
   ansible.builtin.template:
     src: common/promtail-config.yml.j2

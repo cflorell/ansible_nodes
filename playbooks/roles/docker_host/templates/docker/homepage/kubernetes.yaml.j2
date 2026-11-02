@@ -1,4 +1,8 @@
 ---
-mode: default
+# "default" reads $KUBECONFIG, which the compose template points at the copy of
+# the control-plane kubeconfig that nodes/docker.yml installs. Until that copy
+# exists (before the cluster is initialized) the widget stays disabled rather
+# than failing with an unauthenticated request on every refresh.
+mode: {{ 'default' if homepage_kubeconfig_exists | default(false) else 'disabled' }}
 ingress: true
 gateway: true

@@ -119,7 +119,7 @@ services:
         username: "{{ grimmory_username | default('changeme') }}"
         password: "{{ grimmory_password | default('changeme') }}"
       extra:
-        proxmoxNode: proxmox
+        proxmoxNode: proxmox2
         proxmoxVMID: 104
         proxmoxType: lxc
 

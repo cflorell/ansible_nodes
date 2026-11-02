@@ -46,7 +46,7 @@ services:
       description: LLM chat
       weight: 20
       extra:
-        proxmoxNode: proxmox
+        proxmoxNode: proxmox2
         proxmoxVMID: 109
         proxmoxType: lxc
 

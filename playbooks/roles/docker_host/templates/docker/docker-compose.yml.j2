@@ -6,10 +6,17 @@ services:
       - 3000:3000
     volumes:
       - ./homepage:/app/config
+{% if homepage_kubeconfig_exists | default(false) %}
+      # Copy of the control-plane kubeconfig, rendered by nodes/docker.yml.
+      - ./homepage/kubeconfig:/app/config/kubeconfig:ro
+{% endif %}
       # Allows Homepage to read local Docker stats if you want container metrics
       - /var/run/docker.sock:/var/run/docker.sock:ro
     environment:
       - HOMEPAGE_ALLOWED_HOSTS={{ docker_server_ip }}:3000
+{% if homepage_kubeconfig_exists | default(false) %}
+      - KUBECONFIG=/app/config/kubeconfig
+{% endif %}
     restart: unless-stopped
 
   speedtest:

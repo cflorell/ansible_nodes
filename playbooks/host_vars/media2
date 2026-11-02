@@ -24,7 +24,7 @@ services:
         username: "{{ paperless_username | default('changeme') }}"
         password: "{{ paperless_password | default('changeme') }}"
       extra:
-        proxmoxNode: proxmox
+        proxmoxNode: proxmox2
         proxmoxVMID: 107
         proxmoxType: lxc
 

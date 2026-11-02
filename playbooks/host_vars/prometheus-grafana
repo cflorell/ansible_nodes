@@ -34,7 +34,9 @@ services:
       widget:
         type: grafana
         version: 2
-        alerts: alertmanager
+        # Leave alerts unset so it uses Grafana's built-in alerting
+        # ("grafana"). There is no Alertmanager datasource named alertmanager
+        # in Grafana, so mapping to one returns "data source not found".
         username: "{{ grafana_username | default('changeme') }}"
         # | string: the vaulted value is numeric and would otherwise render as
         # an unquoted YAML int in the generated widget config

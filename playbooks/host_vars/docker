@@ -71,6 +71,11 @@ caddy_reverse_proxies:
 # in Caddyfile.j2 rather than duplicating the IP under a second name.
 caddy_duckdns_host: "{{ duckdns_domain }}"
 
+# Home Assistant runs on an unmanaged VM, so it has no inventory entry and no
+# hostvars to read ansible_host from. The dashboard template needs its address
+# for both the tile link and the widget.
+homeassistant_host: 192.168.2.75
+
 # Service registry — one entry per container in this host's compose stack.
 # The gatus, homepage and homelable-canvas templates on the docker host are
 # generated from these lists, so declaring a service here is what puts it on
@@ -189,9 +194,12 @@ services:
       description: Internet speed history
       weight: 60
       widget:
+        # Speedtest Tracker 1.x serves the unauthenticated legacy endpoint
+        # (/api/speedtest/latest). Version 2 uses /api/v1/results/latest,
+        # which redirects to the login page and fails to parse without a real
+        # API token (APP_KEY is not one).
         type: speedtest
-        version: 2
-        key: "{{ speedtest_app_key | default('changeme') }}"
+        version: 1
         bitratePrecision: 3
 
   - name: watchyourlan
