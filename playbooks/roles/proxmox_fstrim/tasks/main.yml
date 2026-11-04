@@ -1,0 +1,37 @@
+---
+- name: proxmox_fstrim | Enable the host filesystem trim timer
+  ansible.builtin.systemd_service:
+    name: fstrim.timer
+    enabled: true
+    state: started
+
+- name: proxmox_fstrim | Install the guest trim script
+  ansible.builtin.template:
+    src: proxmox-fstrim.sh.j2
+    dest: "{{ proxmox_fstrim_script_path }}"
+    owner: root
+    group: root
+    mode: "0755"
+  register: proxmox_fstrim_script
+
+- name: proxmox_fstrim | Install the guest trim units
+  ansible.builtin.template:
+    src: "proxmox-fstrim.{{ item }}.j2"
+    dest: "/etc/systemd/system/proxmox-fstrim.{{ item }}"
+    owner: root
+    group: root
+    mode: "0644"
+  loop:
+    - service
+    - timer
+  register: proxmox_fstrim_units
+
+# Check mode does not write the unit files, so systemd cannot find the timer
+# yet; skip the enable step there instead of failing the dry run.
+- name: proxmox_fstrim | Enable the weekly guest trim timer
+  ansible.builtin.systemd_service:
+    name: proxmox-fstrim.timer
+    daemon_reload: true
+    enabled: true
+    state: "{{ 'restarted' if proxmox_fstrim_units is changed else 'started' }}"
+  when: not ansible_check_mode

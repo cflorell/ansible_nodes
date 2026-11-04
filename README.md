@@ -248,6 +248,18 @@ and metadata usage from `lvs` into node_exporter's textfile collector
 `alert.rules.yml` warn above 85% data / 80% metadata and fire critical above
 95%, because a full thin pool pauses every guest using it with `IO-error`.
 
+The `proxmox_fstrim` role closes the other half of that loop: its
+`proxmox-fstrim.timer` runs weekly on the Proxmox hosts and returns unused
+blocks to the storage. Running containers are trimmed with `pct fstrim`;
+running VMs are asked to trim through the QEMU guest agent, which only helps
+when their disk is on virtio-scsi/virtio-blk with `discard=on` (QEMU's
+SATA/IDE controller does not pass ATA TRIM). The role also makes sure the
+host's own `fstrim.timer` is enabled. Deploy only this part with:
+
+```bash
+ansible-playbook playbooks/playbook.yml --limit server --tags proxmox-fstrim
+```
+
 So adding a new service to an existing node is: add it to the node's
 docker-compose template, add a `services:` entry to its host_vars, then deploy
 the node with the hub included in the limit:

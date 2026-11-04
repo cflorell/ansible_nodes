@@ -1,0 +1,12 @@
+# {{ ansible_managed }}
+[Unit]
+Description=Trim unused blocks on Proxmox containers and VMs
+Documentation=man:fstrim(8)
+After=pve-cluster.service
+ConditionPathExists=/usr/sbin/pct
+ConditionPathExists=/usr/sbin/qm
+
+[Service]
+Type=oneshot
+ExecStart={{ proxmox_fstrim_script_path }}
+Nice=10

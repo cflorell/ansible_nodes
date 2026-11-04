@@ -1,0 +1,12 @@
+# {{ ansible_managed }}
+[Unit]
+Description=Weekly trim of Proxmox container and VM disks
+
+[Timer]
+OnCalendar={{ proxmox_fstrim_on_calendar }}
+RandomizedDelaySec={{ proxmox_fstrim_randomized_delay }}
+Persistent=true
+AccuracySec=1m
+
+[Install]
+WantedBy=timers.target

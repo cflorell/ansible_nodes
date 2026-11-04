@@ -109,6 +109,16 @@
 # does not deploy the hub twice. Ansible cannot reach hosts outside --limit,
 # so when the hub is excluded the follow-up play below warns instead.
 # `--skip-tags monitoring-sync` opts out of the sync explicitly.
+# Deleted blocks stay allocated in LVM-thin pools until the guest issues a
+# discard, and Proxmox does not trim container volumes automatically.
+- name: Run Proxmox guest trim tasks
+  hosts: server
+  tags: proxmox-fstrim
+  become: true
+  roles:
+    - role: proxmox_fstrim
+      when: proxmox | default(false)
+
 - name: Sync monitoring hub with deployed services
   hosts: docker, prometheus-grafana
   tags: [always, monitoring-sync]

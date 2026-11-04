@@ -1,0 +1,14 @@
+---
+proxmox_fstrim_script_path: /usr/local/sbin/proxmox-fstrim
+proxmox_fstrim_timeout: "30m"
+
+# Run trim on Sunday night; the host's own fstrim.timer is weekly on Monday.
+# systemd adds up to proxmox_fstrim_randomized_delay so the three nodes do not
+# start at the same instant.
+proxmox_fstrim_on_calendar: "Sun *-*-* 03:30:00"
+proxmox_fstrim_randomized_delay: "1h"
+
+# Ask running VMs to trim through the QEMU guest agent as well. This is
+# harmless for disks without discard support; the blocks are only returned to
+# the thin pool when the disk is on virtio-scsi/virtio-blk with discard=on.
+proxmox_fstrim_vms: true
