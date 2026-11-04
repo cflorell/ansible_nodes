@@ -1,0 +1,11 @@
+# {{ ansible_managed }}
+[Unit]
+Description=Collect LVM thin pool usage every {{ lvm_thin_exporter_interval }}
+
+[Timer]
+OnBootSec=30s
+OnUnitActiveSec={{ lvm_thin_exporter_interval }}
+AccuracySec=1s
+
+[Install]
+WantedBy=timers.target

@@ -1,0 +1,8 @@
+# {{ ansible_managed }}
+[Unit]
+Description=Collect LVM thin pool usage into the node_exporter textfile directory
+After=local-fs.target
+
+[Service]
+Type=oneshot
+ExecStart={{ lvm_thin_exporter_script_path }}

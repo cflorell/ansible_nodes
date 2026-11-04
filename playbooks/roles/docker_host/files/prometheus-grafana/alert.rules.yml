@@ -84,6 +84,62 @@ groups:
           summary: "High disk I/O wait time"
           description: "Disk I/O wait time on {{ $labels.instance }} is above 20% for more than 5 minutes."
 
+      # Emitted by the lvm_thin_exporter role on the Proxmox hosts. A full
+      # thin pool returns EIO and pauses every guest using it.
+      - alert: LVMThinPoolDataWarning
+        expr: lvm_thin_pool_data_percent > 85
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: >-
+            LVM thin pool {{ $labels.vg }}/{{ $labels.pool }} on
+            {{ $labels.instance }} is {{ $value | printf "%.1f" }}% full.
+          description: >-
+            Thin-pool data usage is above 85%. Extend the pool or move a volume
+            to another storage before it fills; a full pool pauses every guest
+            using it with IO-error.
+
+      - alert: LVMThinPoolDataCritical
+        expr: lvm_thin_pool_data_percent > 95
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: >-
+            LVM thin pool {{ $labels.vg }}/{{ $labels.pool }} on
+            {{ $labels.instance }} is {{ $value | printf "%.1f" }}% full.
+          description: >-
+            Thin-pool data usage is above 95%. Act now: extend the pool or move
+            a volume to another storage, or guests will be paused with IO-error.
+
+      - alert: LVMThinPoolMetadataWarning
+        expr: lvm_thin_pool_metadata_percent > 80
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: >-
+            LVM thin pool {{ $labels.vg }}/{{ $labels.pool }} on
+            {{ $labels.instance }} metadata is {{ $value | printf "%.1f" }}% full.
+          description: >-
+            Thin-pool metadata usage is above 80%. Exhausted metadata also
+            prevents new allocations and pauses guests; extend the pool or move
+            data off it.
+
+      - alert: LVMThinPoolMetadataCritical
+        expr: lvm_thin_pool_metadata_percent > 95
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: >-
+            LVM thin pool {{ $labels.vg }}/{{ $labels.pool }} on
+            {{ $labels.instance }} metadata is {{ $value | printf "%.1f" }}% full.
+          description: >-
+            Thin-pool metadata usage is above 95%. Extend the metadata area or
+            move data off the pool immediately.
+
   - name: MemoryAlerts
     rules:
       - alert: HighMemoryUsage

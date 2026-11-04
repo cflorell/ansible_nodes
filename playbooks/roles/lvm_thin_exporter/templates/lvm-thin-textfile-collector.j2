@@ -1,0 +1,33 @@
+#!/bin/bash
+# {{ ansible_managed }}
+set -euo pipefail
+export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+
+OUT="{{ lvm_thin_exporter_textfile_dir }}/lvm-thin.prom"
+TMP="$(mktemp "${OUT}.XXXXXX")"
+trap 'rm -f "$TMP"' EXIT
+
+{
+  echo "# HELP lvm_thin_pool_data_percent Thin pool data usage as a percentage."
+  echo "# TYPE lvm_thin_pool_data_percent gauge"
+  echo "# HELP lvm_thin_pool_metadata_percent Thin pool metadata usage as a percentage."
+  echo "# TYPE lvm_thin_pool_metadata_percent gauge"
+
+  # lv_attr starts with "t" for thin pools; thin volumes start with "V".
+  LC_ALL=C lvs --noheadings --separator=, \
+    -o vg_name,lv_name,lv_attr,data_percent,metadata_percent 2>/dev/null \
+  | awk -F, '
+      {
+        gsub(/^[[:space:]]+|[[:space:]]+$/, "", $1)
+        gsub(/^[[:space:]]+|[[:space:]]+$/, "", $2)
+        gsub(/^[[:space:]]+|[[:space:]]+$/, "", $4)
+        gsub(/^[[:space:]]+|[[:space:]]+$/, "", $5)
+        if ($3 ~ /^t/) {
+          if ($4 != "") printf "lvm_thin_pool_data_percent{vg=\"%s\",pool=\"%s\"} %s\n", $1, $2, $4
+          if ($5 != "") printf "lvm_thin_pool_metadata_percent{vg=\"%s\",pool=\"%s\"} %s\n", $1, $2, $5
+        }
+      }'
+} > "$TMP"
+
+chmod 0644 "$TMP"
+mv "$TMP" "$OUT"

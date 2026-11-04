@@ -16,6 +16,10 @@ docker: false
 
 # node_exporter systemd collector — feeds node_systemd_unit_state, which the
 # CertRenewal alert (files/prometheus-grafana/alert.rules.yml) watches on
-# pve-daily-update.service. Additive; keeps the default collectors.
+# pve-daily-update.service. This list replaces the role default, so the
+# textfile collector has to be listed explicitly as well; lvm_thin_exporter
+# writes lvm-thin.prom into node_exporter_textfile_dir.
 node_exporter_enabled_collectors:
   - systemd
+  - textfile:
+      directory: "{{ node_exporter_textfile_dir }}"

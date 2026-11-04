@@ -94,6 +94,11 @@
   roles:
     - role: prometheus.prometheus.node_exporter
       when: node_exporter is defined and node_exporter
+    # Thin-pool exhaustion pauses every guest on the pool with IO-error, so
+    # export pve/data and pve2/data usage through node_exporter's textfile
+    # collector. Runs after the Galaxy role creates the collector directory.
+    - role: lvm_thin_exporter
+      when: proxmox | default(false)
 
 # Re-renders the monitoring hub so gatus/homepage/homelable/whats-up-docker and
 # the prometheus scrape targets pick up services declared in the host_vars

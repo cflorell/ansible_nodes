@@ -242,6 +242,12 @@ inside each monitoring service's GUI:
 - `node_exporter: true` installs node_exporter on the host **and** adds it to
   Prometheus' scrape targets.
 
+The Proxmox hosts also run `lvm_thin_exporter`, which writes thin-pool data
+and metadata usage from `lvs` into node_exporter's textfile collector
+(`/var/lib/node_exporter/lvm-thin.prom`). The `LVMThinPool*` rules in
+`alert.rules.yml` warn above 85% data / 80% metadata and fire critical above
+95%, because a full thin pool pauses every guest using it with `IO-error`.
+
 So adding a new service to an existing node is: add it to the node's
 docker-compose template, add a `services:` entry to its host_vars, then deploy
 the node with the hub included in the limit:

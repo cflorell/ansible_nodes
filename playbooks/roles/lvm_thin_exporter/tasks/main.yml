@@ -1,0 +1,44 @@
+---
+- name: lvm_thin_exporter | Create the textfile collector directory
+  ansible.builtin.file:
+    path: "{{ lvm_thin_exporter_textfile_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: lvm_thin_exporter | Install the collector script
+  ansible.builtin.template:
+    src: lvm-thin-textfile-collector.j2
+    dest: "{{ lvm_thin_exporter_script_path }}"
+    owner: root
+    group: root
+    mode: "0755"
+  register: lvm_thin_exporter_script
+
+- name: lvm_thin_exporter | Install the collector units
+  ansible.builtin.template:
+    src: "lvm-thin-textfile.{{ item }}.j2"
+    dest: "/etc/systemd/system/lvm-thin-textfile.{{ item }}"
+    owner: root
+    group: root
+    mode: "0644"
+  loop:
+    - service
+    - timer
+  register: lvm_thin_exporter_units
+
+- name: lvm_thin_exporter | Enable the collector timer
+  ansible.builtin.systemd_service:
+    name: lvm-thin-textfile.timer
+    daemon_reload: true
+    enabled: true
+    state: "{{ 'restarted' if lvm_thin_exporter_units is changed else 'started' }}"
+
+# Run once now so the first scrape after a deploy has data instead of waiting
+# for the timer's first firing.
+- name: lvm_thin_exporter | Collect metrics once now
+  ansible.builtin.systemd_service:
+    name: lvm-thin-textfile.service
+    state: restarted
+  when: lvm_thin_exporter_script is changed or lvm_thin_exporter_units is changed

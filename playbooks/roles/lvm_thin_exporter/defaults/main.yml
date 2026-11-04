@@ -1,0 +1,5 @@
+---
+# The prometheus.prometheus.node_exporter role uses the same default path.
+lvm_thin_exporter_textfile_dir: "{{ node_exporter_textfile_dir | default('/var/lib/node_exporter') }}"
+lvm_thin_exporter_script_path: /usr/local/bin/lvm-thin-textfile-collector
+lvm_thin_exporter_interval: 60s
