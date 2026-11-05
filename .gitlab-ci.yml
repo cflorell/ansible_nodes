@@ -88,7 +88,10 @@ parse-sast-results:
 
 ansible_lint:
   stage: lint
-  image: python:3.15-slim
+  # ansible-core 2.21 is the newest version supported by prometheus.prometheus
+  # 0.30.x, and it does not support Python 3.15. Keep Python <=3.14 until the
+  # collection declares ansible-core 2.22+ support (see requirements-lint.txt).
+  image: python:3.14-slim
   variables:
     # The Kubernetes executor's build dir is world-writable (shared between
     # the helper container's git clone and the job's build container, which
@@ -142,9 +145,10 @@ molecule:
     - rm -rf .venv-molecule
 
 .ansible_cd:
-  # Same Python pin/rationale as ansible_lint: `pip install ansible-core`
-  # currently resolves to 2.21.x, which is broken on Python 3.15.
-  image: python:3.15-slim
+  # Same Python/ansible-core pin and rationale as ansible_lint: the newest
+  # ansible-core supported by prometheus.prometheus 0.30.x is 2.21, which does
+  # not run on Python 3.15.
+  image: python:3.14-slim
   tags:
     - k8s
   variables:
@@ -169,7 +173,8 @@ molecule:
     - apt-get update -qq && apt-get install -qq -y --no-install-recommends git openssh-client curl > /dev/null
     - curl -fsSL "https://github.com/getsops/sops/releases/download/${SOPS_VERSION}/sops-${SOPS_VERSION}.linux.amd64" -o /usr/local/bin/sops
     - chmod 755 /usr/local/bin/sops
-    - pip install --quiet ansible-core
+    # Keep in sync with requirements-lint.txt/requirements-test.txt.
+    - pip install --quiet 'ansible-core<2.22'
     # KUBERNETES_RUNNER_SSH_PRIVATE_KEY: masked+protected CI/CD variable
     # holding the dedicated keypair pre_tasks.yml generates on kube-control
     # (authorized on every managed host by base/users/root.yml), base64-encoded

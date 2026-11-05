@@ -3,10 +3,10 @@
   "extends": ["config:recommended"],
   "packageRules": [
     {
-      "description": "Stay on Python <=3.14 for CI images until ansible-core supports 3.15 (it patches dataclasses._is_type, removed in 3.15)",
+      "description": "Stay on Python <=3.14 for CI images: prometheus.prometheus 0.30.x caps ansible-core at 2.21.x, which does not support 3.15. Includes minor bumps because 3.14 -> 3.15 is a minor update. Revisit once the collection supports ansible-core 2.22+.",
       "matchDatasources": ["docker"],
       "matchPackageNames": ["python"],
-      "matchUpdateTypes": ["major"],
+      "matchUpdateTypes": ["major", "minor"],
       "enabled": false
     }
   ],
