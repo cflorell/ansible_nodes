@@ -3,4 +3,4 @@
 # Python 3.15. Keep this in sync with .gitlab-ci.yml / requirements-test.txt and
 # raise the cap once the collection supports ansible-core 2.22+.
 ansible-core<2.22
-ansible-lint==26.10.1
+ansible-lint==26.11.0
