@@ -2,5 +2,5 @@
 # declares requires_ansible <=2.21.99, and ansible-core 2.21 does not support
 # Python 3.15. Keep this in sync with .gitlab-ci.yml / requirements-test.txt and
 # raise the cap once the collection supports ansible-core 2.22+.
-ansible-core<2.22
+ansible-core<2.23
 ansible-lint==26.11.0
