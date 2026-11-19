@@ -88,9 +88,10 @@ parse-sast-results:
 
 ansible_lint:
   stage: lint
-  # ansible-core 2.21 is the newest version supported by prometheus.prometheus
-  # 0.30.x, and it does not support Python 3.15. Keep Python <=3.14 until the
-  # collection declares ansible-core 2.22+ support (see requirements-lint.txt).
+  # ansible-core 2.22 is the newest version supported by the pinned
+  # prometheus.prometheus commit (see requirements.yml). Keep Python <=3.14
+  # until the collection is installed from Galaxy 0.31.0+ (see
+  # requirements-lint.txt).
   image: python:3.14-slim
   variables:
     # The Kubernetes executor's build dir is world-writable (shared between
@@ -103,6 +104,10 @@ ansible_lint:
   rules:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
     - if: $CI_COMMIT_BRANCH == "main"
+  before_script:
+    # requirements.yml installs prometheus.prometheus from a pinned git commit
+    # until 0.31.0 is published, so the slim image needs git.
+    - apt-get update -qq && apt-get install -qq -y --no-install-recommends git > /dev/null
   script:
     - python3 -m venv .venv-lint
     - .venv-lint/bin/pip install --quiet -r requirements-lint.txt
@@ -145,9 +150,9 @@ molecule:
     - rm -rf .venv-molecule
 
 .ansible_cd:
-  # Same Python/ansible-core pin and rationale as ansible_lint: the newest
-  # ansible-core supported by prometheus.prometheus 0.30.x is 2.21, which does
-  # not run on Python 3.15.
+  # Same Python/ansible-core pin and rationale as ansible_lint: the pinned
+  # prometheus.prometheus commit (see requirements.yml) declares ansible-core
+  # <=2.22 support, and 2.23 disables embedded templates it still uses.
   image: python:3.14-slim
   tags:
     - k8s
@@ -174,7 +179,7 @@ molecule:
     - curl -fsSL "https://github.com/getsops/sops/releases/download/${SOPS_VERSION}/sops-${SOPS_VERSION}.linux.amd64" -o /usr/local/bin/sops
     - chmod 755 /usr/local/bin/sops
     # Keep in sync with requirements-lint.txt/requirements-test.txt.
-    - pip install --quiet 'ansible-core<2.22'
+    - pip install --quiet 'ansible-core<2.23'
     # KUBERNETES_RUNNER_SSH_PRIVATE_KEY: masked+protected CI/CD variable
     # holding the dedicated keypair pre_tasks.yml generates on kube-control
     # (authorized on every managed host by base/users/root.yml), base64-encoded

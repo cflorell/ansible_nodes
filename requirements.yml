@@ -1,7 +1,8 @@
 ---
 collections:
-  - name: prometheus.prometheus
-    version: ">=0.30.0"
+  - name: https://github.com/prometheus-community/ansible.git
+    type: git
+    version: 1e104bbcfb34e92a50fb429abc7e84512a43d855
   - name: community.docker
     version: ">=5.2.1"
   - name: community.general
