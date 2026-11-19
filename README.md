@@ -26,6 +26,16 @@ The main playbook configures three broad host types:
 - `workstation`: desktop or laptop machines.
 - `all`: common base system configuration shared across hosts.
 
+The `osmc` group holds the OSMC (Vero V) Kodi appliance. It is excluded from
+the `base` play (`hosts: all:!osmc`) and from the end-of-run cleanup: base
+writes a managed `/etc/apt/sources.list`, which on the appliance carries the
+OSMC repository, and an autoremove purge against Kodi could strip an OSMC
+meta-package dependency. The `osmc` role is the only configuration that host
+receives: it builds unrar/rar2fs and mounts the shared `nfs_client_mounts` /
+`nfs_client_fuse_mounts` from the secrets so Kodi's Jellyfin plugin can play
+natively from the same local paths the Jellyfin host (proxmox2) serves its
+library from.
+
 One cross-cutting group also exists: `atomic`, for image-based (ostree) systems
 such as Bazzite. Its members belong to their normal group as well, and are
 listed there only so the lifecycle plays in `playbooks/lifecycle/` can skip

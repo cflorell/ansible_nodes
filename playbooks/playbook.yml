@@ -12,11 +12,25 @@
     - docker_host
 
 - name: Run base tasks
-  hosts: all
+  # osmc is excluded: base writes its own /etc/apt/sources.list, which on the
+  # OSMC appliance carries the OSMC repository, and looks up per-distribution
+  # vars files that do not cover OSMC. The osmc role is that host's whole
+  # managed configuration instead.
+  hosts: all:!osmc
   tags: base
   become: true
   roles:
     - base
+
+# Kodi appliance. Only receives the NFS-backed rar2fs views the Jellyfin host
+# (proxmox2) serves its library from, so Kodi's Jellyfin plugin can play
+# natively (direct paths) instead of streaming over HTTP (add-on mode).
+- name: Run OSMC tasks
+  hosts: osmc
+  tags: osmc
+  become: true
+  roles:
+    - osmc
 
 - name: Run workstation tasks
   hosts: workstation

@@ -1,0 +1,176 @@
+---
+# The OSMC appliance is kept outside the base and docker_host plays (base
+# overwrites /etc/apt/sources.list, which carries the OSMC repository on this
+# device). Kodi's Jellyfin plugin in native mode plays files directly from the
+# paths the server reports, and the Jellyfin host (proxmox2) serves its
+# library from the rar2fs views /mnt/StorageNRar layered over the proxmox1 NFS
+# exports. Both layers are therefore mounted here from the shared
+# nfs_client_mounts / nfs_client_fuse_mounts variables (secrets.sops.yaml),
+# mirroring docker_host/tasks/config/nfs_client.yml without the Docker or
+# mergerfs parts.
+# Note: OSMC's bullseye appliance is frozen on archive.debian.org and its
+# sources omit the security suite. libfuse-dev's dependency chain needs
+# libsepol1-dev, whose only version matching the exact-match dependency on the
+# already-installed libsepol1 (+deb11u1) lives in bullseye-security; without
+# the suite apt reports held broken packages. Guarded on the release codename
+# so a future bookworm-based OSMC image is unaffected.
+
+- name: osmc | packages | add bullseye-security repository
+  ansible.builtin.copy:
+    dest: /etc/apt/sources.list.d/bullseye-security.list
+    content: deb https://archive.debian.org/debian-security bullseye-security main
+    owner: root
+    group: root
+    mode: '0644'
+  when: ansible_facts['distribution_release'] == 'bullseye'
+
+- name: osmc | packages | install nfs client and rar2fs build dependencies
+  ansible.builtin.apt:
+    name:
+      - nfs-common
+      - fuse
+      - libfuse-dev
+      - autoconf
+      - automake
+      - pkg-config
+      - make
+      - g++
+    state: present
+    update_cache: true
+
+- name: osmc | rar2fs | build unrar and rar2fs
+  when: nfs_client_fuse_mounts | length > 0
+  block:
+    - name: osmc | rar2fs | download and extract unrarsrc
+      ansible.builtin.unarchive:
+        src: ftp://ftp.rarlab.com/rar/unrarsrc-{{ rar2fs_unrar_version }}.tar.gz
+        dest: /usr/local/bin
+        remote_src: true
+      retries: 3
+      delay: 3
+      register: result
+      until: result is succeeded
+
+    - name: osmc | rar2fs | compile unrar
+      ansible.builtin.command: make lib -f makefile
+      args:
+        chdir: /usr/local/bin/unrar/
+      register: output
+      changed_when: output.rc != 0
+
+    - name: osmc | rar2fs | check if rar2fs is already installed
+      ansible.builtin.stat:
+        path: /usr/local/bin/rar2fs
+      register: rar2fs_binary
+
+    - name: osmc | rar2fs | download and extract rar2fs
+      ansible.builtin.unarchive:
+        src: https://github.com/hasse69/rar2fs/releases/download/v{{ rar2fs_version }}/rar2fs-{{ rar2fs_version }}.tar.gz
+        dest: /usr/local/bin
+        remote_src: true
+      retries: 3
+      delay: 3
+      register: result
+      until: result is succeeded
+      when: not rar2fs_binary.stat.exists
+
+    - name: osmc | rar2fs | configure and compile rar2fs
+      when: not rar2fs_binary.stat.exists
+      block:
+        - name: osmc | rar2fs | run autoreconf
+          ansible.builtin.command: autoreconf -f -i
+          args:
+            chdir: /usr/local/bin/rar2fs-{{ rar2fs_version }}/
+          register: output
+          changed_when: output.rc != 0
+
+        - name: osmc | rar2fs | configure rar2fs
+          ansible.builtin.command: ./configure --with-unrar=../unrar
+          args:
+            chdir: /usr/local/bin/rar2fs-{{ rar2fs_version }}/
+          register: output
+          changed_when: output.rc != 0
+
+        - name: osmc | rar2fs | compile rar2fs
+          ansible.builtin.command: make
+          args:
+            chdir: /usr/local/bin/rar2fs-{{ rar2fs_version }}/
+          register: output
+          changed_when: output.rc != 0
+
+        - name: osmc | rar2fs | install rar2fs
+          ansible.builtin.command: make install
+          args:
+            chdir: /usr/local/bin/rar2fs-{{ rar2fs_version }}/
+          register: output
+          changed_when: output.rc != 0
+
+- name: osmc | nfs | create directories for nfs mounts
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+  loop: "{{ nfs_client_mounts }}"
+
+- name: osmc | rar2fs | create directories for fuse mounts
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    state: directory
+    owner: root
+    group: root
+    mode: '0555'
+  loop: "{{ nfs_client_fuse_mounts }}"
+
+- name: osmc | nfs | add mounts to /etc/fstab
+  # nofail is deliberately absent from the fuse entries: mount(8) (used by
+  # both mount -a and systemd's mount units) passes it through to mount.fuse,
+  # which rar2fs rejects as an unknown option. Boot safety comes from
+  # x-systemd.automount instead: the automount unit activates regardless of
+  # backing state and the real mount is only attempted on first access, so a
+  # wedged NFS server cannot fail the boot. x-systemd.requires keeps the
+  # backing NFS mount ordered before the rar2fs view.
+  ansible.builtin.blockinfile:
+    path: /etc/fstab
+    marker: "# {mark} OSMC NFS MOUNTS"
+    block: |
+      {% for mount in nfs_client_mounts %}
+      {{ mount.source }} {{ mount.path }} {{ mount.fstype }} {{ mount.options }} 0 0
+      {% endfor %}
+
+      {% for mount in nfs_client_fuse_mounts %}
+      {% set backing = mount.path | regex_replace('Rar$', '') %}
+      {% set backing_unit = backing | regex_replace('^/', '') | regex_replace('/', '-') ~ '.mount' %}
+      {{ mount.source }} {{ mount.path }} {{ mount.fstype }} {{ mount.options }},_netdev,x-systemd.requires={{ backing_unit }},x-systemd.automount 0 0
+      {% endfor %}
+
+# Convergence is done with always-running tasks rather than handlers: a run
+# must bring already-declared mounts up even when fstab did not change (fresh
+# boot while the NFS server was down, manual umounts, fstab correct from a
+# previous run).
+- name: osmc | nfs | reload systemd for fstab units
+  ansible.builtin.systemd:
+    daemon_reload: true
+
+- name: osmc | nfs | mount nfs filesystems
+  ansible.builtin.command:
+    cmd: mount -a -t nfs,nfs4
+  register: nfs_mount_result
+  changed_when: nfs_mount_result.stdout | length > 0
+
+# systemd, not mount -a: the fuse fstab entries carry fstab-only options
+# (x-systemd.*) that systemd filters out before invoking mount.fuse. Whether
+# systemd starts the mount unit directly or routes it through its automount
+# unit, the follow-up ls trigger makes the real mount appear either way.
+- name: osmc | rar2fs | start rar2fs mounts
+  ansible.builtin.systemd:
+    name: "{{ (item.path | regex_replace('^/', '')) | regex_replace('/', '-') }}.mount"
+    state: started
+  loop: "{{ nfs_client_fuse_mounts }}"
+
+- name: osmc | rar2fs | trigger rar2fs automounts
+  ansible.builtin.command:
+    cmd: ls "{{ item.path }}"
+  changed_when: false
+  loop: "{{ nfs_client_fuse_mounts }}"

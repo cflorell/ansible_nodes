@@ -1,0 +1,9 @@
+---
+# OSMC Vero V (Kodi appliance). Excluded from the base play and managed solely
+# by the osmc role, which mounts the same nfs_client_mounts /
+# nfs_client_fuse_mounts (secrets.sops.yaml) the Jellyfin host (proxmox2)
+# serves its library from. That lets Kodi's Jellyfin plugin play natively
+# (direct paths, /mnt/StorageNRar) instead of streaming over HTTP in add-on
+# mode. No docker host, so no services registry.
+nfs_client: true
+nfs_server: false

@@ -1,0 +1,7 @@
+---
+# Must match the versions docker_host/tasks/config/nfs_client.yml compiles on
+# the other NFS clients: the rar2fs overlay has to behave identically on the
+# Jellyfin host (proxmox2) and on this player, or Kodi's library paths diverge
+# from the paths the server reports.
+rar2fs_unrar_version: 6.2.6
+rar2fs_version: 1.29.6
