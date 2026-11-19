@@ -2,7 +2,7 @@
 # Renovate keeps these bumped; loosened lower bounds avoid pinning to a yanked release.
 # Capped below 2.22 for the same reason as requirements-lint.txt:
 # prometheus.prometheus 0.30.x does not support ansible-core 2.22 yet.
-ansible-core>=2.17,<2.22
+ansible-core>=2.22,<2.23
 molecule>=25.6
 molecule-plugins[vagrant]>=23.7
 #dummy
