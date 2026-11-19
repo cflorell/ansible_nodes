@@ -3,11 +3,17 @@
   "extends": ["config:recommended"],
   "packageRules": [
     {
-      "description": "Stay on Python <=3.14 for CI images: prometheus.prometheus 0.30.x caps ansible-core at 2.21.x, which does not support 3.15. Includes minor bumps because 3.14 -> 3.15 is a minor update. Revisit once the collection supports ansible-core 2.22+.",
+      "description": "Stay on Python <=3.14 for CI images while prometheus.prometheus is pinned to its pre-0.31.0 commit (see requirements.yml). Includes minor bumps because 3.14 -> 3.15 is a minor update. Revisit once the collection is installed from Galaxy 0.31.0+.",
       "matchDatasources": ["docker"],
       "matchPackageNames": ["python"],
       "matchUpdateTypes": ["major", "minor"],
       "enabled": false
+    },
+    {
+      "description": "Block ansible-core 2.23+: the pinned prometheus.prometheus commit declares requires_ansible <=2.22.99, and 2.23 disables the embedded templates that 0.30.x still uses. Revisit once the collection is installed from Galaxy 0.31.0+.",
+      "matchDatasources": ["pypi"],
+      "matchPackageNames": ["ansible-core"],
+      "allowedVersions": "<2.23"
     }
   ],
   "docker-compose": {
