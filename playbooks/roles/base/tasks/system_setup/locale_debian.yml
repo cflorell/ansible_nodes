@@ -30,6 +30,15 @@
   community.general.locale_gen:
     name: '{{ config_system_locale }}'
     state: present
+  # config_system_locale (en_SE.UTF-8) is a custom locale installed by the tasks
+  # above and is not listed in /usr/share/i18n/SUPPORTED. locale_gen accepts
+  # that only once `locale -a` shows the compiled locale, but --check skips the
+  # localedef task, so on a host the locale has not been generated on yet the
+  # module's availability assertion fails. Run it outside check mode, or once
+  # the locale actually exists on the host.
+  when: >-
+    not ansible_check_mode
+    or config_system_locale | lower | replace('-', '') in (locale_available.stdout | lower | replace('-', ''))
 
 - name: system setup | locale | Ensure localisation files for '{{ config_system_language }}' are available
   community.general.locale_gen:
