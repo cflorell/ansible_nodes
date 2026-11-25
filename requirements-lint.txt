@@ -5,4 +5,4 @@
 # requirements-test.txt and raise the cap once the collection is installed from
 # Galaxy 0.31.0+.
 ansible-core<2.23
-ansible-lint==26.11.0
+ansible-lint==26.11.1
