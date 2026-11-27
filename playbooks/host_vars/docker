@@ -23,6 +23,9 @@ homelable_api_url: "http://127.0.0.1:{{ homelable_web_port }}/api/v1"
 #   host                  subdomain under porkbun_domain; also the matcher name
 #   upstream              where Caddy forwards, usually a caddy_upstream_* var
 #   insecure_skip_verify  set true when the upstream serves a self-signed cert
+#   set_cookie_max_age    rewrite the upstream's Set-Cookie Max-Age attribute
+#                         to this many seconds (2592000 = 30 days). No effect
+#                         on cookies sent without a Max-Age.
 #   rate_limit            throttle matching paths per client address:
 #                         paths (list of Caddy path matchers), events (max per
 #                         window) and window (duration). Scope it to endpoints
@@ -56,6 +59,9 @@ caddy_reverse_proxies:
       window: 1m
   - host: "immich"
     upstream: "{{ caddy_upstream_immich }}"
+    # Immich's session cookie expires after 1 day (86400s); 30 days keeps the
+    # web login alive for a month.
+    set_cookie_max_age: 2592000
   - host: "jellyfin"
     upstream: "{{ caddy_upstream_jellyfin }}"
     rate_limit:

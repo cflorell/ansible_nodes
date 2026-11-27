@@ -42,11 +42,18 @@
         }
 
 {% endif %}
-{% if site.insecure_skip_verify | default(false) %}
+{% if site.insecure_skip_verify | default(false) or site.set_cookie_max_age is defined %}
         reverse_proxy {{ site.upstream }} {
+{% if site.insecure_skip_verify | default(false) %}
             transport http {
                 tls_insecure_skip_verify
             }
+{% endif %}
+{% if site.set_cookie_max_age is defined %}
+            # Rewrites the upstream session cookie's Max-Age so the browser
+            # keeps the login for this long instead of the upstream default.
+            header_down Set-Cookie "Max-Age=[0-9]+" "Max-Age={{ site.set_cookie_max_age }}"
+{% endif %}
         }
 {% else %}
         reverse_proxy {{ site.upstream }}
